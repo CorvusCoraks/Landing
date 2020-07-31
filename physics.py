@@ -1,5 +1,6 @@
 from torch import Tensor
 import torch
+
 # модуль расчёта движения ступени согласно физическим законам
 # Физическая модель ступени представляет из себя три жёстко связанные точки
 # массой m1 (центр дна ракеты), m2 (средняя точка, центр масс), m3 (верх ступени)
@@ -9,15 +10,16 @@ import torch
 # положение центра масс ступени и направляющий вектор передаются в модуль визуализации
 # На остновании этих данных происходит отрисовка ступени на новом положении.
 
-def isLandingFinished():
-    """
-    Полёт завершён (посадка или взрыв - не известно)
+# def isLandingFinished():
+#     """
+#     Полёт завершён (посадка или взрыв - не известно)
+#
+#     :return:
+#     """
+#     # Координата центра тяжести
+#     return False
 
-    :return:
-    """
-    return False
-
-def ganerateState():
+def generateState():
     pass
 
 
@@ -26,7 +28,7 @@ class Vector():
     Координаты точки.
 
     """
-    def __init__(self, x=0, y=0, origin=None):
+    def __init__(self, x=0., y=0., origin=None):
         # Координаты точки относительно начала координат
         self.__decart = torch.tensor([[x, y]])
         # Начало координат, относительно которого и заданы координаты данной точки.
@@ -102,7 +104,8 @@ class Rocket():
         self.__massTop = 0.
         # Ордината точки массы относительно центра масс
         self.__massTopCoord: Vector
-        self.__massTopCoord[0][1] = (2 / 3) * self.__l
+        self.__massTopCoord = Vector(0, (2 / 3) * self.__l)
+        # self.__massTopCoord[0][1] = (2 / 3) * self.__l
         # self.__massTopY = (2 / 3) * self.__l
         # масса в центре масс
         self.__massCenter = 0.
@@ -117,7 +120,8 @@ class Rocket():
         self.__pulseSteeringEngine = 0.
         # Импульст маршевого двигателя
         self.__pulsetumMainEngine = 0.
-    def ganerateState():
+
+    def ganerateState(self):
         pass
 
 

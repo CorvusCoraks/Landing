@@ -13,15 +13,15 @@ class Window():
     """
     Класс окна вывода изображения процесса и числовых характеристик
     """
-    def __init__(self, function, anyQueue: Queue):
+    def __init__(self, frameRate: int, anyQueue: Queue):
         """
 
         :param function: callback
         :param anyQueue: очередь для передачи данных одного фрейма движения ступени
         """
-        self.__getDataFunction = function
+        # self.__getDataFunction = function
         self.__anyQueue = anyQueue
-        self.__frameRate = 1000 # частота кадров
+        self.__frameRate = frameRate # частота кадров
         size = 600
         self.__root = Tk()
         self.__canvas = Canvas(self.__root, width=size, height=size)

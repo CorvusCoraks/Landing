@@ -1,5 +1,6 @@
-from physics import isLandingFinished, Rocket, Vector
+from physics import Rocket, Vector
 import tools
+from point import Point
 
 
 #  Входная функция для вызова через ноутбук
@@ -19,7 +20,7 @@ def start_nb(savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPoi
 
         # Цикл последовательных переходов из одного состояния ОС в друго
         # один проход - один переход
-        while isLandingFinished() == False:
+        while rf.isLandingFinished(Point(10, 10), 4.) == False:
             pass
             # получить предыщущее (начальное) состояние
 
@@ -34,7 +35,7 @@ def start_nb(savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPoi
 
             # Целевое значение функции ценности
             targetQtp1 = 0
-            if isLandingFinished():
+            if rf.isLandingFinished(Point(10, 10), 4.):
                 # На последнем переходе функция ценности стремится к единице (при успешная посадка)
                 targetQtp1 = rf.getReinforcement()
 
@@ -49,4 +50,4 @@ def start_nb(savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPoi
             #     Сохранение состяния нейросетей
 
 # вызов при локальном обучении
-start_nb()
+# start_nb()
