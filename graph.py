@@ -86,22 +86,61 @@ class FirstStage():
     # Ступень представляет из себя связанный набор стандартных примитивов (в основном многоугольники)
     def __init__(self, canvas: Canvas):
         self.__canvas = canvas
-        # Так как при создании ступень стоит вертикально, данный вектор направлен по оси Y
+        # Так как при создании ступень стоит вертикально, данный вектор (вектор продольной оси) направлен по оси Y
         # в системе отсчёта канвы
         self.__directionVector = Point(0., 1.)
         # координаты центра масс (центр вращения) в системе отсчёта канвы.
-        self.__massCenter = Point(55, 20)
-        # корпус ступени
-        self.__tank = PoligonRectangle(self.__canvas).create2points(Point(50, 0), Point(60, 30), self.__massCenter)
+        # self.__massCenter = Point(55, 20)
+        self.__massCenter = Point(5, 20)
+
+        # все примитивы, составляющие объект
+        self.__allPrimitives = []
+
+        # корпус ступени (прямоугольник размера 10х30)
+        self.__tank = PoligonRectangle(self.__canvas).create2points(Point(0, 0), Point(10, 30), self.__massCenter)
+        # self.__tank = PoligonRectangle(self.__canvas).create2points(Point(50, 0), Point(60, 30), self.__massCenter)
+        self.__allPrimitives.append(self.__tank)
+
         # верхний левый маневровый двигатель
-        self.__topLeftJet = PoligonRectangle(self.__canvas).create2points(Point(40, 0), Point(50, 5), self.__massCenter)
+        # создание в нулевой позиции
+        self.__topLeftJet = PoligonRectangle(self.__canvas).create2points(Point(0, 0), Point(10, 5), self.__massCenter)
+        # смещение примитива в нужную позицию
+        self.__topLeftJet.virtualMove(Point(-10, 0))
+        # self.__topLeftJet = PoligonRectangle(self.__canvas).create2points(Point(40, 0), Point(50, 5), self.__massCenter)
+        self.__allPrimitives.append(self.__topLeftJet)
+
+        # верхний правый маневровый двигатель
+        # создание в нулевой позиции
+        self.__topRightJet = PoligonRectangle(self.__canvas).create2points(Point(0, 0), Point(10, 5), self.__massCenter)
+        # смещение примитива в нужную позицию
+        self.__topRightJet.virtualMove(Point(10, 0))
+        self.__allPrimitives.append(self.__topRightJet)
+
+        # нижний левый маневровый двигатель
+        # создание в нулевой позиции
+        self.__downLeftJet = PoligonRectangle(self.__canvas).create2points(Point(0, 0), Point(10, 5), self.__massCenter)
+        # смещение примитива в нужную позицию
+        self.__downLeftJet.virtualMove(Point(-10, 25))
+        self.__allPrimitives.append(self.__downLeftJet)
+
+        # нижний правый маневровый двигатель
+        # создание в нулевой позиции
+        self.__downRightJet = PoligonRectangle(self.__canvas).create2points(Point(0, 0), Point(10, 5), self.__massCenter)
+        # смещение примитива в нужную позицию
+        self.__downRightJet.virtualMove(Point(10, 25))
+        self.__allPrimitives.append(self.__downRightJet)
 
     def draw(self):
         """
         Рисовать (создать) ступерь на канве. Создаётся единственно только при ПЕРВОМ вызове.
         """
-        self.__tank.draw()
-        self.__topLeftJet.draw()
+        # self.__tank.draw()
+        # self.__topLeftJet.draw()
+        # self.__topRightJet.draw()
+        # self.__downLeftJet.draw()
+        # self.__downRightJet.draw()
+        for primitive in self.__allPrimitives:
+            primitive.draw()
 
     def move(self, newMassCenter: Point):
         """
@@ -112,8 +151,13 @@ class FirstStage():
         moveVector = Point()
         moveVector.cardanus = newMassCenter.cardanus - self.__massCenter.cardanus
 
-        self.__tank.move(moveVector)
-        self.__topLeftJet.move(moveVector)
+        # self.__tank.move(moveVector)
+        # self.__topLeftJet.move(moveVector)
+        # self.__topRightJet.move(moveVector)
+        # self.__downLeftJet.move(moveVector)
+        # self.__downRightJet.move(moveVector)
+        for primitive in self.__allPrimitives:
+            primitive.move(moveVector)
 
         self.__massCenter = newMassCenter
 
@@ -123,8 +167,13 @@ class FirstStage():
 
         :param newVector:
         """
-        self.__tank.rotate(newVector, self.__directionVector)
-        self.__topLeftJet.rotate(newVector, self.__directionVector)
+        # self.__tank.rotate(newVector, self.__directionVector)
+        # self.__topLeftJet.rotate(newVector, self.__directionVector)
+        # self.__topRightJet.rotate(newVector, self.__directionVector)
+        # self.__downLeftJet.rotate(newVector, self.__directionVector)
+        # self.__downRightJet.rotate(newVector, self.__directionVector)
+        for primitive in self.__allPrimitives:
+            primitive.rotate(newVector, self.__directionVector)
 
         # Обновляем значение
         self.__directionVector = newVector
@@ -183,6 +232,20 @@ class PoligonRectangle():
             self.__canvas.move(self.__objOnCanvasId, vector2d.x, vector2d.y)
             # пересчитываем положение центра вращения
             self.__center = Point(self.__center.cardanus + vector2d.cardanus)
+
+    def virtualMove(self, vector2d: Point, centerMassMove=False):
+        """
+        Метод предварительного смещения объекта в координатной системе канвы (без реального объекта на канве)
+
+        :param vector2d: вектор смещения
+        :param centerMassMove: сдвигать центр масс объекта вместе с остальными точками
+        """
+
+        for _, point in enumerate(self.__points):
+            point.cardanus = point.cardanus + vector2d.cardanus
+
+        if centerMassMove:
+            self.__center = self.__center.cardanus + vector2d.cardanus
 
     def rotate(self, newAxisVector: Point, oldAxisVector: Point):
         """

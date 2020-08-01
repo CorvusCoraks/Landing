@@ -4,7 +4,7 @@ from point import Point
 
 
 #  Входная функция для вызова через ноутбук
-def start_nb(savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
     rf = tools.Reinforcement()
     rocket = Rocket()
     # Загрузка сохранённой НС или сосздание новой
@@ -20,7 +20,7 @@ def start_nb(savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPoi
 
         # Цикл последовательных переходов из одного состояния ОС в друго
         # один проход - один переход
-        while rf.isLandingFinished(Point(10, 10), 4.) == False:
+        while not rf.isLandingFinished(Point(10, 10), 4.):
             pass
             # получить предыщущее (начальное) состояние
 
