@@ -152,3 +152,20 @@ def complexChangeSystemCoordinatesUniversal(vectorInOldCoordinates: VectorComple
     newShiftVector = complexMove(originMoveVector, vectorInOldCoordinates)
 
     return VectorComplex.getInstanceC(newShiftVector.cardanus / rect(1., angleRadians))
+
+
+def pointsListToNewCoordinateSystem(pointsListInOldSystem: list, newSystemOrigin: VectorComplex, angleRadians=0., isDiffType=False):
+    """
+    Перевод списка точек (векторов) из одной системы координат в другую.
+
+    :param pointsListInOldSystem: координаты точек в старой системе координат. Список вида [VectorComplex, VectorComplex]
+    :param newSystemOrigin: координаты типа VectorComplex начала новой системы координат в старой
+    :param angleRadians: угол, на который повёрнута новая система координат относительно старой, >0 против часовой
+    :param isDiffType: если из левой в левую или из правой в правую = False. Иначе = True
+    :return:
+    :rtype list:
+    """
+    result = []
+    for _, vector in enumerate(pointsListInOldSystem):
+        result.append(complexChangeSystemCoordinatesUniversal(vector, newSystemOrigin, angleRadians, isDiffType))
+    return result

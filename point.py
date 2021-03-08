@@ -1,91 +1,90 @@
 """ Модуль класса Точка: объект имеющий две координаты """
 from torch import tensor as tnsr
 
-
-class Point():
-    """
-    Точка на координатной плоскости. Основная цель класса: оперирование кординатами точки как в виде декартовых,
-    так в виде комплексного числа (организация расчёта поворота) Устаревшее
-    """
-    def __init__(self, x=0, y=0):
-        self.__x = x
-        self.__y = y
-
-    @property
-    def decart(self):
-        """
-        :return: декартовы координаты точки
-        """
-        return self.__x, self.__y
-
-    @decart.setter
-    def decart(self, coord: list):
-        # if len(coord) != 2:
-        #     raise Exception("List length mismatch")
-
-        self.__x = coord[0]
-        self.__y = coord[1]
-
-    @property
-    def cardanus(self):
-        """
-        :return: координаты точки в виде комплексного числа
-        """
-        return complex(self.__x, self.__y)
-
-    @cardanus.setter
-    def cardanus(self, cmx: complex):
-        """
-        Установить координаты точки
-
-        :param cmx: координаты в виде комплексного числа
-        """
-        self.__x = cmx.real
-        self.__y = cmx.imag
-
-    @property
-    def x(self):
-        return self.__x
-
-    @x.setter
-    def x(self, x: float):
-        self.__x = x
-
-    @property
-    def y(self):
-        return self.__y
-
-    @y.setter
-    def y(self, y: float):
-        self.__y = y
-
-
-class Vector(Point):
-    """ Вектор. Основная цель - тензорное представление векторов (? какой смысл. зачем). Устаревшее. """
-    def __init__(self, tensor_view: tnsr):
-        super(Vector, self).__init__()
-        # тензорное представление, для сохранения СВОЙСТВ тензора.
-        # на актуальность данных в tensor.Storage полагаться нельзя
-        self.__tensor = tensor_view
-        # отдельно сохраняем данные тензора в родительском классе, ибо только они будут актуальными
-        self.__setPoint()
-
-    @property
-    def tensor(self):
-        """ Тензорный вид вектора """
-        self.__tensor[0][0] = self.__x
-        self.__tensor[0][1] = self.__y
-        return self.__tensor
-
-    @tensor.setter
-    def tensor(self, tnsr: tensor):
-        self.__tensor = tnsr
-        self.__setPoint()
-
-    def __setPoint(self):
-        """ Cохраняем представление вектора как точки (родительский класс) """
-        self.__x = self.__tensor[0][0].item()
-        self.__y = self.__tensor[0][1].item()
+# class Point():
+#     """
+#     Точка на координатной плоскости. Основная цель класса: оперирование кординатами точки как в виде декартовых,
+#     так в виде комплексного числа (организация расчёта поворота) Устаревшее
+#     """
+#     def __init__(self, x=0, y=0):
+#         self.__x = x
+#         self.__y = y
+#
+#     @property
+#     def decart(self):
+#         """
+#         :return: декартовы координаты точки
+#         """
+#         return self.__x, self.__y
+#
+#     @decart.setter
+#     def decart(self, coord: list):
+#         # if len(coord) != 2:
+#         #     raise Exception("List length mismatch")
+#
+#         self.__x = coord[0]
+#         self.__y = coord[1]
+#
+#     @property
+#     def cardanus(self):
+#         """
+#         :return: координаты точки в виде комплексного числа
+#         """
+#         return complex(self.__x, self.__y)
+#
+#     @cardanus.setter
+#     def cardanus(self, cmx: complex):
+#         """
+#         Установить координаты точки
+#
+#         :param cmx: координаты в виде комплексного числа
+#         """
+#         self.__x = cmx.real
+#         self.__y = cmx.imag
+#
+#     @property
+#     def x(self):
+#         return self.__x
+#
+#     @x.setter
+#     def x(self, x: float):
+#         self.__x = x
+#
+#     @property
+#     def y(self):
+#         return self.__y
+#
+#     @y.setter
+#     def y(self, y: float):
+#         self.__y = y
+#
+#
+# class Vector(Point):
+#     """ Вектор. Основная цель - тензорное представление векторов (? какой смысл. зачем). Устаревшее. """
+#     def __init__(self, tensor_view: tnsr):
+#         super(Vector, self).__init__()
+#         # тензорное представление, для сохранения СВОЙСТВ тензора.
+#         # на актуальность данных в tensor.Storage полагаться нельзя
+#         self.__tensor = tensor_view
+#         # отдельно сохраняем данные тензора в родительском классе, ибо только они будут актуальными
+#         self.__setPoint()
+#
+#     @property
+#     def tensor(self):
+#         """ Тензорный вид вектора """
+#         self.__tensor[0][0] = self.__x
+#         self.__tensor[0][1] = self.__y
+#         return self.__tensor
+#
+#     @tensor.setter
+#     def tensor(self, tnsr: tensor):
+#         self.__tensor = tnsr
+#         self.__setPoint()
+#
+#     def __setPoint(self):
+#         """ Cохраняем представление вектора как точки (родительский класс) """
+#         self.__x = self.__tensor[0][0].item()
+#         self.__y = self.__tensor[0][1].item()
 
 
 class VectorComplex():
@@ -107,13 +106,15 @@ class VectorComplex():
         self.__origin: VectorComplex = origin
         # Если это поле равно None, то этот вектор находится в рамках самой глобальной системы координат.
 
-    def getInstance(x=0., y=0., origin=None):
+    @classmethod
+    def getInstance(cls, x=0., y=0., origin=None):
         """ Создать экземпляр класса. """
         result = VectorComplex(tnsr([[x, y]], dtype=float))
         result.__origin = origin
         return result
 
-    def getInstanceC(complexNumber: complex, origin=None):
+    @classmethod
+    def getInstanceC(cls, complexNumber: complex, origin=None):
         """ Создать экземпляр класса на основе комплексного числа. """
         result = VectorComplex(tnsr([[complexNumber.real, complexNumber.imag]], dtype=float))
         result.__origin = origin
@@ -224,7 +225,7 @@ class Transform():
     Изменение положения объекта (точки).
     """
     # Класс данных для передачи информации через очередь в окно отрисовки ситуации
-    def __init__(self, vector2d: Point, orientation2d: Point, text: str):
+    def __init__(self, vector2d: VectorComplex, orientation2d: VectorComplex, text: str):
         """
 
         :param vector2d: вектор перемещения объекта в системе координат канвы

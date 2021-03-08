@@ -1,4 +1,4 @@
-from point import Point
+from point import VectorComplex
 from math import fabs
 from physics import BigMap
 # Разные утилиты
@@ -16,7 +16,7 @@ class Reinforcement():
         pass
 
     # метод удалить на фиг. Использовать метод из класса Finish
-    def isLandingFinished(self, coord: Point, yMassCenter: float):
+    def isLandingFinished(self, coord: VectorComplex, yMassCenter: float):
         """
         Считается, что процесс посадки (испытание) завершён. Результат  процесса - неизвестен
 
@@ -33,7 +33,7 @@ class Reinforcement():
             result = False
         return result
 
-    def getReinforcement(self, coord: Point, yMassCenter: float):
+    def getReinforcement(self, coord: VectorComplex, yMassCenter: float):
         if self.isLandingFinished(coord, yMassCenter):
             # Проверка на высоту
             # Проверка на точность попадания в круг
@@ -67,7 +67,7 @@ class Finish():
         self.__yEpsilon = 0.01
         self.__legRelativeY = legRelativeY
 
-    def isOneTestFinished(self, coord: Point):
+    def isOneTestFinished(self, coord: VectorComplex):
         """ Проверка на неблагополучное завершение очередной тренировки
 
         :param coord: центр масс ракеты

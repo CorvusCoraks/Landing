@@ -1,7 +1,7 @@
 """ Тренировка нейросети """
 from physics import Rocket
 import tools
-from point import Point
+from point import VectorComplex
 
 
 def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
@@ -29,7 +29,7 @@ def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', cri
         # один проход - один переход
         # while not rf.isLandingFinished(Point(10, 10), 4.):
         # while (not finish.isOneTestFinished(Point(10, 10))) or (not rf.isLandingFinished(Point(10, 10), 4.)):
-        while not finish.isOneTestFinished(Point(10, 10)):
+        while not finish.isOneTestFinished(VectorComplex.getInstance(10, 10)):
             pass
             # получить предыщущее (начальное) состояние
 
@@ -44,9 +44,9 @@ def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', cri
 
             # Целевое значение функции ценности
             targetQtp1 = 0
-            if rf.isLandingFinished(Point(10, 10), 4.):
+            if rf.isLandingFinished(VectorComplex.getInstance(10, 10), 4.):
                 # На последнем переходе функция ценности стремится к единице (при успешная посадка)
-                targetQtp1 = rf.getReinforcement(Point(10, 10), 4.)
+                targetQtp1 = rf.getReinforcement(VectorComplex.getInstance(10, 10), 4.)
 
             # обратный проход последовательно по критику, а затем по актору
             # Функция потерь считается для варианта выбора максимального значения функции ценности

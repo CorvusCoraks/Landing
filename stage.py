@@ -14,8 +14,8 @@ class Sizes():
     heightCenterBlock = 30
     widthCenterBlock = 10
     # высота и ширина маневрового двигателя
-    heightJet = 0.5
-    widthJet = 1
+    heightJet = 2
+    widthJet = 5
 
 
 class Stage():

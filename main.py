@@ -4,16 +4,11 @@
 from graph import FirstStage, Window, PoligonWindow
 from queue import Queue
 from threading import Thread
-from point import Point, Transform
+from point import Transform, VectorComplex
 import cmath
 from physics import BigMap
 import decart
 from training import start_nb
-
-# Длина ступени, метров
-stageLength = 30
-# Ширина ступени, метров
-stageWidth = 10
 
 # Частота кадров
 frameRate = 1000
@@ -45,9 +40,11 @@ def thread_func(queue: Queue):
     #
     # Блок имитационных данных для отображения
     # начальная ориентация объекта в системе координат канвы
-    orientation = Point(0., 1.)
+    # orientation = Point(0., 1.)
+    orientation = VectorComplex.getInstance(0., 1.)
     for i in range(10):
-        new_orientation = Point()
+        # new_orientation = Point()
+        new_orientation = VectorComplex.getInstance()
         # АХТУНГ!
         # В левой системе координат (система координат канвы) положительный угол поворота - по часовой стрелке!
         # Т. е., положительный угол поворота,
@@ -57,7 +54,8 @@ def thread_func(queue: Queue):
         new_orientation.cardanus = orientation.cardanus * cmath.rect(1., (cmath.pi / 36))
         # отправляем новое абсолютное положение в системе координат канвы и абсолютный угол (относительно положительной
         # полуоси абцисс) ориентации объекта в очередь
-        queue.put(Transform(Point(55, 20 + i * 10), new_orientation, "Команда №{}".format(i)))
+        # queue.put(Transform(Point(55, 20 + i * 10), new_orientation, "Команда №{}".format(i)))
+        queue.put(Transform(VectorComplex.getInstance(55, 20 + i * 10), new_orientation, "Команда №{}".format(i)))
         # запоминаем ориентацию, для использования в следующей итерации
         orientation = new_orientation
 

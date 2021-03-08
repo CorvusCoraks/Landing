@@ -1,9 +1,9 @@
 """ Модуль визуализации происходящего с испытуемым объектом. """
 from tkinter import Tk, Canvas, colorchooser, Toplevel
 from queue import Queue
-from point import Point, VectorComplex
+from point import VectorComplex
 from stage import Stage, Sizes
-from decart import fromOldToNewCoordSystem
+from decart import fromOldToNewCoordSystem, pointsListToNewCoordinateSystem
 from torch import tensor
 from cmath import polar
 from itertools import chain
@@ -458,7 +458,7 @@ class PoligonRectangle2():
         # Идентификатор объекта на канве
         self.__objOnCanvasId = None
         # Точка, во круг которой осуществляется поворот многоугольника
-        self.__center = VectorComplex()
+        self.__center = VectorComplex.getInstance()
         # вектор ориентации примитива. Изначально направлен по оси Y канвы
         # self.__directionVector = Point(0., 1.)
 
@@ -476,24 +476,23 @@ class PoligonRectangle2():
         self.__center = center
         return self
 
-    # todo метод не используется. Убрать?
-    def create(self, points: list, center: Point):
-        """
-        Создание многоугольника из списка точек. Прямые углы прямоугольника на совести создателя.
+    # # todo метод не используется. Убрать?
+    # def create(self, points: list, center: Point):
+    #     """
+    #     Создание многоугольника из списка точек. Прямые углы прямоугольника на совести создателя.
+    #
+    #     :param points: list of points Point-type
+    #     :return:
+    #     """
+    #     for value in enumerate(points):
+    #         if value is not Point:
+    #             raise TypeError("Expected point.Point type, but {} founded".format(type(value)))
+    #
+    #     self.__points = [p for p in points]
+    #     self.__center = center
+    #     return self
 
-        :param points: list of points Point-type
-        :return:
-        """
-        for value in enumerate(points):
-            if value is not Point:
-                raise TypeError("Expected point.Point type, but {} founded".format(type(value)))
-
-        self.__points = [p for p in points]
-        self.__center = center
-        return self
-
-    # todo метод не используется. Убрать?
-    def move(self, vector2d: Point):
+    def move(self, vector2d: VectorComplex):
         """
         Двигать примитив.
 
@@ -503,7 +502,8 @@ class PoligonRectangle2():
             # перемещаем по канве
             self.__canvas.move(self.__objOnCanvasId, vector2d.x, vector2d.y)
             # пересчитываем положение центра вращения
-            self.__center = Point(self.__center.cardanus + vector2d.cardanus)
+            # self.__center = Point(self.__center.cardanus + vector2d.cardanus)
+            self.__center = VectorComplex.getInstanceC(self.__center.cardanus + vector2d.cardanus)
 
     def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
         """
@@ -528,34 +528,41 @@ class PoligonRectangle2():
         """
         Поворот примитива.
 
+        :param newAxisVector: новый вектор оси ступени
+        :param oldAxisVector: старый вектор оси ступени
         """
         # получить координаты точек объекта в системе координат канвы
         current = self.__canvas.coords(self.__objOnCanvasId)
         points = []
-        # Преобразовать координаты точек в объекты типа VectorComplex
+        # Преобразовать координаты точек в объекты типа VectorComplex в СК канвы
         # for i in range(len(self.__points)):
         #     points.append(Point(current[i * 2], current[i * 2 + 1]))
         for i in range(len(self.__points)):
             points.append(VectorComplex.getInstance(current[i * 2], current[i * 2 + 1]))
         # Пересчитать координаты точек объектов из системы канвы в систему центра тяжести
+        # (координатные оси сонаправлены)
         # points = toNewOrigin(points, self.__center)
-        points = fromOldToNewCoordSystem(points, VectorComplex(tensor([- self.__center.x, - self.__center.y])), 0.)
+        # points = fromOldToNewCoordSystem(points, VectorComplex(tensor([- self.__center.x, - self.__center.y])), 0.)
+        points = pointsListToNewCoordinateSystem(points, self.__center)
         # Расчитать новые точки через поворот вокруг центра тяжести
         # Угол поворота из старого положения
-        alpha_complex = Point()
-        alpha_complex.cardanus = newAxisVector.cardanus / oldAxisVector.cardanus
+        # alpha_complex = Point()
+        # alpha_complex.cardanus = newAxisVector.cardanus / oldAxisVector.cardanus
+        alpha_complex = VectorComplex.getInstanceC(newAxisVector.cardanus / oldAxisVector.cardanus)
         # __, phi = polar(alpha_complex.cardanus)
         # print("Угол поворота: {}, {}".format(phi, alpha_complex.cardanus))
         # новые координаты точек объекта в системе координат относительно точки поворота
         new_points = []
         for value in points:
             # point = value.cardanus * alpha_complex
-            newPoint = Point()
-            newPoint.cardanus = value.cardanus * alpha_complex.cardanus
+            # newPoint = Point()
+            # newPoint.cardanus = value.cardanus * alpha_complex.cardanus
+            newPoint = VectorComplex.getInstanceC(value.cardanus * alpha_complex.cardanus)
             new_points.append(newPoint)
         # points = [value.cardanus * alpha_complex for value in points]
-        # Новые точки пересчитать в систему координат канвы
-        new_points = toNewOrigin(new_points, Point(-self.__center.x, -self.__center.y))
+        # Новые точки пересчитать обратно в систему координат канвы
+        # new_points = toNewOrigin(new_points, Point(-self.__center.x, -self.__center.y))
+        new_points = pointsListToNewCoordinateSystem(new_points, VectorComplex.getInstance(- self.__center.x, - self.__center.y))
         # Обновить координаты точек в объекте (будет произведена автоматическое визуальное изменение)
         canvas_points = []
         for value in new_points:
@@ -581,144 +588,144 @@ class PoligonRectangle2():
             # print(self.__canvas.coords(self.__objOnCanvasId))
 
 
-class PoligonRectangle():
-    def __init__(self, canvas: Canvas):
-        """
-        :param canvas: канва, на которой будет выводится данный многоугольник
-        """
-        self.__canvas = canvas
-        # Список точек многоугольника типа Point
-        self.__points = []
-        # Идентификатор объекта на канве
-        self.__objOnCanvasId = None
-        # Точка, во круг которой осуществляется поворот многоугольника
-        self.__center = Point()
-        # вектор ориентации примитива. Изначально направлен по оси Y канвы
-        # self.__directionVector = Point(0., 1.)
+# class PoligonRectangle():
+#     def __init__(self, canvas: Canvas):
+#         """
+#         :param canvas: канва, на которой будет выводится данный многоугольник
+#         """
+#         self.__canvas = canvas
+#         # Список точек многоугольника типа Point
+#         self.__points = []
+#         # Идентификатор объекта на канве
+#         self.__objOnCanvasId = None
+#         # Точка, во круг которой осуществляется поворот многоугольника
+#         self.__center = Point()
+#         # вектор ориентации примитива. Изначально направлен по оси Y канвы
+#         # self.__directionVector = Point(0., 1.)
+#
+#     def create2points(self, topleft: Point, downright: Point, center: Point):
+#         """
+#         Создание прямоугольника по двум точкам
+#
+#         :param topleft:
+#         :param downright:
+#         :return:
+#         """
+#         self.__points = [topleft, Point(downright.x, topleft.y), downright, Point(topleft.x, downright.y)]
+#         self.__center = center
+#         return self
+#
+#     def create(self, points: list, center: Point):
+#         """
+#         Создание многоугольника из списка точек. Прямые углы прямоугольника на совести создателя.
+#
+#         :param points: list of points Point-type
+#         :return:
+#         """
+#         for value in enumerate(points):
+#             if value is not Point:
+#                 raise TypeError("Expected point.Point type, but {} founded".format(type(value)))
+#
+#         self.__points = [p for p in points]
+#         self.__center = center
+#         return self
+#
+#     def move(self, vector2d: Point):
+#         """
+#         Двигать примитив.
+#
+#         :param vector2d: вектор, в направлении и на величину которого двигать примитив.
+#         """
+#         if self.__objOnCanvasId is not None:
+#             # перемещаем по канве
+#             self.__canvas.move(self.__objOnCanvasId, vector2d.x, vector2d.y)
+#             # пересчитываем положение центра вращения
+#             self.__center = Point(self.__center.cardanus + vector2d.cardanus)
+#
+#     def virtualMove(self, vector2d: Point, centerMassMove=False):
+#         """
+#         Метод предварительного смещения объекта в координатной системе канвы (без реального объекта на канве)
+#
+#         :param vector2d: вектор смещения
+#         :param centerMassMove: сдвигать центр масс объекта вместе с остальными точками
+#         """
+#
+#         for _, point in enumerate(self.__points):
+#             point.cardanus = point.cardanus + vector2d.cardanus
+#
+#         if centerMassMove:
+#             self.__center = self.__center.cardanus + vector2d.cardanus
+#
+#     def rotate(self, newAxisVector: Point, oldAxisVector: Point):
+#         """
+#         Поворот примитива.
+#
+#         :param angle: угол поворота от ПРЕДЫДУЩЕГО положения объекта на канве (т. е. дельта, изменение угла)
+#         """
+#         # получить координаты точек объекта в системе координат канвы
+#         current = self.__canvas.coords(self.__objOnCanvasId)
+#         points = []
+#         # Преобразовать координаты точек в объекты типа Point
+#         for i in range(len(self.__points)):
+#             points.append(Point(current[i * 2], current[i * 2 + 1]))
+#         # Пересчитать координаты точек объектов из системы канвы в систему центра тяжести
+#         points = toNewOrigin(points, self.__center)
+#         # Расчитать новые точки через поворот вокруг центра тяжести
+#         # Угол поворота из страрого положения
+#         alpha_complex = Point()
+#         alpha_complex.cardanus = newAxisVector.cardanus / oldAxisVector.cardanus
+#         # __, phi = polar(alpha_complex.cardanus)
+#         # print("Угол поворота: {}, {}".format(phi, alpha_complex.cardanus))
+#         # новые координаты точек объекта в системе координат относительно точки поворота
+#         new_points = []
+#         for value in points:
+#             # point = value.cardanus * alpha_complex
+#             newPoint = Point()
+#             newPoint.cardanus = value.cardanus * alpha_complex.cardanus
+#             new_points.append(newPoint)
+#         # points = [value.cardanus * alpha_complex for value in points]
+#         # Новые точки пересчитать в систему координат канвы
+#         new_points = toNewOrigin(new_points, Point(-self.__center.x, -self.__center.y))
+#         # Обновить координаты точек в объекте (будет произведена автоматическое визуальное изменение)
+#         canvas_points = []
+#         for value in new_points:
+#             canvas_points.append(value.x)
+#             canvas_points.append(value.y)
+#         self.__canvas.coords(self.__objOnCanvasId, canvas_points)
+#
+#     def draw(self):
+#         """
+#         Рисовать примитив (если он не существует) на канве
+#         """
+#         if self.__objOnCanvasId is None:
+#             # Если примитив ещё нет на канве (то есть, он ещё ни разу не отрисовывался,
+#             # то можно его создавать и рисовать)
+#             # self.__points[0].decart
+#             # plain лист ключевых точек примитива (функция канвы только в таком виде воспринимает)
+#             coord_list = [value.decart for value in self.__points]
+#             # рисуем примитив на канве
+#             # так как примитив, фактически, создаётся на канве, то для конкретного примитива эта функция применяется
+#             # только один раз. Дальнейшие действия с примитивом делаются через его идентификатор,
+#             # который возвращает этот метод.
+#             self.__objOnCanvasId = self.__canvas.create_polygon(coord_list, fill="", outline="black")
+#             # print(self.__canvas.coords(self.__objOnCanvasId))
 
-    def create2points(self, topleft: Point, downright: Point, center: Point):
-        """
-        Создание прямоугольника по двум точкам
 
-        :param topleft:
-        :param downright:
-        :return:
-        """
-        self.__points = [topleft, Point(downright.x, topleft.y), downright, Point(topleft.x, downright.y)]
-        self.__center = center
-        return self
-
-    def create(self, points: list, center: Point):
-        """
-        Создание многоугольника из списка точек. Прямые углы прямоугольника на совести создателя.
-
-        :param points: list of points Point-type
-        :return:
-        """
-        for value in enumerate(points):
-            if value is not Point:
-                raise TypeError("Expected point.Point type, but {} founded".format(type(value)))
-
-        self.__points = [p for p in points]
-        self.__center = center
-        return self
-
-    def move(self, vector2d: Point):
-        """
-        Двигать примитив.
-
-        :param vector2d: вектор, в направлении и на величину которого двигать примитив.
-        """
-        if self.__objOnCanvasId is not None:
-            # перемещаем по канве
-            self.__canvas.move(self.__objOnCanvasId, vector2d.x, vector2d.y)
-            # пересчитываем положение центра вращения
-            self.__center = Point(self.__center.cardanus + vector2d.cardanus)
-
-    def virtualMove(self, vector2d: Point, centerMassMove=False):
-        """
-        Метод предварительного смещения объекта в координатной системе канвы (без реального объекта на канве)
-
-        :param vector2d: вектор смещения
-        :param centerMassMove: сдвигать центр масс объекта вместе с остальными точками
-        """
-
-        for _, point in enumerate(self.__points):
-            point.cardanus = point.cardanus + vector2d.cardanus
-
-        if centerMassMove:
-            self.__center = self.__center.cardanus + vector2d.cardanus
-
-    def rotate(self, newAxisVector: Point, oldAxisVector: Point):
-        """
-        Поворот примитива.
-
-        :param angle: угол поворота от ПРЕДЫДУЩЕГО положения объекта на канве (т. е. дельта, изменение угла)
-        """
-        # получить координаты точек объекта в системе координат канвы
-        current = self.__canvas.coords(self.__objOnCanvasId)
-        points = []
-        # Преобразовать координаты точек в объекты типа Point
-        for i in range(len(self.__points)):
-            points.append(Point(current[i * 2], current[i * 2 + 1]))
-        # Пересчитать координаты точек объектов из системы канвы в систему центра тяжести
-        points = toNewOrigin(points, self.__center)
-        # Расчитать новые точки через поворот вокруг центра тяжести
-        # Угол поворота из страрого положения
-        alpha_complex = Point()
-        alpha_complex.cardanus = newAxisVector.cardanus / oldAxisVector.cardanus
-        # __, phi = polar(alpha_complex.cardanus)
-        # print("Угол поворота: {}, {}".format(phi, alpha_complex.cardanus))
-        # новые координаты точек объекта в системе координат относительно точки поворота
-        new_points = []
-        for value in points:
-            # point = value.cardanus * alpha_complex
-            newPoint = Point()
-            newPoint.cardanus = value.cardanus * alpha_complex.cardanus
-            new_points.append(newPoint)
-        # points = [value.cardanus * alpha_complex for value in points]
-        # Новые точки пересчитать в систему координат канвы
-        new_points = toNewOrigin(new_points, Point(-self.__center.x, -self.__center.y))
-        # Обновить координаты точек в объекте (будет произведена автоматическое визуальное изменение)
-        canvas_points = []
-        for value in new_points:
-            canvas_points.append(value.x)
-            canvas_points.append(value.y)
-        self.__canvas.coords(self.__objOnCanvasId, canvas_points)
-
-    def draw(self):
-        """
-        Рисовать примитив (если он не существует) на канве
-        """
-        if self.__objOnCanvasId is None:
-            # Если примитив ещё нет на канве (то есть, он ещё ни разу не отрисовывался,
-            # то можно его создавать и рисовать)
-            # self.__points[0].decart
-            # plain лист ключевых точек примитива (функция канвы только в таком виде воспринимает)
-            coord_list = [value.decart for value in self.__points]
-            # рисуем примитив на канве
-            # так как примитив, фактически, создаётся на канве, то для конкретного примитива эта функция применяется
-            # только один раз. Дальнейшие действия с примитивом делаются через его идентификатор,
-            # который возвращает этот метод.
-            self.__objOnCanvasId = self.__canvas.create_polygon(coord_list, fill="", outline="black")
-            # print(self.__canvas.coords(self.__objOnCanvasId))
-
-
-def toNewOrigin(pointsInOld: list, newOriginInOld: Point):
-    """
-    Метод пересчёта одних декартовых координат в другие (абциссы и ординаты сонаправлены, без поворота)
-
-    :param pointsInOld: лист старых координат точек Point
-    :param newOriginInOld: координаты новой системы координат в старой
-    :return: лист новых координат
-    """
-    # Устаревший.
-    # todo вместо этойго метода использовать соответствующий из модуля decart
-    # return [Point(- newOriginInOld.x + val.x, - newOriginInOld.y + val.y) for val in pointsInOld]
-    result = []
-    for value in pointsInOld:
-        point = Point()
-        point.cardanus = - newOriginInOld.cardanus + value.cardanus
-        result.append(point)
-    # return [Point(- newOriginInOld.cardanus + val.cardanus) for val in pointsInOld]
-    return result
+# def toNewOrigin(pointsInOld: list, newOriginInOld: Point):
+#     """
+#     Метод пересчёта одних декартовых координат в другие (абциссы и ординаты сонаправлены, без поворота)
+#
+#     :param pointsInOld: лист старых координат точек Point
+#     :param newOriginInOld: координаты новой системы координат в старой
+#     :return: лист новых координат
+#     """
+#     # Устаревший.
+#     # todo вместо этойго метода использовать соответствующий из модуля decart
+#     # return [Point(- newOriginInOld.x + val.x, - newOriginInOld.y + val.y) for val in pointsInOld]
+#     result = []
+#     for value in pointsInOld:
+#         point = Point()
+#         point.cardanus = - newOriginInOld.cardanus + value.cardanus
+#         result.append(point)
+#     # return [Point(- newOriginInOld.cardanus + val.cardanus) for val in pointsInOld]
+#     return result
