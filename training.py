@@ -1,15 +1,22 @@
-from physics import Rocket, Vector
+""" Тренировка нейросети """
+from physics import Rocket
 import tools
 from point import Point
 
 
-#  Входная функция для вызова через ноутбук
 def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+    """ Входная функция для тренировки
+        - при локальной тренировке, вызов функции идёт с параметрами по умолчанию.
+        - при тренировке через ноутбук, производится установка параметров вызова функции.
+    """
     rf = tools.Reinforcement()
     rocket = Rocket()
     # Загрузка сохранённой НС или сосздание новой
 
     # Загрузка сохранённых параметров НС
+
+    # инициализация класса проверки на выход за пределы тестового полигона
+    finish = tools.Finish(-10)
 
     startEpoch = 0
     stopEpochNumber = 2
@@ -20,7 +27,9 @@ def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', cri
 
         # Цикл последовательных переходов из одного состояния ОС в друго
         # один проход - один переход
-        while not rf.isLandingFinished(Point(10, 10), 4.):
+        # while not rf.isLandingFinished(Point(10, 10), 4.):
+        # while (not finish.isOneTestFinished(Point(10, 10))) or (not rf.isLandingFinished(Point(10, 10), 4.)):
+        while not finish.isOneTestFinished(Point(10, 10)):
             pass
             # получить предыщущее (начальное) состояние
 
@@ -37,10 +46,11 @@ def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', cri
             targetQtp1 = 0
             if rf.isLandingFinished(Point(10, 10), 4.):
                 # На последнем переходе функция ценности стремится к единице (при успешная посадка)
-                targetQtp1 = rf.getReinforcement()
+                targetQtp1 = rf.getReinforcement(Point(10, 10), 4.)
 
-            # обратный проход последовательно по критику, а затем по актору с использованием функции потерь
-            # от максимального значения функции ценности
+            # обратный проход последовательно по критику, а затем по актору
+            # Функция потерь считается для варианта выбора максимального значения функции ценности
+            # и подкрепления полученного для этого выбора
 
 
             # Каждые несколько проходов

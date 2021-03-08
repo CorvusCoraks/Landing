@@ -1,18 +1,27 @@
-# Главный файл. Диспетчер.
-from physics import Vector
-from graph import FirstStage, Window
+""" Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
+
+# from physics import Vector
+from graph import FirstStage, Window, PoligonWindow
 from queue import Queue
 from threading import Thread
 from point import Point, Transform
 import cmath
+from physics import BigMap
 import decart
 from training import start_nb
+
+# Длина ступени, метров
+stageLength = 30
+# Ширина ступени, метров
+stageWidth = 10
 
 # Частота кадров
 frameRate = 1000
 
 # очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
 q = Queue()
+
+qPoligon = Queue()
 
 
 # фунция нити нейросети
@@ -29,7 +38,7 @@ def thread_func(queue: Queue):
     # start_nb(frameRate)
     # получить новое положение и ориентацию объекта
     #
-    # преобразовать положение и ориентацию объекта из системы системы координат пространства в систему координат канвы
+    # преобразовать положение и ориентацию объекта из системы координат пространства в систему координат канвы
     #
     # отправить новое положение и ориентацию (в системе координат канвы) в нить вывода
     # queue.put(Transform(Point(), Point(), ''))
@@ -59,12 +68,24 @@ def thread_func(queue: Queue):
 #
 #     print("in getDataFromCanvas")
 
-
+# Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.
+# Т. е. отображение хода обучения идёт через tkinter в главной нити,
+# расчёт нейросети и физическое моделирование в отдельной нити
+# todo возможно, физическое моделирование тоже перенестти в отдельную нить (т. к. эти вычисления относительно просты)
 # Создание отдельной нити для нейросети
 th = Thread(target=thread_func, name="NeuroNetThread", args=(q,))
 th.start()
 
+# Ориентировочный срез полигона 300х100 км.
+# Размер полигона в метрах!
+# Мостшаб изображения (в километрах)
+poligonScale = 4 / 1000
+# Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
+poligonWindow = PoligonWindow(frameRate, q, BigMap.width * poligonScale, BigMap.height * poligonScale, poligonScale)
+
 # Создание окна визуализации
-window = Window(frameRate, q)
+# window = Window(frameRate, q)
+
+
 
 th.join()

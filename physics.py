@@ -1,10 +1,15 @@
+""" Модуль расчёта движения ступени согласно физическим законам реального мира """
 from torch import Tensor
 import torch
+from point import VectorComplex
+import stage
 
-# модуль расчёта движения ступени согласно физическим законам
-# Физическая модель ступени представляет из себя три жёстко связанные точки
+# Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
 # массой m1 (центр дна ракеты), m2 (средняя точка, центр масс), m3 (верх ступени)
-# Движение ступени в рамках глобальных координат моделируется движением центра масс (точка m2)
+# Вышеуказанные массы и расстояния между ними подбираются вручную изначально (как исходные данные),
+# с тем условием, чтобы центр масс приходился на точку m2
+# Эти массы с течением времени не меняются.
+# Движение ступени в рамках глобальных координат (система полигона) моделируется движением центра масс (точка m2)
 # Ориентация ступени задаётся углом отклонения вертикального осевого вектора относительно вертикали глобальной
 # системы координат.
 # положение центра масс ступени и направляющий вектор передаются в модуль визуализации
@@ -19,71 +24,71 @@ import torch
 #     # Координата центра тяжести
 #     return False
 
-def generateState():
-    pass
+# def generateState():
+#     pass
 
 
-class Vector():
-    """
-    Координаты точки.
-
-    """
-    def __init__(self, x=0., y=0., origin=None):
-        # Координаты точки относительно начала координат
-        self.__decart = torch.tensor([[x, y]])
-        # Начало координат, относительно которого и заданы координаты данной точки.
-        self.__origin: Vector = origin
-
-    def origin(self, origin=None):
-        """
-        Точка начала координат.
-
-        :param origin:
-        :type origin: Vector
-        :return:
-        """
-        if origin is None:
-            return self.__origin
-        else:
-            self.__origin = origin
-
-    def x(self, newX=None):
-        """
-        Получить или установить абциссу точки
-
-        :param newX:
-        :return:
-        """
-        if newX is None:
-            return self.__decart[0][0].item()
-        else:
-            self.__decart[0][0] = newX
-
-    def y(self, newY=None):
-        """
-        Получить или установить ординату точки
-
-        :param newY:
-        :return:
-        """
-        if newY is None:
-            return self.__decart[0][1].item()
-        else:
-            self.__decart[0][1] = newY
-
-    def tensor_view(self):
-        """
-        Получить тензорный вид вектора
-
-        :return:
-        """
-        return self.__decart
+# class Vector():
+#     """
+#     Координаты точки.
+#
+#     """
+#     def __init__(self, x=0., y=0., origin=None):
+#         # Координаты точки относительно начала координат
+#         self.__decart = torch.tensor([[x, y]])
+#         # Начало координат, относительно которого и заданы координаты данной точки.
+#         self.__origin: Vector = origin
+#
+#     def origin(self, origin=None):
+#         """
+#         Точка начала координат. На кой ляд нужен этод метод??? Запланировать к удалению.
+#
+#         :param origin:
+#         :type origin: Vector
+#         :return:
+#         """
+#         # todo Добавить какую-нибудь метку, определяющую систему координат данного вектора
+#         # а то нихрена не понятно, что это за точка начала координат, какой системы отсчёта?
+#         if origin is None:
+#             return self.__origin
+#         else:
+#             self.__origin = origin
+#
+#     def x(self, newX=None):
+#         """
+#         Получить или установить абциссу точки
+#
+#         :param newX:
+#         :return:
+#         """
+#         if newX is None:
+#             return self.__decart[0][0].item()
+#         else:
+#             self.__decart[0][0] = newX
+#
+#     def y(self, newY=None):
+#         """
+#         Получить или установить ординату точки
+#
+#         :param newY:
+#         :return:
+#         """
+#         if newY is None:
+#             return self.__decart[0][1].item()
+#         else:
+#             self.__decart[0][1] = newY
+#
+#     def tensor_view(self):
+#         """
+#         Получить тензорный вид вектора
+#
+#         :return:
+#         """
+#         return self.__decart
 
 
 class Rocket():
-    """
-    Класс ракеты / ступени
-    """
+    """ Класс ракеты / ступени. Динамические параметры. """
     def __init__(self):
         # self.__baseVector: tensor = torch.zeros([1, 4])
         # координаты центра масс ракеты относительно точки посадки
@@ -96,36 +101,44 @@ class Rocket():
         # вектор ускорения ракеты
         self.__a: Vector
 
+        # Вектор перемещения начала координат, от которого заданы физические параметры ступени, к центру масс ступени
+        # Эта коррекция нужна, так как движение происходит относительно центра масс
+        # self.__correction = VectorComplex([0, -stage.Stage.m1vector])
+
         # Длина ракеты
-        self.__l = 0.
+        # self.__l = stage.Stage.height
 
         # координаты точек с массой (и сами массы) подобраны так, чтобы общий центр масс был в точке с ординатой 0
         # масса на верху ракеты
-        self.__massTop = 0.
+        # self.__massTop = 0.
         # Ордината точки массы относительно центра масс
-        self.__massTopCoord: Vector
-        self.__massTopCoord = Vector(0, (2 / 3) * self.__l)
+        # self.__massTopCoord: Vector
+        # self.__massTopCoord = Vector(torch.tensor([[0, (2 / 3) * self.__l]]))
         # self.__massTopCoord[0][1] = (2 / 3) * self.__l
         # self.__massTopY = (2 / 3) * self.__l
         # масса в центре масс
-        self.__massCenter = 0.
+        # self.__massCenter = 0.
         # Ордината точки массы относительно центра масс
-        self.__massCenterY = 0.
+        # self.__massCenterY = 0.
         # масса в нижней части ракеты
-        self.__massDown = self.__massTop / 2
+        # self.__massDown = self.__massTop / 2
         # Ордината точки массы относительно центра масс
-        self.__MassDownY = -(1 / 3) * self.__l
+        # self.__MassDownY = -(1 / 3) * self.__l
 
         # Импульс маневрового двигателя
         self.__pulseSteeringEngine = 0.
-        # Импульст маршевого двигателя
+        # Импульс маршевого двигателя
         self.__pulsetumMainEngine = 0.
 
     def ganerateState(self):
+        """ Генерация начального положения ракеты / состояния всей системы """
         pass
 
 
 class BigMap():
-    def __init__(self, width: float, height: float):
-        self.__width = width
-        self.__height = height
+    """ Класс испытательного полигона """
+    # Ширина полигона в метрах
+    width = 300000
+    # Высота полигона в метрах
+    height = 100000
+    # def __init__(self, width: float, height: float):
