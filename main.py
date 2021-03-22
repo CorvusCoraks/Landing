@@ -1,7 +1,7 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
 
 # from physics import Vector
-from graph import FirstStage, Window, PoligonWindow
+from graph import Window, PoligonWindow
 from queue import Queue
 from threading import Thread
 from point import Transform, VectorComplex
@@ -16,8 +16,7 @@ frameRate = 1000
 # очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
 q = Queue()
 
-qPoligon = Queue()
-
+# qPoligon = Queue()
 
 # фунция нити нейросети
 def thread_func(queue: Queue):
@@ -60,12 +59,6 @@ def thread_func(queue: Queue):
         orientation = new_orientation
 
 
-# def getDataForCanvas():
-#     # получение данных для канвы
-#     # НЕ НУЖНА, в перспективе убрать
-#
-#     print("in getDataFromCanvas")
-
 # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.
 # Т. е. отображение хода обучения идёт через tkinter в главной нити,
 # расчёт нейросети и физическое моделирование в отдельной нити
@@ -74,16 +67,13 @@ def thread_func(queue: Queue):
 th = Thread(target=thread_func, name="NeuroNetThread", args=(q,))
 th.start()
 
-# Ориентировочный срез полигона 300х100 км.
 # Размер полигона в метрах!
-# Мостшаб изображения (в километрах)
-poligonScale = 4 / 1000
+# Мостшаб изображения
+poligonScale = 4 / 1000  # при ширине полигона 300000 м., ширина окна - 1200 точек
 # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
 poligonWindow = PoligonWindow(frameRate, q, BigMap.width * poligonScale, BigMap.height * poligonScale, poligonScale)
 
 # Создание окна визуализации
 # window = Window(frameRate, q)
-
-
 
 th.join()

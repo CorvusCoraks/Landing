@@ -141,7 +141,8 @@ def complexChangeSystemCoordinatesUniversal(vectorInOldCoordinates: VectorComple
     # Это всё проверено опытным путём....
     def complexMove(originMoveVector: VectorComplex, vectorInOldCoordinates: VectorComplex):
         """ Смещение начала координат от старой СК к новой """
-        result = VectorComplex.getInstanceC(- originMoveVector.cardanus + vectorInOldCoordinates.cardanus)
+        # result = VectorComplex.getInstanceC(- originMoveVector.cardanus + vectorInOldCoordinates.cardanus)
+        result = -originMoveVector + vectorInOldCoordinates
 
         if isDiffType:
             # если при мереходе меняется тип системы координат, то меняем знак у ординаты смещённого начала координат
@@ -151,7 +152,9 @@ def complexChangeSystemCoordinatesUniversal(vectorInOldCoordinates: VectorComple
 
     newShiftVector = complexMove(originMoveVector, vectorInOldCoordinates)
 
-    return VectorComplex.getInstanceC(newShiftVector.cardanus / rect(1., angleRadians))
+    # print(rect(1., angleRadians))
+    # return VectorComplex.getInstanceC(newShiftVector.cardanus / rect(1., angleRadians))
+    return newShiftVector / rect(1., angleRadians)
 
 
 def pointsListToNewCoordinateSystem(pointsListInOldSystem: list, newSystemOrigin: VectorComplex, angleRadians=0., isDiffType=False):

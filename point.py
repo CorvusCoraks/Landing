@@ -197,27 +197,83 @@ class VectorComplex():
         """
         self.__origin = vector
 
-    @classmethod
-    def sub(cls, vector1, vector2):
-        """ Вычитание векторов
+    # @classmethod
+    # def sub(cls, vector1, vector2):
+    #     """ Вычитание векторов
+    #
+    #     :param vector1:
+    #     :type vector1: VectorComplex
+    #     :param vector2:
+    #     :type vector2: VectorComplex
+    #     """
+    #     return VectorComplex(vector1.tensor - vector2.tensor)
 
-        :param vector1:
-        :type vector1: VectorComplex
-        :param vector2:
-        :type vector2: VectorComplex
+    # @classmethod
+    # def add(cls, vector1, vector2):
+    #     """ Сложение векторов
+    #
+    #     :param vector1:
+    #     :type vector1 VectorComplex
+    #     :param vector2:
+    #     :type vector2: VectorComplex
+    #     """
+    #     return VectorComplex(vector1.tensor + vector2.tensor)
+
+    def __add__(self, other):
         """
-        return VectorComplex(vector1.tensor - vector2.tensor)
+        Сложение векторов.
 
-    @classmethod
-    def add(cls, vector1, vector2):
-        """ Сложение векторов
-
-        :param vector1:
-        :type vector1 VectorComplex
-        :param vector2:
-        :type vector2: VectorComplex
         """
-        return VectorComplex(vector1.tensor + vector2.tensor)
+        return VectorComplex.getInstanceC(self.cardanus + other.cardanus)
+
+    def __sub__(self, other):
+        """
+        Вычитание векторов.
+
+        """
+        return VectorComplex.getInstanceC(self.cardanus - other.cardanus)
+
+    def __mul__(self, other):
+        """
+        Умножение на число.
+
+        """
+        if isinstance(other, complex):
+            return VectorComplex.getInstanceC(self.cardanus * other)
+
+        try:
+            # Вектор может умножаться только на число.
+            test = int(other)
+        except TypeError("The 'other' argument is not a number-type"):
+            # Бутафорская строка, чтобы что-то было в этом блоке
+            other = other
+        else:
+            return VectorComplex.getInstanceC(self.cardanus * other)
+
+    def __truediv__(self, other):
+        """
+        Деление на число.
+
+        """
+        if isinstance(other, complex):
+            # Можно делить на комплексные число
+            return VectorComplex.getInstanceC(self.cardanus / other)
+
+        try:
+            # Вектор может делиться только на число.
+            test = int(other)
+        except TypeError("The 'other' argument is not a number-type"):
+            # Бутафорская строка, чтобы что-то было в этом блоке
+            other = other
+        else:
+            return VectorComplex.getInstanceC(self.cardanus / other)
+
+    def __neg__(self):
+        """
+        Унарный минус.
+
+        """
+        return VectorComplex.getInstance(-self.x, -self.y)
 
 
 class Transform():

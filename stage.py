@@ -17,18 +17,22 @@ class Sizes():
     heightJet = 2
     widthJet = 5
 
+    # расстояние до центра масс
+    topMassDistance = heightCenterBlock * 2/3
+    downMassDistance = heightCenterBlock * 1/3
+
+    # Плечо приложения сил рулевых двигателей (от центра масс)
+    topEnginesLeverage = heightCenterBlock * 2/3
+    downEnginesLeverage = heightCenterBlock * 1/3
+
 
 class Stage():
     """ Физические параметры ступени. """
     # Модель представляет из себя три массы, размещённые на разных высотах ракеты, что будет создавать необходимые
     # моменты вращения.
 
-    # # Размеры в метрах
-    # Sizes.heightCenterBlock = 30
-    # Sizes.widthCenterBlock = 10
-
-    # массы, в килограммах, по номерам снизу вверх
-    # массы подобраны так, чтобы средняя масса (m1) была центром массс.
+    # массы, в килограммах
+    # массы подобраны так, чтобы средняя масса была центром массс.
 
     # Масса в центре днища
     downMass = 2000
@@ -37,17 +41,23 @@ class Stage():
     # Масса в центре верхней крышки
     topMass = 1000
 
-    # координаты ключевых точек, относительно СЕРЕДИНЫ днища (что бы собирать ступень было легче?)
-    # m0vector = VectorComplex(tensor([0, 0]))
-    # m1vector = VectorComplex(tensor([0, Sizes.heightCenterBlock*1/3]))
-    # m2vector = VectorComplex(tensor([0, Sizes.heightCenterBlock]))
-
     # Координаты точек с массой относительно центра масс
     centerMassVector = VectorComplex(tensor([0, 0]))
-    topMassVector = VectorComplex(tensor([0., Sizes.heightCenterBlock * 2/3]))
-    downMassVector = VectorComplex(tensor([0., - Sizes.heightCenterBlock * 1/3]))
+    topMassVector = VectorComplex(tensor([0., Sizes.topMassDistance]))
+    downMassVector = VectorComplex(tensor([0., - Sizes.downMassDistance]))
 
     # плоскость посадочной опоры. Этой плоскостью ступень касается Земли.
     footVector = VectorComplex(tensor([0, - Sizes.heightCenterBlock * 1/3 - 1]))
+
+    # Момент инерции ступени
+    InertionMoment = downMass * Sizes.downMassDistance ** 2 + topMass * Sizes.topMassDistance ** 2
+
+
+class Engine():
+    """
+    Сила двигателей, Ньютоны
+    """
+    mainEngineForce = 100000
+    steeringEngineForce = 10000
 
 
