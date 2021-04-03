@@ -1,4 +1,4 @@
-""" Размеры и массы ступени. """
+""" Физические размеры и массы ступени. """
 from point import VectorComplex
 from torch import tensor
 
@@ -13,9 +13,17 @@ class Sizes():
     # высота и ширина центрального блока
     heightCenterBlock = 30
     widthCenterBlock = 10
+
+    # максимальный габаритный размер ракеты (для вписывания в окно)
+    overallDimension = heightCenterBlock
+
     # высота и ширина маневрового двигателя
     heightJet = 2
     widthJet = 5
+
+    # высота и ширина маршевого двигателя
+    heightMainJet = 10
+    widthMainJet = 4
 
     # расстояние до центра масс
     topMassDistance = heightCenterBlock * 2/3

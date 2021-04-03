@@ -1,12 +1,13 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
 
 # from physics import Vector
-from graph import Window, PoligonWindow
+from graph import StageViewWindow, PoligonWindow
 from queue import Queue
 from threading import Thread
 from point import Transform, VectorComplex
 import cmath
 from physics import BigMap
+from stage import Sizes
 import decart
 from training import start_nb
 
@@ -17,6 +18,7 @@ frameRate = 1000
 q = Queue()
 
 # qPoligon = Queue()
+
 
 # фунция нити нейросети
 def thread_func(queue: Queue):
@@ -39,9 +41,8 @@ def thread_func(queue: Queue):
     #
     # Блок имитационных данных для отображения
     # начальная ориентация объекта в системе координат канвы
-    # orientation = Point(0., 1.)
-    orientation = VectorComplex.getInstance(0., 1.)
-    for i in range(10):
+    orientation = VectorComplex.getInstance(0., -1.)
+    for i in range(80):
         # new_orientation = Point()
         new_orientation = VectorComplex.getInstance()
         # АХТУНГ!
@@ -54,7 +55,7 @@ def thread_func(queue: Queue):
         # отправляем новое абсолютное положение в системе координат канвы и абсолютный угол (относительно положительной
         # полуоси абцисс) ориентации объекта в очередь
         # queue.put(Transform(Point(55, 20 + i * 10), new_orientation, "Команда №{}".format(i)))
-        queue.put(Transform(VectorComplex.getInstance(55, 20 + i * 10), new_orientation, "Команда №{}".format(i)))
+        queue.put(Transform(VectorComplex.getInstance(BigMap.width/2, 20 + i * 1), new_orientation, "Команда №{}".format(i)))
         # запоминаем ориентацию, для использования в следующей итерации
         orientation = new_orientation
 
@@ -69,11 +70,14 @@ th.start()
 
 # Размер полигона в метрах!
 # Мостшаб изображения
-poligonScale = 4 / 1000  # при ширине полигона 300000 м., ширина окна - 1200 точек
+# poligonScale = 4 / 1000  # при ширине полигона 300000 м., ширина окна - 1200 точек
+# количество метров на одну точку
+poligonScale = 0.25
+stageScale = 0.25
 # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
-poligonWindow = PoligonWindow(frameRate, q, BigMap.width * poligonScale, BigMap.height * poligonScale, poligonScale)
+poligonWindow = PoligonWindow(frameRate, q, BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale)
 
 # Создание окна визуализации
-# window = Window(frameRate, q)
+# window = StageViewWindow(frameRate, q)
 
 th.join()
