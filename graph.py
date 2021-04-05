@@ -187,7 +187,7 @@ class StageViewWindow():
         self.__anyQueue = anyQueue
         self.__frameRate = frameRate  # частота кадров
 
-        self.__windowWidth = self.__stageSize / self.__stageScale * 2
+        self.__windowWidth = self.__stageSize / self.__stageScale * 4
         self.__windowHeight = self.__stageSize / self.__stageScale * 2 * 4
 
         # size = 600
@@ -200,10 +200,18 @@ class StageViewWindow():
         test = [Sizes.widthCenterBlock / 2 / 0.25, Sizes.heightCenterBlock * 2/3 / 0.25]
         self.__canvas.create_oval([test[0]-5, test[1]-5, test[0]+5, test[1]+5], fill="red")
 
+        # тестовая стрелка, ставится в произвольном месте
+        self.__arrow = Arrow(self.__canvas,VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5, "red")
+
+        # отметка центра масс, ставится в произвольном месте
+        self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(), fill="green")
+
         self.__canvas.pack()
         self.__stage = FirstStage2(self.__canvas, self.__stageScale)
         # self.__root.after(1000, function, self.__root)
         # self.__root.after(1000, function, self.__root, 0, True)
+        # self.__stage.pack_foget
+        # self.__stage.createOnCanvas()
         self.__root.after(self.__frameRate, self.__draw)
         self.__root.mainloop()
 
@@ -228,9 +236,13 @@ class StageViewWindow():
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:
             # рисовать
-            self.__stage.draw()
+            self.__stage.createOnCanvas()
+            self.__arrow.createOnCanvas()
+            self.__massCenterMark.createOnCanvas()
             # двигать
             self.__stage.move(transform.vector2d / self.__stageScale)
+            self.__arrow.move(transform.vector2d / self.__stageScale)
+            self.__massCenterMark.move(transform.vector2d / self.__stageScale)
             # вращать
             self.__stage.rotate(transform.orientation2d)
             # print(transform.orientation2d.cardanus)
@@ -300,14 +312,12 @@ class FirstStage2():
         # массив всех примитивов ступени
         self.__allPrimitives = []
 
-        # отметка центра масс
-        # self.__massCenterMark = self.__canvas.create_oval(self.__massCenter.x - 5, self.__massCenter.y - 5,
-        #                                                   self.__massCenter.x + 10, self.__massCenter.y + 10,
+        # # отметка центра масс
+        # self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(self.__massCenter.x - 2, self.__massCenter.y - 2),
+        #                                                   VectorComplex.getInstance(self.__massCenter.x + 2, self.__massCenter.y + 2),
+        #                                        self.__massCenter,
         #                                                   fill="green")
-        self.__massCenterMark = CenterMassMark(self.__canvas, self.__massCenter.x - 2, self.__massCenter.y - 2,
-                                                          self.__massCenter.x + 2, self.__massCenter.y + 2,
-                                                          fill="green")
-        self.__allPrimitives.append(self.__massCenterMark)
+        # self.__allPrimitives.append(self.__massCenterMark)
 
         # Корпус ступени.
         # Верхний левый угол ступени находится в начале координат канвы. В этом положении ступень находится до конца
@@ -368,12 +378,12 @@ class FirstStage2():
         self.__mainJet.preliminaryMove(VectorComplex.getInstance((Sizes.widthCenterBlock-Sizes.widthMainJet)/2 / self.__scale, Sizes.heightCenterBlock / self.__scale))
         self.__allPrimitives.append(self.__mainJet)
 
-    def draw(self):
+    def createOnCanvas(self):
         """
-        Рисовать (создать) ступерь на канве. Создаётся единственно только при ПЕРВОМ вызове.
+        Рисовать (создать) ступерь на канве. Создаётся один единственный раз только при ПЕРВОМ вызове.
         """
         for primitive in self.__allPrimitives:
-            primitive.draw()
+            primitive.createOnCanvas()
 
     def move(self, newMassCenter: VectorComplex):
         """

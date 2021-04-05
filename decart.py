@@ -16,6 +16,7 @@ def from_local_to_global(point_in_local: list, local_origin_in_global: list, alp
     :return: список вида [x, y]
     :rtype list:
     """
+    # todo depricated
     if all_right:
         # матрица перехода из правой системы координат в правую
         transitionMatrix = tensor([[cos(alpha_ox), -sin(alpha_ox)], [sin(alpha_ox), cos(alpha_ox)]], dtype=float)
@@ -40,6 +41,7 @@ def from_local_to_global_points(points_in_local: list, local_origin_in_global: l
     :return: список вида [[x, y], [x, y]]
     :rtype list:
     """
+    # todo depricated
     if all_right:
         # матрица перехода из правой системы координат в правую
         transitionMatrix = tensor([[cos(alpha_ox), -sin(alpha_ox)], [sin(alpha_ox), cos(alpha_ox)]], dtype=float)
@@ -68,6 +70,7 @@ def fromOldToNewCoordSystem(oldSystemVectors: list, oldOriginInNewCoordSystem: V
     :return: список вида [VectorComplex, VectorComplex]
     :rtype list:
     """
+    # todo depricated
     # Угол по часовой стрелке - отрицательный, против часовой стрелки - положительный
     #
     # Формулы перехода из одной системы координат в другую обычно слева имеют известные (x, y) старой системы коодинат,
@@ -128,12 +131,13 @@ def complexChangeSystemCoordinatesUniversal(vectorInOldCoordinates: VectorComple
 
     :param vectorInOldCoordinates: вектор в старой системе координат
     :param originMoveVector: вектор начала координат новой координатной системы внутри старой
-    :param angleRadians: угол, на который повёрнута новая система координат относительно старой, >0 против часовой
+    :param angleRadians: угол, на который повёрнута новая система координат относительно старой
     :param isDiffType: если из левой в левую или из правой в правую = False. Иначе = True
     """
     # Правая система координат: абцисса вправо, ордината вверх. В частности, система координат "обычная"
     # Левая система координат: абцисса вправо, ордината вниз. В частности, система координат канвы Tkinter
     #
+    # ВАЖНО!
     # Если изменение идёт с правой на левую, то положительный поворот по часовой стрелке
     # Если изменение идёт с левой на левую, то положительный поворот по часовой стрелке
     # Если изменение идёт с левой на правую, то положительный поворот против часовой стрелки
@@ -154,6 +158,7 @@ def complexChangeSystemCoordinatesUniversal(vectorInOldCoordinates: VectorComple
 
     # print(rect(1., angleRadians))
     # return VectorComplex.getInstanceC(newShiftVector.cardanus / rect(1., angleRadians))
+    # поворот вектора и на выход
     return newShiftVector / rect(1., angleRadians)
 
 
@@ -163,7 +168,7 @@ def pointsListToNewCoordinateSystem(pointsListInOldSystem: list, newSystemOrigin
 
     :param pointsListInOldSystem: координаты точек в старой системе координат. Список вида [VectorComplex, VectorComplex]
     :param newSystemOrigin: координаты типа VectorComplex начала новой системы координат в старой
-    :param angleRadians: угол, на который повёрнута новая система координат относительно старой, >0 против часовой
+    :param angleRadians: угол, на который повёрнута новая система координат относительно старой
     :param isDiffType: если из левой в левую или из правой в правую = False. Иначе = True
     :return:
     :rtype list:

@@ -1,5 +1,6 @@
 """ Модуль класса Точка: объект имеющий две координаты """
 from torch import tensor as tnsr
+from cmath import rect
 
 # class Point():
 #     """
@@ -196,6 +197,17 @@ class VectorComplex():
         :return:
         """
         self.__origin = vector
+
+    def rotate(self, angle: float):
+        """
+        Возвращает новый вектор, повёрнутый относительно изначального на заданный угол
+
+        :param angle: угол поворота, радианы. Правая СК: против часовой стрелки > 0, Левая СК: по часовой > 0
+        :return: новый, повёрнутый вектор
+        :rtype VectorComplex:
+        """
+        # todo deprecated?
+        return VectorComplex.getInstanceC(self.cardanus / rect(1., angle))
 
     # @classmethod
     # def sub(cls, vector1, vector2):
