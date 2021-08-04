@@ -10,7 +10,7 @@
 #
 from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST
 from point import VectorComplex
-from decart import fromOldToNewCoordSystem, pointsListToNewCoordinateSystem
+from decart import pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
 
 
@@ -250,6 +250,9 @@ class CenterMassMark(AbstractOnCanvasMark):
 
 
 class Arrow(AbstractOnCanvasMark):
+    """
+    Отображение иллюстративной стрелки на канве
+    """
     # def __init__(self, canvas: Canvas, *args, **kwargs):
     def __init__(self, canvas: Canvas, start: VectorComplex, finish: VectorComplex, width: float, color: str):
         """
@@ -276,3 +279,25 @@ class Arrow(AbstractOnCanvasMark):
             self._objOnCanvasId = self._canvas.create_line(self._points[0].x, self._points[0].y,
                                                             self._points[1].x, self._points[1].y,
                                                             width=self.__width, fill=self.__color, arrow=LAST)
+
+
+class Text(AbstractOnCanvasMark):
+    def __init__(self, canvas: Canvas, start: VectorComplex, text: str, key_point):
+        """
+        :param canvas: канва
+        :param start: начальная точка
+        :param finish: конечная точка
+        :param width: ширина линии
+        :param color: цвет стрелки
+        """
+        super().__init__(canvas, (start, start), start)
+
+        self.__key_point = key_point
+        self.__text = text
+        # self.__width = width
+        # self.__color = color
+
+    def createOnCanvas(self):
+        if self._objOnCanvasId is None:
+            self._objOnCanvasId = self._canvas.create_text(self._points[0].x, self._points[0].y, text=self.__text,
+                                                           anchor=self.__key_point, fill="black")

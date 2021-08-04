@@ -26,6 +26,69 @@ from decart import complexChangeSystemCoordinatesUniversal
 # - Система координат канвы (СКК): ось абцисс напралвена вправо, ось ординат направлена вниз, начало координат находится
 # "где-то высоко в небе"
 
+# Каждый отсчётный момент времени:
+# 1. С датчиков ракеты поступает информация о её координатах в СКИП.
+# 2. На основании координат п. 1, и сохранённых координат предыыдущей точки, считается скорость ракеты в текущей точке
+# 3. На основании скорости в текущей точке и скорости в прредыдущей точки, считается ускорение.
+# 4. Аналогично п. 2 и п. 3 считаются угловые скорости и ускорения.
+
+# Частота считывания/передачи данных с датчиков ступени
+# раз в секунду / Герц
+# Вполне возможно будет переменной: чем ниже скорость, тем меньше частота
+frequency = 1000
+
+
+class HistoricData:
+    """ Класс исторических данных, необходимых для расчёта ускорения и скорости """
+    # Так как без знания двух очередных значений положения и времени между ними невозможно посчитать скорость
+    # и ускорение объекта
+    # Линейные положение, линейная скорость и ускорение - всё это в СКИП
+    previousPosition: VectorComplex
+    previousVelocity: VectorComplex
+    # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
+    previousAxeleration: VectorComplex
+    # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
+    previousOrientation: VectorComplex
+    previousAngularVelocity: float
+    # Аналогично, зачем мне предыдущее угловое ускорение?
+    previousAngularAxeleration: float
+    # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
+    previousTimeStamp: float
+    # Длительность действия этих параметров, сек
+    timeLength: float
+    # todo использовать или previousTimeStamp, или timeLength
+
+
+class RealWorldStageStatus:
+    """ Состояние ступени в конкретный момент времени """
+    def __init__(self, position=VectorComplex.getInstance(),
+                 velocity=VectorComplex.getInstance(),
+                 axeleration=VectorComplex.getInstance(),
+                 orientation=VectorComplex.getInstance(),
+                 angularVelocity=0.,
+                 angularAxeleration=0.,
+                 timeLength=0.):
+        # Линейные положение, линейная скорость и ускорение - всё это в СКИП
+        self.position = position
+        self.velocity = velocity
+        # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
+        self.axeleration = axeleration
+        # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
+        self.orientation = orientation
+        self.angularVelocity = angularVelocity
+        # Аналогично, зачем мне предыдущее угловое ускорение?
+        self.angularAxeleration = angularAxeleration
+        # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
+        self.timeStamp: float
+        # Длительность действия этих параметров, сек
+        self.timeLength = timeLength
+        # todo использовать или previousTimeStamp, или timeLength. Одновременно, скорее всего излишне.
+
+    # @classmethod
+    # def zero(cls):
+    #     return RealWorldStageStatus
+
+
 class Rocket():
     """ Класс ракеты / ступени. Динамические параметры. """
     def __init__(self):
@@ -50,7 +113,7 @@ class Rocket():
         pass
 
 
-class BigMap():
+class BigMap:
     """ Класс испытательного полигона """
     # # Ширина полигона в метрах
     # width = 300000
@@ -58,52 +121,92 @@ class BigMap():
     # height = 100000
     # Временный размер на отладку
     # Ширина полигона в метрах
-    width = 50
+    width = 100
     # Высота полигона в метрах
-    height = 100
+    height = 500
+    # Координаты начала координат СКИП в системе координат канвы (СКК) в масштабе 1:1
+    # todo логически не верно, это же карта полигона. Убрать.
+    testPoligonOriginInCCS = VectorComplex.getInstance(width / 2, height * 0.95)
+    # Координаты начала координат СКК в СКИП в масштабе 1:1
+    canvasOriginInPoligonCoordinates = VectorComplex.getInstance(- width / 2, height * 0.95)
+    # Координаты точки приземления в СКИП
+    landingPointInPoligonCoordinates = VectorComplex.getInstance()
+    # Координаты стартовой точки в СКИП
+    startPointInPoligonCoordinates = VectorComplex.getInstance(0., height * 0.9)
 
 
 class Action():
-    def __init__(self):
+    """
+    Класс всех сил действующих на ступень. Необходим для компактной их передачи в методах.
+    """
+    # def __init__(self):
+    #     # Силы действия двигателей указываются в СКС.
+    #     # Сила левого нижнего рулевого РД
+    #     self.FdownLeft: VectorComplex
+    #     # Сила правого нижнего рулевого РД
+    #     self.FdownRight: VectorComplex
+    #     # Сила маршевого РД
+    #     self.FdownUp: VectorComplex
+    #     # Сила левого верхнего РД
+    #     self.FtopLeft: VectorComplex
+    #     # Сила правого верхнего РД
+    #     self.FtopRight: VectorComplex
+    #     # Силы тяжести указываются в СКЦМ
+    #     # Силя тяжести нижней массы
+    #     self.Gdown: VectorComplex
+    #     # Сила тяжести центральной массы
+    #     self.Gcenter: VectorComplex
+    #     # Силя тяжести верхней массы
+    #     self.Gtop: VectorComplex
+    #     # Угол отклонения от вертикали. Фактически, это - угол, на который надо повернуть ось абцисс СКЦМ,
+    #     # чтобы получить ось абцисс СКС
+    #     self.psi: float
+
+    def __init__(self, fdownleft=VectorComplex.getInstance(), fdownright=VectorComplex.getInstance(),
+                 fdownup=VectorComplex.getInstance(),
+                 ftopleft=VectorComplex.getInstance(), ftopright=VectorComplex.getInstance(),
+                 gdown=VectorComplex.getInstance(), gcenter=VectorComplex.getInstance(),
+                 gtop=VectorComplex.getInstance(), psi=0.):
         # Силы действия двигателей указываются в СКС.
         # Сила левого нижнего рулевого РД
-        self.FdownLeft: VectorComplex
+        self.FdownLeft: VectorComplex = fdownleft
         # Сила правого нижнего рулевого РД
-        self.FdownRight: VectorComplex
+        self.FdownRight: VectorComplex = fdownright
         # Сила маршевого РД
-        self.FdownUp: VectorComplex
+        self.FdownUp: VectorComplex = fdownup
         # Сила левого верхнего РД
-        self.FtopLeft: VectorComplex
+        self.FtopLeft: VectorComplex = ftopleft
         # Сила правого верхнего РД
-        self.FtopRight: VectorComplex
+        self.FtopRight: VectorComplex = ftopright
         # Силы тяжести указываются в СКЦМ
         # Силя тяжести нижней массы
-        self.Gdown: VectorComplex
+        self.Gdown: VectorComplex = gdown
         # Сила тяжести центральной массы
-        self.Gcenter: VectorComplex
+        self.Gcenter: VectorComplex = gcenter
         # Силя тяжести верхней массы
-        self.Gtop: VectorComplex
+        self.Gtop: VectorComplex = gtop
         # Угол отклонения от вертикали. Фактически, это - угол, на который надо повернуть ось абцисс СКЦМ,
         # чтобы получить ось абцисс СКС
-        self.psi: float
+        # todo вынести отсюда, так как не относится к силам
+        self.psi: float = psi
 
-    def setAction(self, FdownLeft: VectorComplex, FdownRight: VectorComplex, FdownUp: VectorComplex,
-                  Gdown: VectorComplex, Gcenter: VectorComplex, Gtop: VectorComplex,
-                  FtopLeft: VectorComplex, FtopRight: VectorComplex,
-                  psi: float):
+    # def setAction(self, FdownLeft: VectorComplex, FdownRight: VectorComplex, FdownUp: VectorComplex,
+    #               Gdown: VectorComplex, Gcenter: VectorComplex, Gtop: VectorComplex,
+    #               FtopLeft: VectorComplex, FtopRight: VectorComplex,
+    #               psi: float):
+    #
+    #     self.FdownLeft = FdownLeft
+    #     self.FdownRight = FdownRight
+    #     self.FdownUp = FdownUp
+    #     self.FtopLeft = FtopLeft
+    #     self.FtopRight = FtopRight
+    #     self.Gdown = Gdown
+    #     self.Gcenter = Gcenter
+    #     self.Gtop = Gtop
+    #     self.psi = psi
 
-        self.FdownLeft = FdownLeft
-        self.FdownRight = FdownRight
-        self.FdownUp = FdownUp
-        self.FtopLeft = FtopLeft
-        self.FtopRight = FtopRight
-        self.Gdown = Gdown
-        self.Gcenter = Gcenter
-        self.Gtop = Gtop
-        self.psi = psi
 
-
-class Axeleration():
+class Moving():
     """
     Расчёт динамических параметров ступени (смещение, поворот, скорости и ускорения) под действием сил в СКИП
     """
@@ -127,10 +230,7 @@ class Axeleration():
         return a
 
     @classmethod
-    def getE(cls, FdowLeft: float, FdownRight: float, FdownUp: float, Gdown: float,
-             Gcenter: float,
-             FtopLeft: float, FtopRight: float, Gtop: float,
-             psi: float):
+    def getE(cls, forces: Action):
         """
         Мгновенное угловое ускорение в системе коодинат ступени.
 
@@ -139,17 +239,18 @@ class Axeleration():
         return 0.
 
     @classmethod
-    def getDistanseVector(cls, V0: VectorComplex, t: float):
+    def getDistanseVector(cls, V0: VectorComplex, t: float, forces: Action):
         """
         Измение положения центра масс ступени в системе координат полигона
 
         :param V0: Начальная скорость центра масс в точке S0
         :param t: Время действия суперпозиции сил
+        :param forces: Силы действующие на объект
         :return: перемещение (вектор) из начальной точки с V0 в новую ночку под действием суперпозиции сил
         :rtype: VectorComplex
         """
         # result = VectorComplex.getInstanceC(S0.cardanus + V0.cardanus*t + Axeleration.getA().cardanus*t**2)
-        result = V0 * t + Axeleration.getA() * t ** 2
+        result = V0 * t + Moving.getA(forces) * t ** 2
         return result
 
     @classmethod
@@ -159,5 +260,5 @@ class Axeleration():
 
         :return:
         """
-        result = W0 * t + Axeleration.getE() * t ** 2
+        result = W0 * t + Moving.getE(Action()) * t ** 2
         return result

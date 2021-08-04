@@ -2,91 +2,6 @@
 from torch import tensor as tnsr
 from cmath import rect
 
-# class Point():
-#     """
-#     Точка на координатной плоскости. Основная цель класса: оперирование кординатами точки как в виде декартовых,
-#     так в виде комплексного числа (организация расчёта поворота) Устаревшее
-#     """
-#     def __init__(self, x=0, y=0):
-#         self.__x = x
-#         self.__y = y
-#
-#     @property
-#     def decart(self):
-#         """
-#         :return: декартовы координаты точки
-#         """
-#         return self.__x, self.__y
-#
-#     @decart.setter
-#     def decart(self, coord: list):
-#         # if len(coord) != 2:
-#         #     raise Exception("List length mismatch")
-#
-#         self.__x = coord[0]
-#         self.__y = coord[1]
-#
-#     @property
-#     def cardanus(self):
-#         """
-#         :return: координаты точки в виде комплексного числа
-#         """
-#         return complex(self.__x, self.__y)
-#
-#     @cardanus.setter
-#     def cardanus(self, cmx: complex):
-#         """
-#         Установить координаты точки
-#
-#         :param cmx: координаты в виде комплексного числа
-#         """
-#         self.__x = cmx.real
-#         self.__y = cmx.imag
-#
-#     @property
-#     def x(self):
-#         return self.__x
-#
-#     @x.setter
-#     def x(self, x: float):
-#         self.__x = x
-#
-#     @property
-#     def y(self):
-#         return self.__y
-#
-#     @y.setter
-#     def y(self, y: float):
-#         self.__y = y
-#
-#
-# class Vector(Point):
-#     """ Вектор. Основная цель - тензорное представление векторов (? какой смысл. зачем). Устаревшее. """
-#     def __init__(self, tensor_view: tnsr):
-#         super(Vector, self).__init__()
-#         # тензорное представление, для сохранения СВОЙСТВ тензора.
-#         # на актуальность данных в tensor.Storage полагаться нельзя
-#         self.__tensor = tensor_view
-#         # отдельно сохраняем данные тензора в родительском классе, ибо только они будут актуальными
-#         self.__setPoint()
-#
-#     @property
-#     def tensor(self):
-#         """ Тензорный вид вектора """
-#         self.__tensor[0][0] = self.__x
-#         self.__tensor[0][1] = self.__y
-#         return self.__tensor
-#
-#     @tensor.setter
-#     def tensor(self, tnsr: tensor):
-#         self.__tensor = tnsr
-#         self.__setPoint()
-#
-#     def __setPoint(self):
-#         """ Cохраняем представление вектора как точки (родительский класс) """
-#         self.__x = self.__tensor[0][0].item()
-#         self.__y = self.__tensor[0][1].item()
-
 
 class VectorComplex():
     """ Вектор. """
@@ -109,7 +24,7 @@ class VectorComplex():
 
     @classmethod
     def getInstance(cls, x=0., y=0., origin=None):
-        """ Создать экземпляр класса. """
+        """ Создать экземпляр класса. По умолчанию - нулевой вектор. """
         result = VectorComplex(tnsr([[x, y]], dtype=float))
         result.__origin = origin
         return result
@@ -287,21 +202,9 @@ class VectorComplex():
         """
         return VectorComplex.getInstance(-self.x, -self.y)
 
+    def __str__(self):
+        """ Строковое представление """
+        return "x: {0:10.3f}, y: {1:10.3f}, abs: {2:10.3f}".format(self.x, self.y, abs(self.cardanus))
 
-class Transform():
-    """
-    Изменение положения объекта (точки).
-    """
-    # Класс данных для передачи информации через очередь в окно отрисовки ситуации
-    # Данные передаются уже в готовом виде в системе координат канвы в виде точек положения. По факту,
-    # в виде фотоснимка. То есть, никакой дополнительной обработки данные не требуют.
-    def __init__(self, vector2d: VectorComplex, orientation2d: VectorComplex, text: str):
-        """
 
-        :param vector2d: вектор нового положения центра масс объекта в системе координат канвы
-        :param orientation2d: вектор новой ориентации объекта в системе координат канвы
-        :param text: строка допоплнительной информации
-        """
-        self.vector2d = vector2d
-        self.orientation2d = orientation2d
-        self.text = text
+

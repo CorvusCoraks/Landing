@@ -1,10 +1,12 @@
 """ Модуль визуализации происходящего с испытуемым объектом. """
-from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST
+from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST, NE, NW
 from queue import Queue
 from point import VectorComplex
 from stage import Stage, Sizes
-from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow
-from decart import fromOldToNewCoordSystem, pointsListToNewCoordinateSystem
+from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text
+from threads import KillNeuroNetThread, KillRealWorldThread
+from physics import BigMap
+from decart import complexChangeSystemCoordinatesUniversal
 from abc import ABC, abstractmethod
 # from torch import tensor
 # from cmath import polar
@@ -19,7 +21,7 @@ from abc import ABC, abstractmethod
 
 class PoligonWindow():
     """
-    Окно испытательного полигона, на котором рисуется траектория
+    Окно испытательного полигона, на котором рисуется траектория. Главное окно.
 
     """
     class StageMark:
@@ -50,6 +52,7 @@ class PoligonWindow():
 
             :param point: точка центра масс в СКК
             """
+            # todo перенести в модуль примитивов и преобразовать в соотв класс
             # горизонтальная линия перекрестия
             self.__line1 = self.__canvas.create_line([point.x - self.__lineLength/2, point.y,
                                                       point.x + self.__lineLength/2, point.y])
@@ -70,6 +73,7 @@ class PoligonWindow():
             :return: True - если отметка была сдвинута по канве
             :rtype bool:
             """
+            # todo воспользоваться инструментарием модуля примитивов
             # проверка на наличие отметки на канве
             if self.__line1 is None or self.__line2 is None:
                 self.drawMark(oldPosition)
@@ -86,7 +90,9 @@ class PoligonWindow():
 
             return True
 
-    def __init__(self, frameRate: int, queue: Queue, poligonWidth: float, poligonHeigt: float, poligonScale: float, stageSize: float, stageScale: float):
+    def __init__(self, frameRate: int, queue: Queue, poligonWidth: float,
+                 poligonHeigt: float, poligonScale: float, stageSize: float, stageScale: float,
+                 killNeuronetFlag: KillNeuroNetThread, killRealityFlag: KillRealWorldThread):
         """
 
         :param frameRate: частота кадров (и поступления данных в очередь)
@@ -94,24 +100,44 @@ class PoligonWindow():
         :param poligonWidth: ширина испытательного полигона (точка посадки находится посередине)
         :param poligonHeigt: высота испытательного полигона (от уровня грунта)
         :param poligonScale: масштаб отображения полигона. Количество метров на одну точку.
+        :param stageSize: максимальный характерный размер ступени, метров
+        :param stageScale: масштаб изображения ступени на канве увеличенного изображения
+        :param killNeuronetFlag: флаг-команда на завершение нити нейросети
+        :param killRealityFlag: флаг-команда на завершение нити состояния ступени
         """
         self.__poligonWidth = poligonWidth
         self.__poligonHeigt = poligonHeigt
         # масштаб изображения полигона пикселей на метр
         self.__poligonScale = poligonScale
         # стартовая точка испытаний в СКК
-        self.__startPoint = VectorComplex.getInstance(self.__poligonWidth / self.__poligonScale / 2, 5 / self.__poligonScale)
+        # self.__startPoint = BigMap.startPointInPoligonCoordinates / self.__poligonScale
+        self.__startPoint = complexChangeSystemCoordinatesUniversal(BigMap.startPointInPoligonCoordinates,
+                                                                    BigMap.canvasOriginInPoligonCoordinates,
+                                                                    0., True) / self.__poligonScale
         # реальный размер на масштаб
         # точка посадки в СКК
-        self.__endPoint = VectorComplex.getInstance(self.__poligonWidth / self.__poligonScale / 2, 95 / self.__poligonScale)
+        # self.__endPoint = BigMap.landingPointInPoligonCoordinates / self.__poligonScale
+        self.__endPoint = complexChangeSystemCoordinatesUniversal(BigMap.landingPointInPoligonCoordinates,
+                                                                  BigMap.canvasOriginInPoligonCoordinates,
+                                                                  0., True) / self.__poligonScale
         # текущая координата ЦМ ступени в СКК
-        self.__currentPoint = VectorComplex.getInstance(self.__poligonWidth / self.__poligonScale / 2, 20 / self.__poligonScale)
+        # self.__currentPoint = VectorComplex.getInstance(self.__poligonWidth / self.__poligonScale / 2,
+        #                                                 20 / self.__poligonScale)
+        # self.__currentPoint = VectorComplex.getInstance(self.__poligonWidth / self.__poligonScale / 2,
+        #                                               self.__poligonHeigt * 0.05 / self.__poligonScale)
+        self.__currentPoint = self.__startPoint
 
         self.__frameRate = frameRate
         self.__queue = queue
         # Очередь для передачи данных в дочернее окно
         self.__subQueue = Queue()
         # size = 600
+        self.__killNeuroNetFlag = killNeuronetFlag
+        self.__killRealityFlag = killRealityFlag
+
+        # self.__poligonWindowPosition = VectorComplex(100., 20.)
+        # self.__stageWindowPosition = VectorComplex(20., 20.)
+
         self.__root = Tk()
         self.__root.geometry("+300+100")
         self.__root.title("Trajectory")
@@ -119,11 +145,14 @@ class PoligonWindow():
         self.__canvas.pack()
         self.__createStaticMarks()
         # Отметка на экране ЦМ ступени в СКК
-        self.__stageMark = PoligonWindow.StageMark(VectorComplex.getInstance(25 / self.__poligonScale, 20 / self.__poligonScale), self.__canvas)
+        # self.__stageMark = PoligonWindow.StageMark(VectorComplex.getInstance(25 / self.__poligonScale, 20 / self.__poligonScale), self.__canvas)
+        self.__stageMark = PoligonWindow.StageMark(self.__currentPoint, self.__canvas)
+        # Устаналвиваем обработчик закрытия главного окна
+        self.__root.protocol("WM_DELETE_WINDOW", self.__onClosing)
         self.__root.after(self.__frameRate, self.__draw)
         # self.__root.mainloop()
 
-        # Окно увеличенного изображения ступени в просессе посадки
+        # Окно увеличенного изображения ступени в процессе посадки
         self.__stageWindow = StageViewWindow(self.__root, stageSize, stageScale, frameRate, self.__subQueue)
 
     def __draw(self):
@@ -161,13 +190,20 @@ class PoligonWindow():
     def __createStaticMarks(self):
         # метод расставляет необходимые отметки по полигону (точка сброса ступени, точка посадки ступени и пр.)
         # отметка точки посадки в виде треугольника
-        self.__canvas.create_polygon([self.__endPoint.x - 5, self.__endPoint.y,
-                                      self.__endPoint.x, self.__endPoint.y - 5,
-                                      self.__endPoint.x + 5, self.__endPoint.y], fill="#1f1")
+        self.__canvas.create_polygon([self.__endPoint.x - 10, self.__endPoint.y,
+                                      self.__endPoint.x, self.__endPoint.y - 10,
+                                      self.__endPoint.x + 10, self.__endPoint.y], fill="#1f1")
         # Отметка точки начала спуска ступени
         self.__canvas.create_oval([self.__startPoint.x - 5, self.__startPoint.y - 5,
-                                   self.__startPoint.x + 5, self.__startPoint.y + 5],
-                                  fill="green")
+                                   self.__startPoint.x + 5, self.__startPoint.y + 5], fill="green")
+
+    def __onClosing(self):
+        """ Обработчик закрытия главного окна. """
+        # убиваем дополнительные нити
+        self.__killNeuroNetFlag.kill = True
+        self.__killRealityFlag.kill = True
+        # закрываем главное окно
+        self.__root.destroy()
 
 
 class StageViewWindow():
@@ -177,7 +213,7 @@ class StageViewWindow():
     def __init__(self, root: Tk, stageSize: float, stageScale: float, frameRate: int, anyQueue: Queue):
         """
         :param root:
-        :param stageSize: максимальный размер ступени
+        :param stageSize: максимальный характерный размер ступени, метров
         :param stageScale: масштаб изображения ступени на канве
         :param frameRate: частота "кадров" - частота, с которой окно запрашивает данные из очереди
         :param anyQueue: очередь для передачи данных одного фрейма движения ступени
@@ -187,27 +223,55 @@ class StageViewWindow():
         self.__anyQueue = anyQueue
         self.__frameRate = frameRate  # частота кадров
 
-        self.__windowWidth = self.__stageSize / self.__stageScale * 4
-        self.__windowHeight = self.__stageSize / self.__stageScale * 2 * 4
+        # размеры окна в зависимости от максимального размера ступени и масштаба её изображения
+        # self.__windowWidth = self.__stageSize / self.__stageScale * 4
+        # self.__windowHeight = self.__stageSize / self.__stageScale * 2 * 4
+        # self.__leftTextBorder = self.__stageSize / self.__stageScale
+        # Ширина в пикселях, зарезервированная для текстовых меток
+        self.__forTextLabels = 200
+        # 1.3 эмпирическая добавка, так как центр тяжести ступени смещён от центра симметрии
+        self.__moreWidth = 1.3
+        self.__windowWidth = self.__stageSize / self.__stageScale * self.__moreWidth + self.__forTextLabels
+        self.__windowHeight = self.__stageSize / self.__stageScale * self.__moreWidth
+        # Виртуальная вертикальная линия, проходящая по двоеточиям (по середине) текстовых меток
+        # Необходима для компоновки текстовых меток
+        self.__centerTextLine = self.__stageSize / self.__stageScale * self.__moreWidth + self.__forTextLabels / 2
 
         # size = 600
         # self.__root = Tk()
         self.__root = Toplevel(root)
+        self.__root.geometry("+{0:d}+{1:d}".format(600, 100))
+        # self.__root.geometry("300x600+600+100")
         self.__root.title("Stage view")
         self.__canvas = Canvas(self.__root, width=self.__windowWidth, height=self.__windowHeight)
+        # self.__canvas = Canvas(self.__root, width=)
         # canvas.
         # тестовая точка на экране, показывающая ориентацию СКК. Монтажное положение ЦМ в СКК
-        test = [Sizes.widthCenterBlock / 2 / 0.25, Sizes.heightCenterBlock * 2/3 / 0.25]
-        self.__canvas.create_oval([test[0]-5, test[1]-5, test[0]+5, test[1]+5], fill="red")
+        test = [Sizes.widthCenterBlock / 2 / self.__stageScale, Sizes.heightCenterBlock * 2/3 / self.__stageScale]
+        self.__canvas.create_oval([test[0]-5, test[1]-5, test[0]+5, test[1]+5], fill="blue")
 
         # тестовая стрелка, ставится в произвольном месте
         self.__arrow = Arrow(self.__canvas,VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5, "red")
+        self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
+                             "blue")
 
-        # отметка центра масс, ставится в произвольном месте
+        # отметка центра масс, ставится в произвольном месте, так как потом всё равно перемещается в нужное место
         self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(), fill="green")
+
+        # Текстовая информация
+        # Метки
+        self.__labelVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 50), "Vertical Velocity: ", NE)
+        self.__labelVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 70), "Horisontal Velocity: ", NE)
+        # Значения
+        self.__valueVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 50), "000,000 m/s", NW)
+        self.__valueVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 70), "000,000 m/s", NW)
 
         self.__canvas.pack()
         self.__stage = FirstStage2(self.__canvas, self.__stageScale)
+
+        # Смещение собранной конструкции в конечную точку нахождения на канве
+        # self.__stage.move(VectorComplex.getInstance(50., 0.))
+
         # self.__root.after(1000, function, self.__root)
         # self.__root.after(1000, function, self.__root, 0, True)
         # self.__stage.pack_foget
@@ -238,13 +302,20 @@ class StageViewWindow():
             # рисовать
             self.__stage.createOnCanvas()
             self.__arrow.createOnCanvas()
+            self.__testArrow.createOnCanvas()
             self.__massCenterMark.createOnCanvas()
+            self.__labelVhorizontal.createOnCanvas()
+            self.__labelVvertical.createOnCanvas()
+            self.__valueVhorizontal.createOnCanvas()
+            self.__valueVvertical.createOnCanvas()
             # двигать
-            self.__stage.move(transform.vector2d / self.__stageScale)
-            self.__arrow.move(transform.vector2d / self.__stageScale)
-            self.__massCenterMark.move(transform.vector2d / self.__stageScale)
+            # self.__stage.move(transform.vector2d / self.__stageScale)
+            # self.__arrow.move(transform.vector2d / self.__stageScale)
+            # self.__massCenterMark.move(transform.vector2d / self.__stageScale)
+            # текстовые метки не двигаем
             # вращать
-            self.__stage.rotate(transform.orientation2d)
+            # self.__stage.rotate(transform.orientation2d)
+            # текстовые метки не вращаем
             # print(transform.orientation2d.cardanus)
             # print(transform.text)
         # self.__stage.
@@ -301,9 +372,6 @@ class FirstStage2():
         # self.__directionVector = Point(0., 1.)
         # todo возможно (0, -1)?
         self.__directionVector = VectorComplex.getInstance(0., -1.)
-        #
-        # Задаём координаты графических элементов ступени относительно её ЦЕНТРА МАСС
-        #
 
         # Все примитивы изначально рисуются в привязке к началу координат канвы, с целью упрощения задания координат
         # ключевых точек.
