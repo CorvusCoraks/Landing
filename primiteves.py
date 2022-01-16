@@ -292,12 +292,23 @@ class Text(AbstractOnCanvasMark):
         """
         super().__init__(canvas, (start, start), start)
 
-        self.__key_point = key_point
-        self.__text = text
+        self._key_point = key_point
+        self._text = text
         # self.__width = width
         # self.__color = color
 
     def createOnCanvas(self):
         if self._objOnCanvasId is None:
-            self._objOnCanvasId = self._canvas.create_text(self._points[0].x, self._points[0].y, text=self.__text,
-                                                           anchor=self.__key_point, fill="black")
+            self._objOnCanvasId = self._canvas.create_text(self._points[0].x, self._points[0].y, text=self._text,
+                                                           anchor=self._key_point, fill="black")
+    @property
+    def text(self):
+        return self._text
+
+    @text.setter
+    def text(self, value: str):
+        if self._objOnCanvasId is not None:
+            # меняем значение на канве
+            self._canvas.itemconfig(self._objOnCanvasId, text=value)
+            # сохраняем значение в объекте
+            self._text = value

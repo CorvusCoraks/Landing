@@ -1,7 +1,7 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
 
 # from physics import Vector
-from graph import StageViewWindow, PoligonWindow
+from windows import PoligonWindow
 from queue import Queue
 from threading import Thread
 from point import VectorComplex
@@ -26,6 +26,7 @@ killRealWorldThread = KillRealWorldThread(False)
 # команда на завершение нити нейросети
 killNeuronetThread = KillNeuroNetThread(False)
 
+# Нить модели реального мира
 realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(fromRealWorldQueue, killRealWorldThread, killNeuronetThread,))
 realWorldThread.start()
 
@@ -51,9 +52,6 @@ stageScale = 0.1
 poligonWindow = PoligonWindow(frameRate, fromRealWorldQueue,
                               BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
                               killNeuronetThread, killRealWorldThread)
-
-# Создание окна визуализации
-# window = StageViewWindow(frameRate, fromNeuroNetQueue)
 
 realWorldThread.join()
 neuroNetThread.join()

@@ -4,7 +4,7 @@ from queue import Queue
 from point import VectorComplex
 from stage import Stage, Sizes
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text
-from threads import KillNeuroNetThread, KillRealWorldThread
+from threads import KillNeuroNetThread, KillRealWorldThread, Transform
 from physics import BigMap
 from decart import complexChangeSystemCoordinatesUniversal
 from abc import ABC, abstractmethod
@@ -24,6 +24,8 @@ class PoligonWindow():
     Окно испытательного полигона, на котором рисуется траектория. Главное окно.
 
     """
+    # Окно с увеличенным изображением ступени рисутется как "дочернее" окно полигона.
+    # При закрытии окна полигона, закрывается и окно ступени.
     class StageMark:
         """
         Метка в виде перекрестия, отображающая положение ступени на полигоне
@@ -210,6 +212,31 @@ class StageViewWindow():
     """
     Класс окна вывода увеличенного изображения ступени и числовых характеристик
     """
+    class PositionLabelText(Text):
+        """
+        Текст на карве с информацией о текущих координатах ступени.
+        """
+        def __init__(self, canvas: Canvas, start: VectorComplex, position: tuple, key_point):
+            super().__init__(canvas, start, "tempValue", key_point)
+            self.__stringTemplate = "x = {0},\n y = {1}"
+            # self.text = self.__stringTemplate
+            # self.__position = position
+            self.text = position
+
+        @property
+        def text(self):
+            return super().text
+
+        @text.setter
+        def text(self, position: tuple):
+            """
+            :param value: кортеж из двух элементов (x. y)
+            """
+            x, y = position
+            # Присваивание своёству суперкласса только таким кривым образом....
+            # https://stackoverflow.com/questions/10810369/python-super-and-setting-parent-class-property
+            super(self.__class__, self.__class__).text.fset(self, self.__stringTemplate.format(x, y))
+
     def __init__(self, root: Tk, stageSize: float, stageScale: float, frameRate: int, anyQueue: Queue):
         """
         :param root:
@@ -245,26 +272,9 @@ class StageViewWindow():
         self.__root.title("Stage view")
         self.__canvas = Canvas(self.__root, width=self.__windowWidth, height=self.__windowHeight)
         # self.__canvas = Canvas(self.__root, width=)
-        # canvas.
-        # тестовая точка на экране, показывающая ориентацию СКК. Монтажное положение ЦМ в СКК
-        test = [Sizes.widthCenterBlock / 2 / self.__stageScale, Sizes.heightCenterBlock * 2/3 / self.__stageScale]
-        self.__canvas.create_oval([test[0]-5, test[1]-5, test[0]+5, test[1]+5], fill="blue")
 
-        # тестовая стрелка, ставится в произвольном месте
-        self.__arrow = Arrow(self.__canvas,VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5, "red")
-        self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
-                             "blue")
-
-        # отметка центра масс, ставится в произвольном месте, так как потом всё равно перемещается в нужное место
-        self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(), fill="green")
-
-        # Текстовая информация
-        # Метки
-        self.__labelVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 50), "Vertical Velocity: ", NE)
-        self.__labelVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 70), "Horisontal Velocity: ", NE)
-        # Значения
-        self.__valueVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 50), "000,000 m/s", NW)
-        self.__valueVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 70), "000,000 m/s", NW)
+        # Создаём информационные отметки в окне
+        self.__marksOnStageWindow()
 
         self.__canvas.pack()
         self.__stage = FirstStage2(self.__canvas, self.__stageScale)
@@ -275,9 +285,62 @@ class StageViewWindow():
         # self.__root.after(1000, function, self.__root)
         # self.__root.after(1000, function, self.__root, 0, True)
         # self.__stage.pack_foget
-        # self.__stage.createOnCanvas()
+        self.__createObjectsOnCanvas()
         self.__root.after(self.__frameRate, self.__draw)
         self.__root.mainloop()
+
+
+
+    def __marksOnStageWindow(self):
+        """
+            Создаём отметки в окне изображения ступени.
+        """
+        # тестовая точка на экране, показывающая ориентацию СКК. Монтажное положение ЦМ в СКК
+        test = [Sizes.widthCenterBlock / 2 / self.__stageScale, Sizes.heightCenterBlock * 2 / 3 / self.__stageScale]
+        self.__canvas.create_oval([test[0] - 5, test[1] - 5, test[0] + 5, test[1] + 5], fill="blue")
+
+        # тестовая стрелка, ставится в произвольном месте
+        self.__arrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
+                             "red")
+        self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
+                                 "blue")
+
+        # отметка центра масс, ставится в произвольном месте, так как потом всё равно перемещается в нужное место
+        self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(), fill="green")
+
+        # Текстовая информация
+        # Метки
+        self.__labelVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 50),
+                                       "Vertical Velocity: ", NE)
+        self.__labelVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 70),
+                                     "Horisontal Velocity: ", NE)
+        self.__labelPosition = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 100),
+                                       "Position: ", NE)
+
+        # Значения
+        self.__valueVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 50),
+                                       "000,000 m/s", NW)
+        self.__valueVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 70),
+                                     "000,000 m/s", NW)
+        # self.__valuePosition = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 90),
+        #                             "x = 000.000,\ny = 000.000", NW)
+        self.__valuePosition = StageViewWindow.PositionLabelText(self.__canvas, VectorComplex.getInstance(
+            self.__centerTextLine + 10, 90),(0., 0.), NW)
+
+    def __createObjectsOnCanvas(self):
+        """
+        Отрисовываем на канве графические элементы
+        """
+        self.__stage.createOnCanvas()
+        self.__arrow.createOnCanvas()
+        self.__testArrow.createOnCanvas()
+        self.__massCenterMark.createOnCanvas()
+        self.__labelVhorizontal.createOnCanvas()
+        self.__labelVvertical.createOnCanvas()
+        self.__labelPosition.createOnCanvas()
+        self.__valueVhorizontal.createOnCanvas()
+        self.__valueVvertical.createOnCanvas()
+        self.__valuePosition.createOnCanvas()
 
     def canvas(self):
         return self.__canvas
@@ -299,15 +362,21 @@ class StageViewWindow():
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:
-            # рисовать
-            self.__stage.createOnCanvas()
-            self.__arrow.createOnCanvas()
-            self.__testArrow.createOnCanvas()
-            self.__massCenterMark.createOnCanvas()
-            self.__labelVhorizontal.createOnCanvas()
-            self.__labelVvertical.createOnCanvas()
-            self.__valueVhorizontal.createOnCanvas()
-            self.__valueVvertical.createOnCanvas()
+            # # создать, если отсутствуют
+            # self.__stage.createOnCanvas()
+            # self.__arrow.createOnCanvas()
+            # self.__testArrow.createOnCanvas()
+            # self.__massCenterMark.createOnCanvas()
+            # self.__labelVhorizontal.createOnCanvas()
+            # self.__labelVvertical.createOnCanvas()
+            # self.__labelPosition.createOnCanvas()
+            # self.__valueVhorizontal.createOnCanvas()
+            # self.__valueVvertical.createOnCanvas()
+            # self.__valuePosition.createOnCanvas()
+
+            # изменить значение
+            self.__valuePosition.text = (transform.vector2d.x, transform.vector2d.y)
+
             # двигать
             # self.__stage.move(transform.vector2d / self.__stageScale)
             # self.__arrow.move(transform.vector2d / self.__stageScale)
