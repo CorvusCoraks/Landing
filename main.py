@@ -21,6 +21,7 @@ stage = Rocket()
 
 # Очередь, через которую возвращаются данные о поведении ступени в реальном мире.
 fromRealWorldQueue = Queue()
+# fromRealWorldQueue: Queue
 # Команда на завершение нити реального мира
 killRealWorldThread = KillRealWorldThread(False)
 # команда на завершение нити нейросети

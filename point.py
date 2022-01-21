@@ -39,6 +39,7 @@ class VectorComplex():
     def __getPair(self):
         """ Получить компоненты вектора в виде кортежа двух чисел с плавающей точкой. """
         # return self.__tensor[0][0], self.__tensor[0][1]
+        # print(type(self.__tensor[0][0].item()), type(self.__tensor[0][1].item()))
         return self.__tensor[0][0].item(), self.__tensor[0][1].item()
 
     def __setPair(self, x:float, y: float):
@@ -51,7 +52,8 @@ class VectorComplex():
         """ Тензорный вид вектора """
         # self.__tensor[0][0] = self.__x
         # self.__tensor[0][1] = self.__y
-        return self.__tensor
+        # return self.__tensor
+        return tnsr([[self.__tensor[0][0].item(), self.__tensor[0][1].item()]], dtype=self.__tensor.dtype)
 
     @tensor.setter
     def tensor(self, tnsr: tensor):
@@ -101,7 +103,7 @@ class VectorComplex():
     @property
     def origin(self):
         """ Вектор начала координат дочерней системы в рамках родительской """
-        return self.__origin
+        return VectorComplex.getInstance(self.__origin.x, self.__origin.y)
 
     @origin.setter
     def origin(self, vector):

@@ -6,7 +6,7 @@ from stage import Stage, Sizes
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text
 from threads import KillNeuroNetThread, KillRealWorldThread, Transform
 from physics import BigMap
-from decart import complexChangeSystemCoordinatesUniversal
+from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
 # from torch import tensor
 # from cmath import polar
@@ -165,16 +165,27 @@ class PoligonWindow():
         if not self.__queue.empty():
             # print(self.__anyQueue.get())
             transform = self.__queue.get()
+            print("{0} Get. Posititon: {1}, Orientation: {2}".format(transform.text, transform.vector2d, transform.orientation2d))
+
+            # преобразование из СКИП в СКК
+            # inCanvasCoordSystem = RealWorldStageStatus()
+
+            (stageCanvasOrientation, stageCanvasPosition) = pointsListToNewCoordinateSystem(
+                [transform.orientation2d, transform.vector2d],
+                BigMap.canvasOriginInPoligonCoordinates,
+                0., True
+            )
+
             # прозрачно ретранслируем блок данных в следующее окно
             self.__subQueue.put(transform)
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:
             # сдвинуть отметку ЦМ ступени
-            if self.__stageMark.moveMark(self.__currentPoint, transform.vector2d / self.__poligonScale):
+            if self.__stageMark.moveMark(self.__currentPoint, stageCanvasPosition / self.__poligonScale):
                 # значение обновляем только тогда, если производился сдвиг отметки по канве
                 # в противном случае, прошедшее значение смещения попало в трэшхолд и не является значимым
-                self.__currentPoint = transform.vector2d / self.__poligonScale
+                self.__currentPoint = stageCanvasPosition / self.__poligonScale
             # self.__drawMassCenterMark()
             # рисовать
             # self.__stage.draw()
@@ -273,8 +284,16 @@ class StageViewWindow():
         self.__canvas = Canvas(self.__root, width=self.__windowWidth, height=self.__windowHeight)
         # self.__canvas = Canvas(self.__root, width=)
 
+        # отметки привязанные к к канве
+        self.__canvasLinkedMarks = []
+        # отметки привязанные к изображению ступени
+        self.__stageLinkedMarks = []
+        # Координаты центра масс от точки предварительной сборки
+        massCenterInCanvas = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
+                                                       Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
+        self.__orientation = VectorComplex.getInstance(0., -1.)
         # Создаём информационные отметки в окне
-        self.__marksOnStageWindow()
+        self.__marksOnStageWindow(massCenterInCanvas)
 
         self.__canvas.pack()
         self.__stage = FirstStage2(self.__canvas, self.__stageScale)
@@ -289,24 +308,39 @@ class StageViewWindow():
         self.__root.after(self.__frameRate, self.__draw)
         self.__root.mainloop()
 
+    def __draw0(self):
+        massCenterInCanvas = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
+                                                   Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
+        # создаём список отметок, привязанных к центру масс ступени + просто создаём отметки не привязанные к ступени
+        # self.__marksOnStage = self.__marksOnStageWindow(massCenterInCanvas)
+        # рисуем все отметки на канве, как привязанные к ступени, так и нет.
+        # self.__createObjectsOnCanvas()
+        # рисуем изображение ступени на канве
+        # self.__stage = FirstStage2(self.__canvas, self.__stageScale, piningPoint, massCenterInCanvas)
+        pass
 
-
-    def __marksOnStageWindow(self):
+    def __marksOnStageWindow(self, massCenterInCanvas: VectorComplex):
         """
             Создаём отметки в окне изображения ступени.
         """
         # тестовая точка на экране, показывающая ориентацию СКК. Монтажное положение ЦМ в СКК
-        test = [Sizes.widthCenterBlock / 2 / self.__stageScale, Sizes.heightCenterBlock * 2 / 3 / self.__stageScale]
-        self.__canvas.create_oval([test[0] - 5, test[1] - 5, test[0] + 5, test[1] + 5], fill="blue")
+        # test = [Sizes.widthCenterBlock / 2 / self.__stageScale, Sizes.heightCenterBlock * 2 / 3 / self.__stageScale]
+        # self.__canvas.create_oval([test[0] - 5, test[1] - 5, test[0] + 5, test[1] + 5], fill="blue")
+        # self.__canvas.create_oval([massCenterInCanvas.x - 5, massCenterInCanvas.y - 5,
+        #                            massCenterInCanvas.x + 5, massCenterInCanvas.y + 5], fill="blue")
 
         # тестовая стрелка, ставится в произвольном месте
-        self.__arrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
-                             "red")
-        self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
-                                 "blue")
+        self.__arrow = Arrow(self.__canvas, massCenterInCanvas,
+                             VectorComplex.getInstance(massCenterInCanvas.x,
+                                                       massCenterInCanvas.y + self.__orientation.y * 60.),
+                             5, "blue")
+        self.__stageLinkedMarks.append(self.__arrow)
+        # self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
+        #                          "blue")
 
-        # отметка центра масс, ставится в произвольном месте, так как потом всё равно перемещается в нужное место
-        self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(), fill="green")
+        # отметка центра масс
+        self.__massCenterMark = CenterMassMark(self.__canvas, massCenterInCanvas, fill="blue")
+        self.__stageLinkedMarks.append(self.__massCenterMark)
 
         # Текстовая информация
         # Метки
@@ -316,6 +350,7 @@ class StageViewWindow():
                                      "Horisontal Velocity: ", NE)
         self.__labelPosition = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 100),
                                        "Position: ", NE)
+        self.__canvasLinkedMarks.extend([self.__labelVhorizontal, self.__labelVvertical, self.__labelPosition])
 
         # Значения
         self.__valueVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 50),
@@ -326,21 +361,27 @@ class StageViewWindow():
         #                             "x = 000.000,\ny = 000.000", NW)
         self.__valuePosition = StageViewWindow.PositionLabelText(self.__canvas, VectorComplex.getInstance(
             self.__centerTextLine + 10, 90),(0., 0.), NW)
+        self.__canvasLinkedMarks.extend([self.__valueVhorizontal, self.__valueVvertical, self.__valuePosition])
 
     def __createObjectsOnCanvas(self):
         """
         Отрисовываем на канве графические элементы
         """
         self.__stage.createOnCanvas()
-        self.__arrow.createOnCanvas()
-        self.__testArrow.createOnCanvas()
-        self.__massCenterMark.createOnCanvas()
-        self.__labelVhorizontal.createOnCanvas()
-        self.__labelVvertical.createOnCanvas()
-        self.__labelPosition.createOnCanvas()
-        self.__valueVhorizontal.createOnCanvas()
-        self.__valueVvertical.createOnCanvas()
-        self.__valuePosition.createOnCanvas()
+
+        for value in self.__stageLinkedMarks:
+            value.createOnCanvas()
+
+        for value in self.__canvasLinkedMarks:
+            value.createOnCanvas()
+        # self.__arrow.createOnCanvas()
+        # self.__massCenterMark.createOnCanvas()
+        # self.__labelVhorizontal.createOnCanvas()
+        # self.__labelVvertical.createOnCanvas()
+        # self.__labelPosition.createOnCanvas()
+        # self.__valueVhorizontal.createOnCanvas()
+        # self.__valueVvertical.createOnCanvas()
+        # self.__valuePosition.createOnCanvas()
 
     def canvas(self):
         return self.__canvas
@@ -362,20 +403,14 @@ class StageViewWindow():
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:
-            # # создать, если отсутствуют
-            # self.__stage.createOnCanvas()
-            # self.__arrow.createOnCanvas()
-            # self.__testArrow.createOnCanvas()
-            # self.__massCenterMark.createOnCanvas()
-            # self.__labelVhorizontal.createOnCanvas()
-            # self.__labelVvertical.createOnCanvas()
-            # self.__labelPosition.createOnCanvas()
-            # self.__valueVhorizontal.createOnCanvas()
-            # self.__valueVvertical.createOnCanvas()
-            # self.__valuePosition.createOnCanvas()
-
             # изменить значение
             self.__valuePosition.text = (transform.vector2d.x, transform.vector2d.y)
+
+            (stageCanvasOrientation, stageCanvasPosition) = pointsListToNewCoordinateSystem(
+                [transform.orientation2d, transform.vector2d],
+                BigMap.canvasOriginInPoligonCoordinates,
+                0., True
+            )
 
             # двигать
             # self.__stage.move(transform.vector2d / self.__stageScale)
@@ -384,9 +419,12 @@ class StageViewWindow():
             # текстовые метки не двигаем
             # вращать
             # self.__stage.rotate(transform.orientation2d)
+            for value in self.__stageLinkedMarks:
+                value.rotate(self.__orientation, stageCanvasOrientation)
             # текстовые метки не вращаем
             # print(transform.orientation2d.cardanus)
             # print(transform.text)
+            self.__orientation = stageCanvasOrientation
         # self.__stage.
 
         # запускаем отрисовку цикл

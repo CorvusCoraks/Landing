@@ -39,13 +39,12 @@ class Transform():
     Изменение положения объекта (точки).
     """
     # Класс данных для передачи информации через очередь в окно отрисовки ситуации
-    # Данные передаются уже в готовом виде в системе координат канвы в виде точек положения. По факту,
-    # в виде фотоснимка. То есть, никакой дополнительной обработки данные не требуют.
+    # Передаются данные конкретного момента времени.
     def __init__(self, vector2d: VectorComplex, orientation2d: VectorComplex, text: str):
         """
 
-        :param vector2d: вектор нового положения центра масс объекта в системе координат канвы
-        :param orientation2d: вектор новой ориентации объекта в системе координат канвы
+        :param vector2d: вектор нового положения центра масс объекта в системе координат полигона
+        :param orientation2d: вектор новой ориентации объекта в системе координат полигона
         :param text: строка допоплнительной информации
         """
         self.vector2d = vector2d
@@ -131,28 +130,36 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         # new_orientation.cardanus = HistoricData.previousOrientation.cardanus * cmath.rect(1., (cmath.pi / 36))
         newStatus.orientation.cardanus = previousStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
+        # приводим к единичному вектору
+        newStatus.orientation.cardanus = newStatus.orientation.cardanus / abs(newStatus.orientation.cardanus)
+        # newStatus.orientation = VectorComplex.getInstanceC(newStatus.orientation.cardanus)
         # новое положение ступени в СКИП
         # newPosition = VectorComplex.getInstance(BigMap.width/2, 20 + i * 1)
         # newPosition = VectorComplex.getInstance(HistoricData.previousPosition.x, HistoricData.previousPosition.y +i *1)
         newStatus.position = VectorComplex.getInstance(previousStatus.position.x, previousStatus.position.y - i * 1)
         # преобразование из СКИП в СКК
-        inCanvasCoordSystem = RealWorldStageStatus()
+        # inCanvasCoordSystem = RealWorldStageStatus()
+        #
         # (inCanvasCoordSystem.orientation, inCanvasCoordSystem.position) = pointsListToNewCoordinateSystem(
         #     [newStatus.orientation, newStatus.position],
-        #     VectorComplex.getInstance(- BigMap.testPoligonOriginInCCS.x, BigMap.testPoligonOriginInCCS.y),
+        #     BigMap.canvasOriginInPoligonCoordinates,
         #     0., True
         # )
-        (inCanvasCoordSystem.orientation, inCanvasCoordSystem.position) = pointsListToNewCoordinateSystem(
-            [newStatus.orientation, newStatus.position],
-            BigMap.canvasOriginInPoligonCoordinates,
-            0., True
-        )
         # добавить в выходную очередь очередную порцию информации о состоянии ступени
-        print ("№{0}, new orient: {1}, position: {2}".format(i, newStatus.orientation, inCanvasCoordSystem.position))
-        # queue.put(StageStatus(inCanvasCoordSystem.orientation, inCanvasCoordSystem.position, "Команда №{}".format(i)))
-        # queue.put(Transform(VectorComplex.getInstance(BigMap.width/2, 20 + i * 1), new_orientation, "Команда №{}".format(i)))
-        queue.put(Transform(inCanvasCoordSystem.position, inCanvasCoordSystem.orientation, "Команда №{}".format(i)))
+        # print ("№{0}, new orient: {1}, position: {2}".format(i, newStatus.orientation, inCanvasCoordSystem.position))
 
+        # queue.put(Transform(inCanvasCoordSystem.position, inCanvasCoordSystem.orientation, "Команда №{}".format(i)))
+        # newStatus.orientation = VectorComplex.getInstance(1 + i, 1 + i)
+        # Для отправки в очередь создаём объект с независимыми новыми чистыми атрибутами.
+        # Т. е. Объект в очереди теперь не подвержен случайному изменению из вне очереди.
+        # Иными словами, если захочется изменить объект в очереди, теперь придётся сначала извлечь его из очереди,
+        # для того, чтобы получить к нему доступ.
+        queue.put(Transform(VectorComplex.getInstanceC(newStatus.position.cardanus),
+                            VectorComplex.getInstanceC(newStatus.orientation.cardanus),
+                            "Команда №{}".format(i)))
+        print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
+        # temp = queue.get()
+        # print("{0} GetPut. Posititon: {1}, Orientation: {2}".format(temp.text, temp.vector2d, temp.orientation2d))
         # запоминаем позицию
         # HistoricData.previousPosition = newPosition
         previousStatus.position = newStatus.position

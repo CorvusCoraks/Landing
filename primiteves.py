@@ -279,6 +279,22 @@ class Arrow(AbstractOnCanvasMark):
             self._objOnCanvasId = self._canvas.create_line(self._points[0].x, self._points[0].y,
                                                             self._points[1].x, self._points[1].y,
                                                             width=self.__width, fill=self.__color, arrow=LAST)
+    @property
+    def arrow(self):
+        """
+        :return: начальная и конечная точка
+        """
+        arrowPoints = self._canvas.coords([self._objOnCanvasId])
+        return (VectorComplex.getInstance(arrowPoints[0], arrowPoints[1]),
+                VectorComplex.getInstance(arrowPoints[2], arrowPoints[3]))
+
+    @arrow.setter
+    def arrow(self, *args: VectorComplex):
+        """
+        :param args: два элемента типа VectorComlex: стартовая точка и конечная точка
+        :return:
+        """
+        self._canvas.coords(self._objOnCanvasId, args[0].x, args[0].y, args[1].x, args[1].y)
 
 
 class Text(AbstractOnCanvasMark):
