@@ -126,6 +126,10 @@ class VectorComplex():
         # todo deprecated?
         return VectorComplex.getInstanceC(self.cardanus / rect(1., angle))
 
+    def lazyCopy(self):
+        """ Ленивая копия объекта: копируются только координаты """
+        return VectorComplex.getInstance(self.x, self.y)
+
     # @classmethod
     # def sub(cls, vector1, vector2):
     #     """ Вычитание векторов

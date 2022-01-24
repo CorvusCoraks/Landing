@@ -165,7 +165,6 @@ class PoligonWindow():
         if not self.__queue.empty():
             # print(self.__anyQueue.get())
             transform = self.__queue.get()
-            print("{0} Get. Posititon: {1}, Orientation: {2}".format(transform.text, transform.vector2d, transform.orientation2d))
 
             # преобразование из СКИП в СКК
             # inCanvasCoordSystem = RealWorldStageStatus()
@@ -288,15 +287,17 @@ class StageViewWindow():
         self.__canvasLinkedMarks = []
         # отметки привязанные к изображению ступени
         self.__stageLinkedMarks = []
-        # Координаты центра масс от точки предварительной сборки
-        massCenterInCanvas = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
+        # Координаты точки предварительной сборки (левый верхний угол прямоугольника ступени) в СКК
+        assemblingPoint = VectorComplex.getInstance(0., 0.)
+        # Координаты центра масс в СКК
+        massCenterInCanvas = assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
                                                        Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
         self.__orientation = VectorComplex.getInstance(0., -1.)
         # Создаём информационные отметки в окне
         self.__marksOnStageWindow(massCenterInCanvas)
 
         self.__canvas.pack()
-        self.__stage = FirstStage2(self.__canvas, self.__stageScale)
+        self.__stage = FirstStage2(self.__canvas, assemblingPoint, massCenterInCanvas, self.__stageLinkedMarks, self.__stageScale)
 
         # Смещение собранной конструкции в конечную точку нахождения на канве
         # self.__stage.move(VectorComplex.getInstance(50., 0.))
@@ -329,11 +330,11 @@ class StageViewWindow():
         # self.__canvas.create_oval([massCenterInCanvas.x - 5, massCenterInCanvas.y - 5,
         #                            massCenterInCanvas.x + 5, massCenterInCanvas.y + 5], fill="blue")
 
-        # тестовая стрелка, ставится в произвольном месте
+        # стрелка ориентации, ставится в центре тяжести изображения ступени
         self.__arrow = Arrow(self.__canvas, massCenterInCanvas,
                              VectorComplex.getInstance(massCenterInCanvas.x,
                                                        massCenterInCanvas.y + self.__orientation.y * 60.),
-                             5, "blue")
+                             5, "blue", massCenterInCanvas)
         self.__stageLinkedMarks.append(self.__arrow)
         # self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
         #                          "blue")
@@ -374,58 +375,44 @@ class StageViewWindow():
 
         for value in self.__canvasLinkedMarks:
             value.createOnCanvas()
-        # self.__arrow.createOnCanvas()
-        # self.__massCenterMark.createOnCanvas()
-        # self.__labelVhorizontal.createOnCanvas()
-        # self.__labelVvertical.createOnCanvas()
-        # self.__labelPosition.createOnCanvas()
-        # self.__valueVhorizontal.createOnCanvas()
-        # self.__valueVvertical.createOnCanvas()
-        # self.__valuePosition.createOnCanvas()
 
     def canvas(self):
         return self.__canvas
 
     def __draw(self):
         """ метод для периодической перерисовки объектов на канве """
-        print("In __draw")
 
-        # move_to = 0.
-        # angle_to = 0.
         transform = None
 
         # получение данных из внешних источников self.__anyQueue
-        # self.__getDataFunction()
         if not self.__anyQueue.empty():
-            # print(self.__anyQueue.get())
             transform = self.__anyQueue.get()
-        # print(self.__anyQueue.get())
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:
             # изменить значение
             self.__valuePosition.text = (transform.vector2d.x, transform.vector2d.y)
 
-            (stageCanvasOrientation, stageCanvasPosition) = pointsListToNewCoordinateSystem(
-                [transform.orientation2d, transform.vector2d],
-                BigMap.canvasOriginInPoligonCoordinates,
+            # На всякий случай вытаскиваем величину. Пока не понятно зачем она нам понадобится.
+            BigMap.stageViewOriginInPoligonCoordinates = transform.vector2d
+            stageViewOrientation: VectorComplex
+
+            # Вектор ориентации это - свободный вектор. От нуля любой СК.
+            stageViewOrientation, _ = pointsListToNewCoordinateSystem(
+                [transform.orientation2d, transform.orientation2d],
+                VectorComplex.getInstance(0., 0.),
                 0., True
             )
 
-            # двигать
-            # self.__stage.move(transform.vector2d / self.__stageScale)
-            # self.__arrow.move(transform.vector2d / self.__stageScale)
-            # self.__massCenterMark.move(transform.vector2d / self.__stageScale)
-            # текстовые метки не двигаем
-            # вращать
-            # self.__stage.rotate(transform.orientation2d)
+            print("{0} Get. Orientation: {1}".format(transform.text, stageViewOrientation))
+
+            # value: Arrow
+            # вращать метки, привязанные к изображению ступени
             for value in self.__stageLinkedMarks:
-                value.rotate(self.__orientation, stageCanvasOrientation)
+                value.rotate(stageViewOrientation, self.__orientation)
             # текстовые метки не вращаем
-            # print(transform.orientation2d.cardanus)
-            # print(transform.text)
-            self.__orientation = stageCanvasOrientation
-        # self.__stage.
+
+            self.__orientation = stageViewOrientation
 
         # запускаем отрисовку цикл
         self.__root.after(self.__frameRate, self.__draw)
@@ -448,7 +435,7 @@ class FirstStage2():
     # который был создан при ПЕРВОМ вызове метода draw()
     #
     # Ступень представляет из себя связанный набор стандартных примитивов (в основном многоугольники)
-    def __init__(self, canvas: Canvas, scale: float):
+    def __init__(self, canvas: Canvas, assemblingPoint: VectorComplex, massCenterInCanvas: VectorComplex, linkedMarks: list, scale: float):
         """
 
         :param canvas: канва
@@ -471,8 +458,9 @@ class FirstStage2():
         # совпал с началом координат канвы
         #
         # центр масс (центр вращения) в системе координат канвы
-        self.__massCenter \
-            = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__scale, Sizes.heightCenterBlock * 2/3 / self.__scale)
+        # self.__massCenter \
+        #     = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__scale, Sizes.heightCenterBlock * 2/3 / self.__scale)
+        self.__massCenter = massCenterInCanvas.lazyCopy()
         #
         # Так как при создании ступень стоит вертикально, данный вектор (вектор продольной оси) направлен по оси Y
         # в системе отсчёта канвы
@@ -498,64 +486,80 @@ class FirstStage2():
         # Верхний левый угол ступени находится в начале координат канвы. В этом положении ступень находится до конца
         # сборки всех примитивов
         self.__tank = PoligonRectangleA(self.__canvas).\
-            create2points(VectorComplex.getInstance(0., 0.),
-                          VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, Sizes.heightCenterBlock / self.__scale),
+            create2points(assemblingPoint + VectorComplex.getInstance(0., 0.),
+                          assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, Sizes.heightCenterBlock / self.__scale),
                           self.__massCenter)
         self.__allPrimitives.append(self.__tank)
 
         # верхний левый маневровый двигатель
         # создание в нулевой позиции
         self.__topLeftJet = PoligonRectangleA(self.__canvas).\
-            create2points(VectorComplex.getInstance(0, 0),
-                          VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
+                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__topLeftJet.preliminaryMove(VectorComplex.getInstance(- Sizes.widthJet / self.__scale, 0))
+        self.__topLeftJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(- Sizes.widthJet / self.__scale, 0))
         self.__allPrimitives.append(self.__topLeftJet)
 
         # верхний правый маневровый двигатель
         # создание в нулевой позиции
         self.__topRightJet = PoligonRectangleA(self.__canvas).\
-            create2points(VectorComplex.getInstance(0, 0),
-                          VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
+                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__topRightJet.preliminaryMove(VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, 0))
+        self.__topRightJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, 0))
         self.__allPrimitives.append(self.__topRightJet)
 
         # нижний левый маневровый двигатель
         # создание в нулевой позиции
         self.__downLeftJet = PoligonRectangleA(self.__canvas).\
-            create2points(VectorComplex.getInstance(0, 0),
-                          VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
+                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__downLeftJet.preliminaryMove(VectorComplex.getInstance(- Sizes.widthJet / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
+        self.__downLeftJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(- Sizes.widthJet / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
         self.__allPrimitives.append(self.__downLeftJet)
 
         # нижний правый маневровый двигатель
         # создание в нулевой позиции
         self.__downRightJet = PoligonRectangleA(self.__canvas).\
-            create2points(VectorComplex.getInstance(0, 0),
-                          VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
+                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__downRightJet.preliminaryMove(VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
+        self.__downRightJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
         self.__allPrimitives.append(self.__downRightJet)
 
         # маршевый двигатель
         # создание в нулевой позиции
         self.__mainJet = PoligonRectangleA(self.__canvas).\
-            create2points(VectorComplex.getInstance(0, 0),
-                          VectorComplex.getInstance(Sizes.widthMainJet / self.__scale, Sizes.heightMainJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
+                          assemblingPoint + VectorComplex.getInstance(Sizes.widthMainJet / self.__scale, Sizes.heightMainJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__mainJet.preliminaryMove(VectorComplex.getInstance((Sizes.widthCenterBlock-Sizes.widthMainJet)/2 / self.__scale, Sizes.heightCenterBlock / self.__scale))
+        self.__mainJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance((Sizes.widthCenterBlock-Sizes.widthMainJet)/2 / self.__scale, Sizes.heightCenterBlock / self.__scale))
         self.__allPrimitives.append(self.__mainJet)
+
+        # смещение собранного изображения ступени в нужную позицию на канве
+        prelimenaryMoveVector = VectorComplex.getInstance(50., 50.)
+        # создаём копию объекта "координаты центра масс"
+        massCenter = massCenterInCanvas.lazyCopy()
+        # смещаем центр масс
+        massCenter += prelimenaryMoveVector
+        for primitive in self.__allPrimitives:
+            primitive.preliminaryMove(prelimenaryMoveVector)
+            # все примитивы ступени привязываются к одному объекту "координаты центра масс", как к центру вращения
+            primitive.rotationCenter = massCenter
+
+        for mark in linkedMarks:
+            mark.preliminaryMove(prelimenaryMoveVector)
+            # все метки, связанные со ступенью, так же привязываются к одному и тому же объекту "координаты центра масс"
+            mark.rotationCenter = massCenter
 
     def createOnCanvas(self):
         """
-        Рисовать (создать) ступерь на канве. Создаётся один единственный раз только при ПЕРВОМ вызове.
+        Рисовать (создать) ступень на канве. Создаётся один единственный раз только при ПЕРВОМ вызове.
         """
         for primitive in self.__allPrimitives:
             primitive.createOnCanvas()

@@ -20,6 +20,8 @@ class AbstractPrimitive(ABC):
         Абстрактный класс-прародитель ВСЕХ примитивов на канве
 
         :param canvas: канва, на которой будет выводится данный примитив
+        :param vectorComplex: список точек примитива.
+        :param centerPoint: точка, во круг которой вращается примитив
         """
         # одно подчёркивание - protected, т. е. для экземпляра класса и его потомков
         self._canvas = canvas
@@ -29,6 +31,14 @@ class AbstractPrimitive(ABC):
         self._objOnCanvasId = None
         # Точка, вокруг которой осуществляется поворот многоугольника
         self._center = centerPoint
+
+    @property
+    def rotationCenter(self):
+        return self._center
+
+    @rotationCenter.setter
+    def rotationCenter(self, point: VectorComplex):
+        self._center = point
 
     @abstractmethod
     def move(self, vector: VectorComplex):
@@ -40,18 +50,35 @@ class AbstractPrimitive(ABC):
         """
         raise NotImplemented
 
-    @abstractmethod
-    def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
+    # @abstractmethod
+    # def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
+    #     """
+    #     Предварительное смещение примитива (при сборке большого объекта) ДО первой отрисовки его на канве
+    #
+    #     :param vector: Вектор в СКК смещения от старой точки к новой
+    #     :param isCenterMassMove: смещать центр масс, к которому привязан примитив
+    #     :return:
+    #     """
+    #     raise NotImplemented
+
+    def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
         """
-        Предварительное смещение примитива (при сборке большого объекта) ДО первой отрисовки его на канве
+        Метод предварительного смещения объекта в координатной системе канвы
 
-        :param vector: Вектор в СКК смещения от старой точки к новой
-        :param isCenterMassMove: смещать центр масс, к которому привязан примитив
-        :return:
+        :param vector2d: вектор смещения
+        :param isCenterMassMove: сдвигать центр масс объекта вместе с остальными точками
         """
-        raise NotImplemented
+        #
+        # Метод используется, например, при первоначальной отрисовки объекта. Т. е. объект сначала рисуется
+        # в той позиции, где удобно задаваеть координаты его точек. Потом, испльзуется этот метод, для перемещения
+        # примитива в нужное место, где он толжен быть примонтирован к основному объекту
+        #
+        for _, point in enumerate(self._points):
+            # point.cardanus = point.cardanus + vector2d.cardanus
+            point.cardanus = (point + vector2d).cardanus
 
-
+        if isCenterMassMove:
+            self._center.cardanus = (self._center + vector2d).cardanus
 
     # @abstractmethod
     # def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
@@ -142,23 +169,23 @@ class PoligonRectangleA(AbstractPrimitive):
             # self.__center = VectorComplex.getInstanceC(self.__center.cardanus + vector2d.cardanus)
             self._center = self._center + vector2d
 
-    def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
-        """
-        Метод предварительного смещения объекта в координатной системе канвы
-
-        :param vector2d: вектор смещения
-        :param isCenterMassMove: сдвигать центр масс объекта вместе с остальными точками
-        """
-        #
-        # Метод используется, например, при первоначальной отрисовки объекта. Т. е. объект сначала рисуется
-        # в той позиции, где удобно задаваеть координаты его точек. Потом, испльзуется этот метод, для перемещения
-        # примитива в нужное место, где он толжен быть примонтирован к основному объекту
-        #
-        for _, point in enumerate(self._points):
-            point.cardanus = point.cardanus + vector2d.cardanus
-
-        if isCenterMassMove:
-            self._center = self._center.cardanus + vector2d.cardanus
+    # def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
+    #     """
+    #     Метод предварительного смещения объекта в координатной системе канвы
+    #
+    #     :param vector2d: вектор смещения
+    #     :param isCenterMassMove: сдвигать центр масс объекта вместе с остальными точками
+    #     """
+    #     #
+    #     # Метод используется, например, при первоначальной отрисовки объекта. Т. е. объект сначала рисуется
+    #     # в той позиции, где удобно задаваеть координаты его точек. Потом, испльзуется этот метод, для перемещения
+    #     # примитива в нужное место, где он толжен быть примонтирован к основному объекту
+    #     #
+    #     for _, point in enumerate(self._points):
+    #         point.cardanus = point.cardanus + vector2d.cardanus
+    #
+    #     if isCenterMassMove:
+    #         self._center = self._center.cardanus + vector2d.cardanus
 
     def createOnCanvas(self):
         """
@@ -204,9 +231,9 @@ class AbstractOnCanvasMark(AbstractPrimitive):
             # новая точка крепления
             self._center = pinPoint
 
-    def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
-        # заглушаем эту функцию здесь, ибо дальнейшим наследникам она не нужна
-        pass
+    # def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
+    #     # заглушаем эту функцию здесь, ибо дальнейшим наследникам она не нужна
+    #     pass
 
     @abstractmethod
     def createOnCanvas(self):
@@ -254,18 +281,20 @@ class Arrow(AbstractOnCanvasMark):
     Отображение иллюстративной стрелки на канве
     """
     # def __init__(self, canvas: Canvas, *args, **kwargs):
-    def __init__(self, canvas: Canvas, start: VectorComplex, finish: VectorComplex, width: float, color: str):
+    def __init__(self, canvas: Canvas, start: VectorComplex, finish: VectorComplex, width: float, color: str, pinPoint=VectorComplex.getInstance()):
         """
         :param canvas: канва
         :param start: начальная точка
         :param finish: конечная точка
         :param width: ширина линии
         :param color: цвет стрелки
+        :param pinPoint: ось вращения
         """
-        super().__init__(canvas, (start, finish), start)
+        super().__init__(canvas, (start, finish), pinPoint)
 
         self.__width = width
         self.__color = color
+        self.__pinPoint = pinPoint
 
     # def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
     #     # Для этого примитива функция не используется

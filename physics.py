@@ -133,6 +133,9 @@ class BigMap:
     landingPointInPoligonCoordinates = VectorComplex.getInstance()
     # Координаты стартовой точки в СКИП
     startPointInPoligonCoordinates = VectorComplex.getInstance(0., height * 0.9)
+    # Координаты центра тяжести ступени (координаты начала координат СКС в СКИП в масштабе 1:1)
+    # Движущаяся система координат.
+    stageViewOriginInPoligonCoordinates = VectorComplex.getInstance()
 
 
 class Action():
