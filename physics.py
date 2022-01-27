@@ -2,7 +2,7 @@
 from torch import Tensor
 import torch
 from point import VectorComplex
-import stage
+import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
@@ -33,13 +33,18 @@ from decart import complexChangeSystemCoordinatesUniversal
 # 4. Аналогично п. 2 и п. 3 считаются угловые скорости и ускорения.
 
 # Частота считывания/передачи данных с датчиков ступени
-# раз в секунду / Герц
+# раз в секунду / Герц, если 1000, то это секунда
 # Вполне возможно будет переменной: чем ниже скорость, тем меньше частота
-frequency = 1000
+# В числителе Герцы, а на итоге - секунды
+frequency = 1000 / 1000
+# frequency = 1.
+# Предыдущее состояние модели
+previousStageStatus = None
 
 
 class HistoricData:
     """ Класс исторических данных, необходимых для расчёта ускорения и скорости """
+    # todo Возможно, класс не нужен
     # Так как без знания двух очередных значений положения и времени между ними невозможно посчитать скорость
     # и ускорение объекта
     # Линейные положение, линейная скорость и ускорение - всё это в СКИП
@@ -59,34 +64,52 @@ class HistoricData:
     # todo использовать или previousTimeStamp, или timeLength
 
 
-class RealWorldStageStatus:
+class RealWorldStageStatus():
     """ Состояние ступени в конкретный момент времени """
-    def __init__(self, position=VectorComplex.getInstance(),
-                 velocity=VectorComplex.getInstance(),
-                 axeleration=VectorComplex.getInstance(),
-                 orientation=VectorComplex.getInstance(),
+    def __init__(self, position=None,
+                 velocity=None,
+                 axeleration=None,
+                 # Бред. Ориентация с какого-то хрена сама вставится по вектору {0.087; 0.996}
+                 orientation=None,
                  angularVelocity=0.,
                  angularAxeleration=0.,
                  timeLength=0.):
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-        self.position = position
-        self.velocity = velocity
+        self.position = position if position is not None else VectorComplex.getInstance()
+        self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-        self.axeleration = axeleration
+        self.axeleration = axeleration if axeleration is not None else VectorComplex.getInstance()
         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
-        self.orientation = orientation
+        # if orientation is None:
+        #     self.orientation = VectorComplex.getInstance(0., 0.)
+        # else:
+        #     self.orientation = orientation
+        self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
         self.angularVelocity = angularVelocity
         # Аналогично, зачем мне предыдущее угловое ускорение?
         self.angularAxeleration = angularAxeleration
         # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-        self.timeStamp: float
+        self.timeStamp: float = 0.
         # Длительность действия этих параметров, сек
         self.timeLength = timeLength
         # todo использовать или previousTimeStamp, или timeLength. Одновременно, скорее всего излишне.
 
+    def lazyCopy(self):
+        newObject = RealWorldStageStatus()
+        newObject.position = self.position.lazyCopy()
+        newObject.velocity = self.velocity.lazyCopy()
+        newObject.axeleration = self.axeleration.lazyCopy()
+        newObject.orientation = self.orientation.lazyCopy()
+        newObject.angularVelocity = self.angularVelocity
+        newObject.angularAxeleration = self.angularAxeleration
+        newObject.timeStamp = self.timeStamp
+        newObject.timeLength = self.timeLength
+        return newObject
+
     # @classmethod
     # def zero(cls):
     #     return RealWorldStageStatus
+
 
 
 class Rocket():
@@ -170,6 +193,19 @@ class Action():
                  ftopleft=VectorComplex.getInstance(), ftopright=VectorComplex.getInstance(),
                  gdown=VectorComplex.getInstance(), gcenter=VectorComplex.getInstance(),
                  gtop=VectorComplex.getInstance(), psi=0.):
+        """
+        По умолчанию, все силы нулевые.
+
+        :param fdownleft:
+        :param fdownright:
+        :param fdownup:
+        :param ftopleft:
+        :param ftopright:
+        :param gdown:
+        :param gcenter:
+        :param gtop:
+        :param psi:
+        """
         # Силы действия двигателей указываются в СКС.
         # Сила левого нижнего рулевого РД
         self.FdownLeft: VectorComplex = fdownleft
@@ -220,6 +256,9 @@ class Moving():
 
         :return:
         """
+        # Если время действия сил равно нулю, то ускорение от этих сил заведомо равно нулю
+        # if t == 0.: return 0.
+
         # Складываем силы двигателей, получая суперпозицию в СКС
         f = forces.FdownLeft + forces.FdownRight + forces.FdownUp + forces.FtopLeft + forces.FtopRight
         # Переводим суперпозицию сил двигателей в СКЦМ
@@ -239,7 +278,16 @@ class Moving():
 
         :return:
         """
+        # Если время действия сил равно нулю, то ускорение от этих сил заведомо равно нулю
+        # if t == 0.: return 0.
+
+        # pass
         return 0.
+
+    # @classmethod
+    # def getLineVelosity(cls, V0: VectorComplex, t: float, forces: Action):
+    #     return V0 + Moving.getA(forces) * t
+
 
     @classmethod
     def getDistanseVector(cls, V0: VectorComplex, t: float, forces: Action):
@@ -257,11 +305,34 @@ class Moving():
         return result
 
     @classmethod
-    def getRotationAngle(cls, W0: float, t: float):
+    def getRotationAngle(cls, W0: float, t: float, forces: Action):
         """
         Изменение угла поворота ступени вокруг её центра масс.
 
         :return:
         """
-        result = W0 * t + Moving.getE(Action()) * t ** 2
+        result = W0 * t + Moving.getE(forces) * t ** 2
         return result
+
+    @classmethod
+    def getNewStatus(cls):
+        """ Возвращает новое состояние ступени """
+
+        lineAxeleration = Moving.getA(Action())
+        lineVelocity = previousStageStatus.velocity + lineAxeleration * frequency
+        linePosition = previousStageStatus.position + lineVelocity * frequency
+
+        # новая ориентация
+        # orientation = VectorComplex.getInstance()
+        # сложениself.orientation = orientationе двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
+        cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
+        # приводим к единичному вектору
+        cardanus = cardanus / abs(cardanus)
+        # новая ориентация
+        orientation = VectorComplex.getInstanceC(cardanus)
+
+        # newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity,
+        #                                    axeleration=lineAxeleration, orientation=previousStageStatus.orientation)
+        newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity,
+                                           axeleration=lineAxeleration, orientation=orientation)
+        return newPosition

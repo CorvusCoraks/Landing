@@ -5,7 +5,7 @@ from point import VectorComplex
 from stage import Stage, Sizes
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text
 from threads import KillNeuroNetThread, KillRealWorldThread, Transform
-from physics import BigMap
+from physics import BigMap, RealWorldStageStatus
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
 # from torch import tensor
@@ -404,7 +404,7 @@ class StageViewWindow():
                 0., True
             )
 
-            print("{0} Get. Orientation: {1}".format(transform.text, stageViewOrientation))
+            # print("{0} Get. Orientation: {1}".format(transform.text, stageViewOrientation))
 
             # value: Arrow
             # вращать метки, привязанные к изображению ступени

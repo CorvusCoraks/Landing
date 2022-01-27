@@ -1,6 +1,7 @@
 """ Модуль класса Точка: объект имеющий две координаты """
 from torch import tensor as tnsr
 from cmath import rect
+import sys, traceback, inspect
 
 
 class VectorComplex():
@@ -11,7 +12,7 @@ class VectorComplex():
         :param tensor_view: Тензор вида [[0, 0]], Все параметры входного тензора сохраняются
         :param origin: координаты начала координат системы вектора в родительской системе координат
         """
-        super(VectorComplex, self).__init__()
+        # super(VectorComplex, self).__init__()
         # тензорное представление вида [[0, 0]]
         self.__tensor = tensor_view
         # отдельно сохраняем данные тензора в родительском классе, ибо только они будут актуальными
@@ -25,7 +26,19 @@ class VectorComplex():
     @classmethod
     def getInstance(cls, x=0., y=0., origin=None):
         """ Создать экземпляр класса. По умолчанию - нулевой вектор. """
-        result = VectorComplex(tnsr([[x, y]], dtype=float))
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        # try:
+        #     back_frame = inspect.currentframe().f_back.f_code.co_name
+        #     if 0.086<=x<=0.088:
+        #         raise Exception("(0.087; 0.996): {0}".format(back_frame))
+        # except Exception:
+        #     exc_type, exc_value, exc_traceback = sys.exc_info()
+        #     traceback.print_tb(exc_traceback, file=sys.stdout)
+
+
+        list = [[x, y]]
+        tensor = tnsr(list, dtype=float)
+        result = VectorComplex(tensor)
         result.__origin = origin
         return result
 
