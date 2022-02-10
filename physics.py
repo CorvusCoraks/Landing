@@ -74,6 +74,23 @@ class RealWorldStageStatus():
                  angularVelocity=0.,
                  angularAxeleration=0.,
                  timeLength=0.):
+        """
+
+        :param position:
+        :type position: VectorComplex
+        :param velocity:
+        :type velocity: VectorComplex
+        :param axeleration:
+        :type axeleration: VectorComplex
+        :param orientation:
+        :type orientation: VectorComplex
+        :param angularVelocity:
+        :type angularVelocity: float
+        :param angularAxeleration:
+        :type angularAxeleration: float
+        :param timeLength:
+        :type timeLength: float
+        """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
         self.position = position if position is not None else VectorComplex.getInstance()
         self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
@@ -323,16 +340,13 @@ class Moving():
         linePosition = previousStageStatus.position + lineVelocity * frequency
 
         # новая ориентация
-        # orientation = VectorComplex.getInstance()
-        # сложениself.orientation = orientationе двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
+        # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
         # приводим к единичному вектору
         cardanus = cardanus / abs(cardanus)
         # новая ориентация
         orientation = VectorComplex.getInstanceC(cardanus)
 
-        # newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity,
-        #                                    axeleration=lineAxeleration, orientation=previousStageStatus.orientation)
         newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity,
                                            axeleration=lineAxeleration, orientation=orientation)
         return newPosition

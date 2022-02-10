@@ -3,7 +3,7 @@ from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST, NE, NW
 from queue import Queue
 from point import VectorComplex
 from stage import Stage, Sizes
-from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text
+from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text, LineArrowAndText, ArcArrowAndText
 from threads import KillNeuroNetThread, KillRealWorldThread, Transform
 from physics import BigMap, RealWorldStageStatus
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
@@ -226,8 +226,8 @@ class StageViewWindow():
         """
         Текст на карве с информацией о текущих координатах ступени.
         """
-        def __init__(self, canvas: Canvas, start: VectorComplex, position: tuple, key_point):
-            super().__init__(canvas, start, "tempValue", key_point)
+        def __init__(self, canvas: Canvas, start: VectorComplex, position: tuple, textAnchor):
+            super().__init__(canvas, start, "tempValue", textAnchor)
             self.__stringTemplate = "x = {0},\n y = {1}"
             # self.text = self.__stringTemplate
             # self.__position = position
@@ -310,6 +310,7 @@ class StageViewWindow():
         self.__root.mainloop()
 
     def __draw0(self):
+        # todo не нужная функция?
         massCenterInCanvas = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
                                                    Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
         # создаём список отметок, привязанных к центру масс ступени + просто создаём отметки не привязанные к ступени
@@ -351,7 +352,19 @@ class StageViewWindow():
                                      "Horisontal Velocity: ", NE)
         self.__labelPosition = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 100),
                                        "Position: ", NE)
-        self.__canvasLinkedMarks.extend([self.__labelVhorizontal, self.__labelVvertical, self.__labelPosition])
+        # self.__testArc = PsevdoArcArrow(self.__canvas, VectorComplex.getInstance(400, 300))
+        self.__arcAndTextTest = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(300, 300), "Header", 120., "Legend")
+
+        self.__testArrow = LineArrowAndText(self.__canvas, VectorComplex.getInstance(200, 200), "Header", 120., "Legend")
+
+
+        velocityPinPoint = VectorComplex.getInstance(self.__centerTextLine, 200)
+        self.__velocityArrow = Arrow(self.__canvas,
+                                     VectorComplex.getInstance(velocityPinPoint.x, velocityPinPoint.y + 20),
+                                     VectorComplex.getInstance(velocityPinPoint.x, velocityPinPoint.y - 20),
+                                     5, "green", velocityPinPoint)
+
+        self.__canvasLinkedMarks.extend([self.__labelVhorizontal, self.__labelVvertical, self.__labelPosition, self.__velocityArrow, self.__arcAndTextTest, self.__testArrow])
 
         # Значения
         self.__valueVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 50),
@@ -376,6 +389,9 @@ class StageViewWindow():
         for value in self.__canvasLinkedMarks:
             value.createOnCanvas()
 
+        self.__testArrow.direction = VectorComplex.getInstance(1., 0.)
+        # self.__arcAndTextTest.direction = PsevdoArcArrow.ZERO
+
     def canvas(self):
         return self.__canvas
 
@@ -392,6 +408,7 @@ class StageViewWindow():
         if transform is not None:
             # изменить значение
             self.__valuePosition.text = (transform.vector2d.x, transform.vector2d.y)
+            # stageStatus = transform.stageStatus
 
             # На всякий случай вытаскиваем величину. Пока не понятно зачем она нам понадобится.
             BigMap.stageViewOriginInPoligonCoordinates = transform.vector2d
@@ -411,6 +428,9 @@ class StageViewWindow():
             for value in self.__stageLinkedMarks:
                 value.rotate(stageViewOrientation, self.__orientation)
             # текстовые метки не вращаем
+
+            # Вращаем стрелки индикаторов
+            # self.__velocityArrow.rotate(transform.stageStatus.velocity, self.__velocityArrow)
 
             self.__orientation = stageViewOrientation
 

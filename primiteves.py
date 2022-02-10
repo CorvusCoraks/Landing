@@ -7,12 +7,14 @@
 #   └-> AbstractOnCanvasMark
 #           │-> CenterMassMark
 #           └-> Arrow
-#
-from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST
+#           └-> Text
+#           └-> PsevdoArcArrow
+from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST, ARC, N
 from point import VectorComplex
 from decart import pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
-
+from cmath import rect, pi
+from math import radians
 
 class AbstractPrimitive(ABC):
     def __init__(self, canvas: Canvas, vectorComplex: tuple, centerPoint: VectorComplex):
@@ -20,7 +22,7 @@ class AbstractPrimitive(ABC):
         Абстрактный класс-прародитель ВСЕХ примитивов на канве
 
         :param canvas: канва, на которой будет выводится данный примитив
-        :param vectorComplex: список точек примитива.
+        :param vectorComplex: список точек примитива для его первоначальной отрисовки
         :param centerPoint: точка, во круг которой вращается примитив
         """
         # одно подчёркивание - protected, т. е. для экземпляра класса и его потомков
@@ -50,17 +52,6 @@ class AbstractPrimitive(ABC):
         """
         raise NotImplemented
 
-    # @abstractmethod
-    # def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
-    #     """
-    #     Предварительное смещение примитива (при сборке большого объекта) ДО первой отрисовки его на канве
-    #
-    #     :param vector: Вектор в СКК смещения от старой точки к новой
-    #     :param isCenterMassMove: смещать центр масс, к которому привязан примитив
-    #     :return:
-    #     """
-    #     raise NotImplemented
-
     def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
         """
         Метод предварительного смещения объекта в координатной системе канвы
@@ -73,6 +64,7 @@ class AbstractPrimitive(ABC):
         # в той позиции, где удобно задаваеть координаты его точек. Потом, испльзуется этот метод, для перемещения
         # примитива в нужное место, где он толжен быть примонтирован к основному объекту
         #
+        # todo зачем всё так сложно? Может использовать метод canvas.move?
         for _, point in enumerate(self._points):
             # point.cardanus = point.cardanus + vector2d.cardanus
             point.cardanus = (point + vector2d).cardanus
@@ -80,20 +72,9 @@ class AbstractPrimitive(ABC):
         if isCenterMassMove:
             self._center.cardanus = (self._center + vector2d).cardanus
 
-    # @abstractmethod
-    # def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
-    #     """
-    #     Поворот примитива путём поворота направляющего вектора в сторону нового вектора
-    #
-    #     :param newAxisVector: направляющий вектор нового положения
-    #     :param oldAxisVector: направляющий вектор старого положения
-    #     :return:
-    #     """
-    #     raise NotImplemented
-
     def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
         """
-        Поворот примитива.
+        Поворот примитива c использованием координат точек примитива, взятых с канвы
 
         :param newAxisVector: новый вектор оси ступени
         :param oldAxisVector: старый вектор оси ступени
@@ -138,7 +119,8 @@ class PoligonRectangleA(AbstractPrimitive):
         """
         Создание объекта вызовом конструктора НЕ ПРОИЗВОДИТЬ!
         """
-        super().__init__(canvas, tuple(), VectorComplex.getInstance())
+        centerPoint = VectorComplex.getInstance()
+        super().__init__(canvas, tuple(), centerPoint)
         pass
 
     def create2points(self, topleft: VectorComplex, downright: VectorComplex, center: VectorComplex):
@@ -275,13 +257,17 @@ class CenterMassMark(AbstractOnCanvasMark):
             self._objOnCanvasId = self._canvas.create_oval([self._points[0].x, self._points[0].y,
                                                             self._points[1].x, self._points[1].y], fill=self.__fill)
 
+    def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
+        # отметку центра вращать не надо, так как бессмысленно вращать окружность.
+        pass
+
 
 class Arrow(AbstractOnCanvasMark):
     """
     Отображение иллюстративной стрелки на канве
     """
     # def __init__(self, canvas: Canvas, *args, **kwargs):
-    def __init__(self, canvas: Canvas, start: VectorComplex, finish: VectorComplex, width: float, color: str, pinPoint=VectorComplex.getInstance()):
+    def __init__(self, canvas: Canvas, start: VectorComplex, finish: VectorComplex, width: float, color: str, pinPoint=None):
         """
         :param canvas: канва
         :param start: начальная точка
@@ -289,12 +275,14 @@ class Arrow(AbstractOnCanvasMark):
         :param width: ширина линии
         :param color: цвет стрелки
         :param pinPoint: ось вращения
+        :type pinPoint: VectorComplex
         """
-        super().__init__(canvas, (start, finish), pinPoint)
+        self.__pinPoint = pinPoint if pinPoint is not None else VectorComplex.getInstance()
+        super().__init__(canvas, (start, finish), self.__pinPoint)
 
         self.__width = width
         self.__color = color
-        self.__pinPoint = pinPoint
+
 
     # def preliminaryMove(self, vector: VectorComplex, isCenterMassMove=False):
     #     # Для этого примитива функция не используется
@@ -327,25 +315,22 @@ class Arrow(AbstractOnCanvasMark):
 
 
 class Text(AbstractOnCanvasMark):
-    def __init__(self, canvas: Canvas, start: VectorComplex, text: str, key_point):
+    def __init__(self, canvas: Canvas, start: VectorComplex, text: str, textAnchor):
         """
         :param canvas: канва
-        :param start: начальная точка
-        :param finish: конечная точка
-        :param width: ширина линии
-        :param color: цвет стрелки
+        :param start: координаты точки крепления к канве
+        :param text: текст
+        :param textAnchor: положение текста относительно точки прикрепления к канве
         """
         super().__init__(canvas, (start, start), start)
 
-        self._key_point = key_point
+        self.__textAnchor = textAnchor
         self._text = text
-        # self.__width = width
-        # self.__color = color
 
     def createOnCanvas(self):
         if self._objOnCanvasId is None:
             self._objOnCanvasId = self._canvas.create_text(self._points[0].x, self._points[0].y, text=self._text,
-                                                           anchor=self._key_point, fill="black")
+                                                           anchor=self.__textAnchor, fill="black")
     @property
     def text(self):
         return self._text
@@ -357,3 +342,356 @@ class Text(AbstractOnCanvasMark):
             self._canvas.itemconfig(self._objOnCanvasId, text=value)
             # сохраняем значение в объекте
             self._text = value
+
+    def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
+        pass
+
+    def move(self, pinPoint: VectorComplex):
+        pass
+
+    def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
+        pass
+
+
+class PsevdoArcArrow(AbstractOnCanvasMark):
+    """
+    Отображение иллюстративной дуговой стрелки на канве
+    """
+    CLOCKWISE = "ClockWise"
+    COUNTERCLOCKWISE = "CounterClockWise"
+    ZERO = "ZeroValue"
+    ArrowDirection = {CLOCKWISE, COUNTERCLOCKWISE, ZERO}
+    def __init__(self, canvas: Canvas, pinPoint: VectorComplex):
+        """
+
+        :param canvas: канва
+        :param pinPoint: точка привязки дуговой стрелки к канве
+        """
+        super().__init__(canvas, (), pinPoint)
+
+        # начальный угол сектора дуги
+        self.__startAngle = 45
+        # конечный угол сектора дуги
+        self.__finishAngle = 90
+        # ширина дуговой стрелки
+        self.__width = 2
+        # цвет стрелки
+        self.__color = "green"
+        # self.__temp = self._canvas.background
+        # радиус кривизны дуги
+        self.__circleRadius = 30
+        # направление дуговой стрелки
+        self.__arrowDirection: PsevdoArcArrow.ArrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE
+        # видимость нулевой стрелки
+        # если нулевая стрелка невидима, значит видима угловая стрелка, и наоборот
+        # self.__zeroArrowVisible = False
+
+        # вычисляем точки стрелки по левой стороне (положение по умолчанию, а так же по парковке)
+        self.__arrowPoints = [*self.__calcMiniArrowToLeftPoints()]
+
+        # self.zeroArrowPoints = []
+        # if self.__arrowDirection == PsevdoArcArrow.CLOCKWISE:
+        #     self.changeArrowDirection()
+
+        self.__doNotExist = -1
+        self.__listObjectsId = {"arc": self.__doNotExist, "arrow": self.__doNotExist, "zero": self.__doNotExist}
+
+    @property
+    def direction(self):
+        return self.__arrowDirection
+
+    def __calcMiniArrowToLeftPoints(self):
+        """
+        Рассчёт координат мини стрелки на конце дуги направленной против часовой стрелки
+
+        :return: координаты начальной и конечной точек дуги
+        :rtype tuple:
+        """
+        # 1. Рассчитать координаты радиус-вектора конца дуги
+        # - создать радиус вектор (R, 0)
+        # - повернуть его на стартовый угол + финишный угол
+        # 2. Рассчитать координаты перпендикулярного ему вектора
+        # - повернуть итоговый вектор из п. 1 далее на 90 градусов
+        # - сместить полученный вектор, вдоль вектора из п. 1 к его концу
+        # 3. Минимизировать длину вектора из п. 2.
+        # 4. Готово.
+        vector = VectorComplex.getInstance(self.__circleRadius, 0.)
+        # Так как система координат канвы - левая, то поворот по против часовой стрелки является отрицательным
+        finishVector = VectorComplex.getInstanceC(vector.cardanus * rect(1., radians(- self.__startAngle - self.__finishAngle)))
+        ortogonalVector = VectorComplex.getInstanceC(finishVector.cardanus * rect(1., - pi / 2))
+        ortogonalVector = ortogonalVector / abs(ortogonalVector.cardanus)
+        arcTangentStart = finishVector
+        arcTangentFinish = ortogonalVector + finishVector
+        return arcTangentStart, arcTangentFinish
+
+    def __calcMiniArrowInCenter(self):
+        """
+        Расчёт координат стрелки, показывающей отсутствие изменений угловой величины
+
+        :return: координаты начальной и конечной точек стрелки
+        :rtype tuple:
+        """
+        # 1. Расчитать координаты вертикального радиус-вектора (к центральной точке дуги.
+        # 2. Расчитать начало линии будущей стрелке (возможно единичный вектор?)
+        # 3. Возвратить координаты начала и конца вектора срединной стрелки.
+        finishPoint = VectorComplex.getInstance(0., - self.__circleRadius)
+        startPoint = VectorComplex.getInstance(0., - self.__circleRadius + 1)
+        return startPoint, finishPoint
+
+    def changeArrowDirection(self, direction=None):
+        """ Перенос стрелки на другой конец дуги или в её центр
+
+        :param direction: направление стрелки (по часовой или против), по умолчанию: перекидываем на другой конец
+        """
+        for value in self.__listObjectsId.values():
+            if value == self.__doNotExist:
+                raise RuntimeError("One of elements of arc arrow does not exist on canvas. "
+                                   "Use this method after createOnCanvas method.")
+        if direction is None:
+            if self.__arrowDirection == PsevdoArcArrow.ZERO:
+                # нельзя изменить направление на "противоположное", так как у нулевой величины нет "противоположного"
+                raise RuntimeError("Could`t change direction, because current direction is ZERO. "
+                                 "You should be change from CLOCKWISE to COUNTERCLOCKWISE or "
+                                 "from COUNTERCLOCKWISE to CLOCKWISE.")
+            # действие по умолчанию: перекидываем стрелку с одного конца дуги на другой
+            self.__arrowPoints[0].decart = (- self.__arrowPoints[0].x, self.__arrowPoints[0].y)
+            self.__arrowPoints[1].decart = (- self.__arrowPoints[1].x, self.__arrowPoints[1].y)
+            self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE \
+                if self.__arrowDirection == PsevdoArcArrow.CLOCKWISE else PsevdoArcArrow.CLOCKWISE
+        else:
+            # перекидывание стрелки на строго определённый конец дуги
+            if direction == PsevdoArcArrow.ZERO:
+                # угловая величина равна нулю
+                # паркуем угловую стрелку по направлению против часовой стрелки
+                self.changeArrowDirection(PsevdoArcArrow.COUNTERCLOCKWISE)
+                # self.changeArrowDirection(PsevdoArcArrow.COUNTERCLOCKWISE)
+                self.__arrowDirection = PsevdoArcArrow.ZERO
+                # делаем угловую стрелку невидимой
+                self._canvas.itemconfig(self.__listObjectsId["arrow"], state="hidden")
+                # делаем нулевую стрелку видимой
+                self._canvas.itemconfig(self.__listObjectsId["zero"], state="normal")
+                # self.__zeroArrowVisible = True
+                # pass
+            else:
+                self._canvas.itemconfig(self.__listObjectsId["zero"], state="hidden")
+                self._canvas.itemconfig(self.__listObjectsId["arrow"], state="normal")
+                if direction == PsevdoArcArrow.CLOCKWISE:
+                    self.__arrowPoints[0].decart = (abs(self.__arrowPoints[0].x), self.__arrowPoints[0].y)
+                    self.__arrowPoints[1].decart = (abs(self.__arrowPoints[1].x), self.__arrowPoints[1].y)
+                    self.__arrowDirection = PsevdoArcArrow.CLOCKWISE
+                elif direction == PsevdoArcArrow.COUNTERCLOCKWISE:
+                    self.__arrowPoints[0].decart = (- abs(self.__arrowPoints[0].x), self.__arrowPoints[0].y)
+                    self.__arrowPoints[1].decart = (- abs(self.__arrowPoints[1].x), self.__arrowPoints[1].y)
+                    self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE
+
+    def createOnCanvas(self):
+        """
+        Создать примитивы на канве
+        """
+        if self.__listObjectsId["arc"] == self.__doNotExist:
+            self.__listObjectsId["arc"] = self._canvas.create_arc(self._center.x - self.__circleRadius,
+                                                                  self._center.y - self.__circleRadius,
+                                                                  self._center.x + self.__circleRadius,
+                                                                  self._center.y + self.__circleRadius,
+                                                                  start=self.__startAngle, extent=self.__finishAngle,
+                                                                  width=self.__width, outline=self.__color, style=ARC)
+
+        if self.__listObjectsId["arrow"] == self.__doNotExist:
+            coords = []
+            for i in range(len(self.__arrowPoints)):
+                # смещаем стрелку из нулевой позиции в точку, связанную с центром дуги
+                self.__arrowPoints[i] += self._center
+                # получаем пару координат
+                pair = self.__arrowPoints[i].decart
+                # собираем список координат
+                coords.extend(pair)
+
+            self.__listObjectsId["arrow"] = self._canvas.create_line(coords,
+                                                                     width=self.__width, fill=self.__color, arrow=LAST)
+
+        if self.__listObjectsId["zero"] == self.__doNotExist:
+            start, finish = self.__calcMiniArrowInCenter()
+            # пара координат начала линии
+            start = (start + self._center).decart
+            # пара координат конца линии
+            finish = (finish + self._center).decart
+            coords = [*start]
+            # список координат для отрисовки линии
+            coords.extend(finish)
+            self.__listObjectsId["zero"] = self._canvas.create_line(coords,
+                                                                     width=self.__width, fill=self.__color, arrow=LAST)
+            # self._canvas.itemconfig(self.__listObjectsId["zero"], fill=self.__listObjectsId["zero"].background)
+            self._canvas.itemconfig(self.__listObjectsId["zero"], state="hidden")
+            # print(self._canvas.)
+
+    def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
+        pass
+
+    def move(self, pinPoint: VectorComplex):
+        pass
+
+    def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
+        pass
+
+class ArcArrowAndText:
+    """
+    Дуговая стрелка углового параметра движения и легенда этого параметра
+    """
+    def __init__(self, canvas: Canvas, coords: VectorComplex, header: str, value: float, format: str):
+        """
+
+        :param canvas: канва
+        :param coords: коориднаты точки крепления к канве
+        :param header: заголовок (что за величина)
+        :param value: значение величины
+        :param format: формат строки отображения величины
+        """
+        self.__canvas = canvas
+        self.__coords = coords
+        self.__header = header
+        self.__value = value
+        self.__format = format
+
+        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -50), self.__header, N)
+        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -20), self.__format, N)
+        self.__arrowObject = PsevdoArcArrow(self.__canvas, self.__coords)
+
+    def createOnCanvas(self):
+        self.__headerObject.createOnCanvas()
+        self.__legendObject.createOnCanvas()
+        self.__arrowObject.createOnCanvas()
+
+    @property
+    def text(self):
+        return self.__legendObject.text
+
+    @text.setter
+    def text(self, value):
+        self.__legendObject.text = value
+
+    @property
+    def direction(self):
+        return self.__arrowObject.direction
+
+    @direction.setter
+    def direction(self, value=None):
+        self.__arrowObject.changeArrowDirection(value)
+
+
+class LineArrowInCirle(AbstractOnCanvasMark):
+    """
+    Стрелка, вращающаяся вокруг точки, являющейся её серединой
+    """
+    def __init__(self, canvas: Canvas, centerPoint: VectorComplex):
+        """
+
+        :param canvas: канва
+        :param centerPoint: точка крепления стрелки к канве (середина стрелки)
+        """
+        super().__init__(canvas, (), centerPoint)
+
+        # ширина стрелки
+        self.__width = 2
+        # цвет стрелки
+        self.__color = "green"
+        # длина стрелки
+        self.__arrowLength = 30
+        # направление стрелки в СКК
+        self.__arrowDirection = VectorComplex.getInstance(0., -1)
+
+        # вычисляем точки стрелки (положение по умолчанию)
+        self._points = [*self.__calcArrowPoints()]
+
+        self.__doNotExist = -1
+        self._objOnCanvasId = self.__doNotExist
+
+    @property
+    def direction(self):
+        return self.__arrowDirection
+
+    def __calcArrowPoints(self):
+        """ Координаты стрелки для канвы """
+        start = -self.__arrowDirection * (self.__arrowLength / 2) + self._center
+        finish = self.__arrowDirection * (self.__arrowLength / 2) + self._center
+
+        return start, finish
+
+    def __pointsToList(self):
+        """ Перевод координат VectorComplex в сплошной лист для применения в функциях канвы. """
+        result = []
+        for value in self._points:
+            result.extend(value.decart)
+        return result
+
+    def changeArrowDirection(self, direction: VectorComplex):
+        """ Изменение направления стрелки.
+
+        :param direction: новое направление стрелки в СКК
+        """
+        # direction = VectorComplex.getInstance() if direction is None else direction
+
+        # приводим к единичному вектору
+        self.__arrowDirection = direction / abs(direction.cardanus)
+        # координаты начала и конца линиии-стрелки
+        self._points = self.__calcArrowPoints()
+
+        self._canvas.coords(self._objOnCanvasId, *self.__pointsToList())
+
+    def createOnCanvas(self):
+        if self._objOnCanvasId == self.__doNotExist:
+            self._objOnCanvasId = self._canvas.create_line(*self.__pointsToList(),
+                                                                 width=self.__width, fill=self.__color, arrow=LAST)
+
+    def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
+        pass
+
+    def move(self, pinPoint: VectorComplex):
+        pass
+
+    def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
+        pass
+
+class LineArrowAndText:
+    """
+    Стрелка линейного параметра движения и легенда этого параметра
+    """
+    def __init__(self, canvas: Canvas, coords: VectorComplex, header: str, value: float, format: str):
+        """
+
+        :param canvas: канва
+        :param coords: координаты точки крепления (середина стрелки)
+        :param header: заголовок (что за величина)
+        :param value: цифровое значение величины
+        :param format: формат строки отображения цифорового значения величины
+        """
+        self.__canvas = canvas
+        self.__coords = coords
+        self.__header = header
+        self.__value = value
+        self.__format = format
+
+        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -30), self.__header, N)
+        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, 10), self.__format, N)
+        self.__arrowObject = LineArrowInCirle(self.__canvas, self.__coords)
+
+    def createOnCanvas(self):
+        self.__headerObject.createOnCanvas()
+        self.__legendObject.createOnCanvas()
+        self.__arrowObject.createOnCanvas()
+
+    @property
+    def text(self):
+        return self.__legendObject.text
+
+    @text.setter
+    def text(self, value):
+        self.__legendObject.text = value
+
+    @property
+    def direction(self):
+        return self.__arrowObject.direction
+
+    @direction.setter
+    def direction(self, value: VectorComplex):
+        self.__arrowObject.changeArrowDirection(value)
+

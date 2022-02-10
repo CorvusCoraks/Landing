@@ -143,6 +143,8 @@ class VectorComplex():
         """ Ленивая копия объекта: копируются только координаты """
         return VectorComplex.getInstance(self.x, self.y)
 
+    # def abs(self):
+
     # @classmethod
     # def sub(cls, vector1, vector2):
     #     """ Вычитание векторов
