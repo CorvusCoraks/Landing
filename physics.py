@@ -69,7 +69,6 @@ class RealWorldStageStatus():
     def __init__(self, position=None,
                  velocity=None,
                  axeleration=None,
-                 # Бред. Ориентация с какого-то хрена сама вставится по вектору {0.087; 0.996}
                  orientation=None,
                  angularVelocity=0.,
                  angularAxeleration=0.,
@@ -131,6 +130,7 @@ class RealWorldStageStatus():
 
 class Rocket():
     """ Класс ракеты / ступени. Динамические параметры. """
+    # todo не нужный класс?
     def __init__(self):
         # self.__baseVector: tensor = torch.zeros([1, 4])
         # координаты центра масс ракеты относительно точки посадки
@@ -205,42 +205,50 @@ class Action():
     #     # чтобы получить ось абцисс СКС
     #     self.psi: float
 
-    def __init__(self, fdownleft=VectorComplex.getInstance(), fdownright=VectorComplex.getInstance(),
-                 fdownup=VectorComplex.getInstance(),
-                 ftopleft=VectorComplex.getInstance(), ftopright=VectorComplex.getInstance(),
-                 gdown=VectorComplex.getInstance(), gcenter=VectorComplex.getInstance(),
-                 gtop=VectorComplex.getInstance(), psi=0.):
+    def __init__(self, fdownleft=None, fdownright=None,
+                 fdownup=None,
+                 ftopleft=None, ftopright=None,
+                 gdown=None, gcenter=None,
+                 gtop=None, psi=0.):
         """
         По умолчанию, все силы нулевые.
 
-        :param fdownleft:
-        :param fdownright:
-        :param fdownup:
-        :param ftopleft:
-        :param ftopright:
-        :param gdown:
-        :param gcenter:
-        :param gtop:
-        :param psi:
+        :param fdownleft: Сила (ньютоны) нижнего левого двигателя
+        :param fdownright:Сила (ньютоны) нижнего правого двигателя
+        :param fdownup:Сила (ньютоны) маршевого (центрального) двигателя
+        :param ftopleft:Сила (ньютоны) верхнего левого двигателя
+        :param ftopright:Сила (ньютоны) верхнего правого двигателя
+        :param gdown:Сила тяжести (ньютоны) нижней массы
+        :param gcenter:Сила тяжести (ньютоны) средней масс в центре масс
+        :param gtop:Сила тяжести (ньютоны) верхней массы
+        :param psi: угол отклонения вектора ориентации от вертикали
         """
         # Силы действия двигателей указываются в СКС.
         # Сила левого нижнего рулевого РД
-        self.FdownLeft: VectorComplex = fdownleft
+        # self.FdownLeft: VectorComplex = fdownleft
+        self.FdownLeft = VectorComplex.getInstance() if fdownleft is None else fdownleft
         # Сила правого нижнего рулевого РД
-        self.FdownRight: VectorComplex = fdownright
+        # self.FdownRight: VectorComplex = fdownright
+        self.FdownRight = VectorComplex.getInstance() if fdownright is None else fdownright
         # Сила маршевого РД
-        self.FdownUp: VectorComplex = fdownup
+        # self.FdownUp: VectorComplex = fdownup
+        self.FdownUp = VectorComplex.getInstance() if fdownup is None else fdownup
         # Сила левого верхнего РД
-        self.FtopLeft: VectorComplex = ftopleft
+        # self.FtopLeft: VectorComplex = ftopleft
+        self.FtopLeft = VectorComplex.getInstance() if ftopleft is None else ftopleft
         # Сила правого верхнего РД
-        self.FtopRight: VectorComplex = ftopright
+        # self.FtopRight: VectorComplex = ftopright
+        self.FtopRight = VectorComplex.getInstance() if ftopright is None else ftopright
         # Силы тяжести указываются в СКЦМ
         # Силя тяжести нижней массы
-        self.Gdown: VectorComplex = gdown
+        # self.Gdown: VectorComplex = gdown
+        self.Gdown = VectorComplex.getInstance() if gdown is None else gdown
         # Сила тяжести центральной массы
-        self.Gcenter: VectorComplex = gcenter
+        # self.Gcenter: VectorComplex = gcenter
+        self.Gcenter = VectorComplex.getInstance() if gcenter is None else gcenter
         # Силя тяжести верхней массы
-        self.Gtop: VectorComplex = gtop
+        # self.Gtop: VectorComplex = gtop
+        self.Gtop = VectorComplex.getInstance() if gtop is None else gtop
         # Угол отклонения от вертикали. Фактически, это - угол, на который надо повернуть ось абцисс СКЦМ,
         # чтобы получить ось абцисс СКС
         # todo вынести отсюда, так как не относится к силам
@@ -335,7 +343,8 @@ class Moving():
     def getNewStatus(cls):
         """ Возвращает новое состояние ступени """
 
-        lineAxeleration = Moving.getA(Action())
+        lineAxeleration = Moving.getA(Action(gcenter=VectorComplex.getInstance(-10000., -30000.)))
+        # lineAxeleration = VectorComplex.getInstance(-5., -10.)
         lineVelocity = previousStageStatus.velocity + lineAxeleration * frequency
         linePosition = previousStageStatus.position + lineVelocity * frequency
 

@@ -4,7 +4,7 @@ from queue import Queue
 from point import VectorComplex
 from stage import Stage, Sizes
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text, LineArrowAndText, ArcArrowAndText
-from threads import KillNeuroNetThread, KillRealWorldThread, Transform
+from threads import KillNeuroNetThread, KillRealWorldThread
 from physics import BigMap, RealWorldStageStatus
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
@@ -169,8 +169,13 @@ class PoligonWindow():
             # преобразование из СКИП в СКК
             # inCanvasCoordSystem = RealWorldStageStatus()
 
+            # (stageCanvasOrientation, stageCanvasPosition) = pointsListToNewCoordinateSystem(
+            #     [transform.orientation2d, transform.vector2d],
+            #     BigMap.canvasOriginInPoligonCoordinates,
+            #     0., True
+            # )
             (stageCanvasOrientation, stageCanvasPosition) = pointsListToNewCoordinateSystem(
-                [transform.orientation2d, transform.vector2d],
+                [transform.orientation, transform.position],
                 BigMap.canvasOriginInPoligonCoordinates,
                 0., True
             )
@@ -224,10 +229,11 @@ class StageViewWindow():
     """
     class PositionLabelText(Text):
         """
-        Текст на карве с информацией о текущих координатах ступени.
+        Текст на канве с информацией о текущих координатах ступени.
         """
+        # todo не нужная функция?
         def __init__(self, canvas: Canvas, start: VectorComplex, position: tuple, textAnchor):
-            super().__init__(canvas, start, "tempValue", textAnchor)
+            super().__init__(canvas, start, "tempValue", textAnchor, "green")
             self.__stringTemplate = "x = {0},\n y = {1}"
             # self.text = self.__stringTemplate
             # self.__position = position
@@ -347,30 +353,41 @@ class StageViewWindow():
         # Текстовая информация
         # Метки
         self.__labelVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 50),
-                                       "Vertical Velocity: ", NE)
+                                       "Vertical Velocity: ", NE, "green")
         self.__labelVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 70),
-                                     "Horisontal Velocity: ", NE)
+                                     "Horisontal Velocity: ", NE, "green")
         self.__labelPosition = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine, 100),
-                                       "Position: ", NE)
+                                       "Position: ", NE, "green")
         # self.__testArc = PsevdoArcArrow(self.__canvas, VectorComplex.getInstance(400, 300))
-        self.__arcAndTextTest = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(300, 300), "Header", 120., "Legend")
+        self.__arcAndTextTest = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(300, 300), "Header", 120., "Legend", "green")
 
-        self.__testArrow = LineArrowAndText(self.__canvas, VectorComplex.getInstance(200, 200), "Header", 120., "Legend")
+        self.__lineVelocityInfo = LineArrowAndText(self.__canvas, VectorComplex.getInstance(450, 200), "Velocity", 120., "{0:7.2f} m/s", "green")
+        self.__lineAxelerationInfo = LineArrowAndText(self.__canvas, VectorComplex.getInstance(550, 200), "Axeleration", 120., "{0:7.2f} m/s^2", "green")
+        self.__angleVelocity = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(450, 300), "Velocity", 120., "00,00 r/s", "green")
+        self.__angleAxeleration = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(550, 300), "Axeleration", 120., "00,00 r/s^2", "green")
+        self.__stageDistance = LineArrowAndText(self.__canvas, VectorComplex.getInstance(450, 350), "Distance", 120., "{0:7.2f} m", "green")
+        self.__stageAltitude = LineArrowAndText(self.__canvas, VectorComplex.getInstance(550, 350), "Altitude", 120., "0000,00 m", "green")
 
 
-        velocityPinPoint = VectorComplex.getInstance(self.__centerTextLine, 200)
-        self.__velocityArrow = Arrow(self.__canvas,
-                                     VectorComplex.getInstance(velocityPinPoint.x, velocityPinPoint.y + 20),
-                                     VectorComplex.getInstance(velocityPinPoint.x, velocityPinPoint.y - 20),
-                                     5, "green", velocityPinPoint)
 
-        self.__canvasLinkedMarks.extend([self.__labelVhorizontal, self.__labelVvertical, self.__labelPosition, self.__velocityArrow, self.__arcAndTextTest, self.__testArrow])
+
+        # velocityPinPoint = VectorComplex.getInstance(self.__centerTextLine, 200)
+        # self.__velocityArrow = Arrow(self.__canvas,
+        #                              VectorComplex.getInstance(velocityPinPoint.x, velocityPinPoint.y + 20),
+        #                              VectorComplex.getInstance(velocityPinPoint.x, velocityPinPoint.y - 20),
+        #                              5, "green", velocityPinPoint)
+
+        self.__canvasLinkedMarks.extend([self.__labelVhorizontal, self.__labelVvertical, self.__labelPosition,
+                                         self.__arcAndTextTest,
+                                         self.__lineVelocityInfo, self.__lineAxelerationInfo,
+                                         self.__angleVelocity, self.__angleAxeleration,
+                                         self.__stageDistance, self.__stageAltitude])
 
         # Значения
         self.__valueVhorizontal = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 50),
-                                       "000,000 m/s", NW)
+                                       "000,000 m/s", NW, "green")
         self.__valueVvertical = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 70),
-                                     "000,000 m/s", NW)
+                                     "000,000 m/s", NW, "green")
         # self.__valuePosition = Text(self.__canvas, VectorComplex.getInstance(self.__centerTextLine + 10, 90),
         #                             "x = 000.000,\ny = 000.000", NW)
         self.__valuePosition = StageViewWindow.PositionLabelText(self.__canvas, VectorComplex.getInstance(
@@ -389,7 +406,7 @@ class StageViewWindow():
         for value in self.__canvasLinkedMarks:
             value.createOnCanvas()
 
-        self.__testArrow.direction = VectorComplex.getInstance(1., 0.)
+        self.__lineVelocityInfo.direction = VectorComplex.getInstance(1., 0.)
         # self.__arcAndTextTest.direction = PsevdoArcArrow.ZERO
 
     def canvas(self):
@@ -404,19 +421,32 @@ class StageViewWindow():
         if not self.__anyQueue.empty():
             transform = self.__anyQueue.get()
 
-        # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
+        # отрисовка нового положения объектов на основании полученных данных из очереди
         if transform is not None:
             # изменить значение
-            self.__valuePosition.text = (transform.vector2d.x, transform.vector2d.y)
-            # stageStatus = transform.stageStatus
+            # self.__valuePosition.text = (transform.vector2d.x, transform.vector2d.y)
+            self.__valuePosition.text = (transform.position, transform.position.y)
+
+            # переводим свободный вектор расстояния в СКК
+            distanceVectorCCS = complexChangeSystemCoordinatesUniversal(transform.position,
+                                                                        VectorComplex.getInstance(0., 0.), 0., True)
+            self.__stageDistance.setInfo(abs(transform.position), distanceVectorCCS)
+            # переводим свободный вектор скорости в СКК
+            velocityVectorCCS = complexChangeSystemCoordinatesUniversal(transform.velocity,
+                                                                        VectorComplex.getInstance(0., 0.), 0., True)
+            self.__lineVelocityInfo.setInfo(abs(transform.velocity), velocityVectorCCS)
+            # переводим свободный вектор ускорения в СКК
+            axelerationVectorCCS = complexChangeSystemCoordinatesUniversal(transform.axeleration,
+                                                                           VectorComplex.getInstance(0., 0.), 0., True)
+            self.__lineAxelerationInfo.setInfo(abs(transform.axeleration), axelerationVectorCCS)
 
             # На всякий случай вытаскиваем величину. Пока не понятно зачем она нам понадобится.
-            BigMap.stageViewOriginInPoligonCoordinates = transform.vector2d
+            BigMap.stageViewOriginInPoligonCoordinates = transform.position
             stageViewOrientation: VectorComplex
 
             # Вектор ориентации это - свободный вектор. От нуля любой СК.
             stageViewOrientation, _ = pointsListToNewCoordinateSystem(
-                [transform.orientation2d, transform.orientation2d],
+                [transform.orientation, transform.orientation],
                 VectorComplex.getInstance(0., 0.),
                 0., True
             )

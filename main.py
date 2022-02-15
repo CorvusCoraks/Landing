@@ -8,7 +8,7 @@ from point import VectorComplex
 import cmath
 from physics import BigMap, Rocket
 from stage import Sizes
-from threads import KillNeuroNetThread, KillRealWorldThread, Transform, StageStatus, reality_thread, neuronet_thread
+from threads import KillNeuroNetThread, KillRealWorldThread, StageStatus, reality_thread, neuronet_thread
 import decart
 from training import start_nb
 

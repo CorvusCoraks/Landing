@@ -35,27 +35,27 @@ class KillRealWorldThread:
         self.__value = value
 
 
-class Transform():
-    """
-    Изменение положения объекта (точки).
-    """
-    # Класс данных для передачи информации через очередь в окно отрисовки ситуации
-    # Передаются данные конкретного момента времени.
-    # todo в перспективе класс удалить. Все данные передавать в очередь через класс RealWorldStageStatus
-    def __init__(self, vector2d: VectorComplex, orientation2d: VectorComplex, lineVelocity: VectorComplex, text: str, stageStatus: RealWorldStageStatus):
-        """
-
-        :param vector2d: вектор нового положения центра масс объекта в системе координат полигона
-        :param orientation2d: вектор новой ориентации объекта в системе координат полигона
-        :param lineVelocity: вектор линейной скорости
-        :param text: строка допоплнительной информации
-        """
-        self.vector2d = vector2d
-        self.orientation2d = orientation2d
-        self.lineVelocity = lineVelocity
-        self.text = text
-        # todo в перспективе, передавать информацию через нить именно через этот объект, а не через Transform
-        self.stageStatus = stageStatus
+# class Transform():
+#     """
+#     Изменение положения объекта (точки).
+#     """
+#     # Класс данных для передачи информации через очередь в окно отрисовки ситуации
+#     # Передаются данные конкретного момента времени.
+#     # todo в перспективе класс удалить. Все данные передавать в очередь через класс RealWorldStageStatus
+#     def __init__(self, vector2d: VectorComplex, orientation2d: VectorComplex, lineVelocity: VectorComplex, text: str, stageStatus: RealWorldStageStatus):
+#         """
+#
+#         :param vector2d: вектор нового положения центра масс объекта в системе координат полигона
+#         :param orientation2d: вектор новой ориентации объекта в системе координат полигона
+#         :param lineVelocity: вектор линейной скорости
+#         :param text: строка допоплнительной информации
+#         """
+#         self.vector2d = vector2d
+#         self.orientation2d = orientation2d
+#         self.lineVelocity = lineVelocity
+#         self.text = text
+#         # todo в перспективе, передавать информацию через нить именно через этот объект, а не через Transform
+#         self.stageStatus = stageStatus
 
 
 class StageStatus:
@@ -122,7 +122,7 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
 
     physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
                          orientation=VectorComplex.getInstance(0., 1.),
-                         velocity=VectorComplex.getInstance(0., -10))
+                         velocity=VectorComplex.getInstance(0., 0.))
 
     # newStatus = RealWorldStageStatus()
     # пока в тестовых целях сделано через счётчик i
@@ -155,11 +155,13 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
         # queue.put(Transform(newStatus.position.lazyCopy(),
         #                     newStatus.orientation.lazyCopy(),
         #                     "Команда №{}".format(i)))
-        queue.put(Transform(newStageStatus.position.lazyCopy(),
-                            newStageStatus.orientation.lazyCopy(),
-                            newStageStatus.velocity.lazyCopy(),
-                            "Команда №{}".format(i),
-                            newStageStatus.lazyCopy()))
+        # todo Возможно, в дальнейшем нужно отказаться от класса Transform в пользу RealWorldStageStatus
+        # queue.put(Transform(newStageStatus.position.lazyCopy(),
+        #                     newStageStatus.orientation.lazyCopy(),
+        #                     newStageStatus.velocity.lazyCopy(),
+        #                     "Команда №{}".format(i),
+        #                     newStageStatus.lazyCopy()))
+        queue.put(newStageStatus.lazyCopy())
         # print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
         # # запоминаем позицию
         # previousStatusTest.position = newStatus.position

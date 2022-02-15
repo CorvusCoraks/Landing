@@ -227,5 +227,7 @@ class VectorComplex():
         """ Строковое представление """
         return "x: {0:10.3f}, y: {1:10.3f}, abs: {2:10.3f}".format(self.x, self.y, abs(self.cardanus))
 
-
+    def __abs__(self):
+        """ Модуль вектора """
+        return abs(self.cardanus)
 

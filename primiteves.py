@@ -315,22 +315,24 @@ class Arrow(AbstractOnCanvasMark):
 
 
 class Text(AbstractOnCanvasMark):
-    def __init__(self, canvas: Canvas, start: VectorComplex, text: str, textAnchor):
+    def __init__(self, canvas: Canvas, start: VectorComplex, text: str, textAnchor, tkinterColor: str):
         """
         :param canvas: канва
         :param start: координаты точки крепления к канве
         :param text: текст
         :param textAnchor: положение текста относительно точки прикрепления к канве
+        :param tkinterColor: текста
         """
         super().__init__(canvas, (start, start), start)
 
         self.__textAnchor = textAnchor
         self._text = text
+        self.__color = tkinterColor
 
     def createOnCanvas(self):
         if self._objOnCanvasId is None:
             self._objOnCanvasId = self._canvas.create_text(self._points[0].x, self._points[0].y, text=self._text,
-                                                           anchor=self.__textAnchor, fill="black")
+                                                           anchor=self.__textAnchor, fill=self.__color)
     @property
     def text(self):
         return self._text
@@ -361,11 +363,12 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
     COUNTERCLOCKWISE = "CounterClockWise"
     ZERO = "ZeroValue"
     ArrowDirection = {CLOCKWISE, COUNTERCLOCKWISE, ZERO}
-    def __init__(self, canvas: Canvas, pinPoint: VectorComplex):
+    def __init__(self, canvas: Canvas, pinPoint: VectorComplex, tkinterColor: str):
         """
 
         :param canvas: канва
         :param pinPoint: точка привязки дуговой стрелки к канве
+        :param tkinterColor: цвет дуговой стрелки
         """
         super().__init__(canvas, (), pinPoint)
 
@@ -376,7 +379,8 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
         # ширина дуговой стрелки
         self.__width = 2
         # цвет стрелки
-        self.__color = "green"
+        # self.__color = "green"
+        self.__color = tkinterColor
         # self.__temp = self._canvas.background
         # радиус кривизны дуги
         self.__circleRadius = 30
@@ -537,7 +541,7 @@ class ArcArrowAndText:
     """
     Дуговая стрелка углового параметра движения и легенда этого параметра
     """
-    def __init__(self, canvas: Canvas, coords: VectorComplex, header: str, value: float, format: str):
+    def __init__(self, canvas: Canvas, coords: VectorComplex, header: str, value: float, format: str, tkinterColor: str):
         """
 
         :param canvas: канва
@@ -545,16 +549,18 @@ class ArcArrowAndText:
         :param header: заголовок (что за величина)
         :param value: значение величины
         :param format: формат строки отображения величины
+        :param tkinterColor: цвет текста и стрелки
         """
         self.__canvas = canvas
         self.__coords = coords
         self.__header = header
         self.__value = value
         self.__format = format
+        self.__color = tkinterColor
 
-        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -50), self.__header, N)
-        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -20), self.__format, N)
-        self.__arrowObject = PsevdoArcArrow(self.__canvas, self.__coords)
+        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -50), self.__header, N, self.__color)
+        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -20), self.__format, N, self.__color)
+        self.__arrowObject = PsevdoArcArrow(self.__canvas, self.__coords, self.__color)
 
     def createOnCanvas(self):
         self.__headerObject.createOnCanvas()
@@ -582,18 +588,20 @@ class LineArrowInCirle(AbstractOnCanvasMark):
     """
     Стрелка, вращающаяся вокруг точки, являющейся её серединой
     """
-    def __init__(self, canvas: Canvas, centerPoint: VectorComplex):
+    def __init__(self, canvas: Canvas, centerPoint: VectorComplex, tkinterColor: str):
         """
 
         :param canvas: канва
         :param centerPoint: точка крепления стрелки к канве (середина стрелки)
+        :param tkinterColor: цвет стрелки и текста
         """
         super().__init__(canvas, (), centerPoint)
 
         # ширина стрелки
         self.__width = 2
         # цвет стрелки
-        self.__color = "green"
+        # self.__color = "green"
+        self.__color = tkinterColor
         # длина стрелки
         self.__arrowLength = 30
         # направление стрелки в СКК
@@ -630,8 +638,8 @@ class LineArrowInCirle(AbstractOnCanvasMark):
         """
         # direction = VectorComplex.getInstance() if direction is None else direction
 
-        # приводим к единичному вектору
-        self.__arrowDirection = direction / abs(direction.cardanus)
+        # приводим к единичному вектору с проверкой на нулевой вектор, а то может быть ошибка деления на ноль
+        self.__arrowDirection = direction / abs(direction) if abs(direction) != 0 else self.__arrowDirection
         # координаты начала и конца линиии-стрелки
         self._points = self.__calcArrowPoints()
 
@@ -655,7 +663,7 @@ class LineArrowAndText:
     """
     Стрелка линейного параметра движения и легенда этого параметра
     """
-    def __init__(self, canvas: Canvas, coords: VectorComplex, header: str, value: float, format: str):
+    def __init__(self, canvas: Canvas, coords: VectorComplex, header: str, value: float, format: str, tkinterColor: str):
         """
 
         :param canvas: канва
@@ -663,16 +671,18 @@ class LineArrowAndText:
         :param header: заголовок (что за величина)
         :param value: цифровое значение величины
         :param format: формат строки отображения цифорового значения величины
+        :param tkinterColor: цвет текста и стрелки
         """
         self.__canvas = canvas
         self.__coords = coords
         self.__header = header
         self.__value = value
         self.__format = format
+        self.__color = tkinterColor
 
-        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -30), self.__header, N)
-        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, 10), self.__format, N)
-        self.__arrowObject = LineArrowInCirle(self.__canvas, self.__coords)
+        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -30), self.__header, N, self.__color)
+        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, 10), self.__format, N, self.__color)
+        self.__arrowObject = LineArrowInCirle(self.__canvas, self.__coords,self.__color)
 
     def createOnCanvas(self):
         self.__headerObject.createOnCanvas()
@@ -681,17 +691,33 @@ class LineArrowAndText:
 
     @property
     def text(self):
+        # todo убрать за ненадобностью?
         return self.__legendObject.text
 
     @text.setter
     def text(self, value):
+        # todo убрать за ненадобностью?
         self.__legendObject.text = value
 
     @property
     def direction(self):
+        # todo убрать за ненадобностью?
         return self.__arrowObject.direction
 
     @direction.setter
     def direction(self, value: VectorComplex):
+        # todo убрать за ненадобностью?
         self.__arrowObject.changeArrowDirection(value)
+
+    def setInfo(self, value: float, vector: VectorComplex):
+        """
+        Установить новые данные и направление стрелки.
+
+        :param value: значение величины
+        :param vector: вектор направления стрелки в СКК
+        :return:
+        """
+        self.__legendObject.text = self.__format.format(value)
+        self.__arrowObject.changeArrowDirection(vector)
+
 
