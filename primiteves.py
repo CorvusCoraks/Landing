@@ -391,14 +391,15 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
         # self.__zeroArrowVisible = False
 
         # вычисляем точки стрелки по левой стороне (положение по умолчанию, а так же по парковке)
-        self.__arrowPoints = [*self.__calcMiniArrowToLeftPoints()]
+        # self.__arrowPoints = [*self.__calcMiniArrowToLeftPoints()]
+        # self.__rightArrow: list
 
         # self.zeroArrowPoints = []
         # if self.__arrowDirection == PsevdoArcArrow.CLOCKWISE:
         #     self.changeArrowDirection()
 
         self.__doNotExist = -1
-        self.__listObjectsId = {"arc": self.__doNotExist, "arrow": self.__doNotExist, "zero": self.__doNotExist}
+        self.__listObjectsId = {"arc": self.__doNotExist, "leftArrow": self.__doNotExist, "zero": self.__doNotExist, "rightArrow": self.__doNotExist}
 
     @property
     def direction(self):
@@ -458,10 +459,18 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
                                  "You should be change from CLOCKWISE to COUNTERCLOCKWISE or "
                                  "from COUNTERCLOCKWISE to CLOCKWISE.")
             # действие по умолчанию: перекидываем стрелку с одного конца дуги на другой
-            self.__arrowPoints[0].decart = (- self.__arrowPoints[0].x, self.__arrowPoints[0].y)
-            self.__arrowPoints[1].decart = (- self.__arrowPoints[1].x, self.__arrowPoints[1].y)
-            self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE \
-                if self.__arrowDirection == PsevdoArcArrow.CLOCKWISE else PsevdoArcArrow.CLOCKWISE
+            # self.__arrowPoints[0].decart = (- self.__arrowPoints[0].x, self.__arrowPoints[0].y)
+            # self.__arrowPoints[1].decart = (- self.__arrowPoints[1].x, self.__arrowPoints[1].y)
+            # self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE \
+            #     if self.__arrowDirection == PsevdoArcArrow.CLOCKWISE else PsevdoArcArrow.CLOCKWISE
+            elif self.__arrowDirection == PsevdoArcArrow.CLOCKWISE:
+                self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE
+                self._canvas.itemconfig(self.__listObjectsId["leftArrow"], state="normal")
+                self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="hidden")
+            else:
+                self.__arrowDirection = PsevdoArcArrow.CLOCKWISE
+                self._canvas.itemconfig(self.__listObjectsId["leftArrow"], state="hidden")
+                self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="normal")
         else:
             # перекидывание стрелки на строго определённый конец дуги
             if direction == PsevdoArcArrow.ZERO:
@@ -471,21 +480,27 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
                 # self.changeArrowDirection(PsevdoArcArrow.COUNTERCLOCKWISE)
                 self.__arrowDirection = PsevdoArcArrow.ZERO
                 # делаем угловую стрелку невидимой
-                self._canvas.itemconfig(self.__listObjectsId["arrow"], state="hidden")
+                self._canvas.itemconfig(self.__listObjectsId["leftArrow"], state="hidden")
+                self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="hidden")
                 # делаем нулевую стрелку видимой
                 self._canvas.itemconfig(self.__listObjectsId["zero"], state="normal")
                 # self.__zeroArrowVisible = True
                 # pass
             else:
                 self._canvas.itemconfig(self.__listObjectsId["zero"], state="hidden")
-                self._canvas.itemconfig(self.__listObjectsId["arrow"], state="normal")
+                # self._canvas.itemconfig(self.__listObjectsId["leftArrow"], state="normal")
                 if direction == PsevdoArcArrow.CLOCKWISE:
-                    self.__arrowPoints[0].decart = (abs(self.__arrowPoints[0].x), self.__arrowPoints[0].y)
-                    self.__arrowPoints[1].decart = (abs(self.__arrowPoints[1].x), self.__arrowPoints[1].y)
+                    # self.__arrowPoints[0].decart = (- abs(self.__arrowPoints[0].x), self.__arrowPoints[0].y)
+                    # self.__arrowPoints[1].decart = (- abs(self.__arrowPoints[1].x), self.__arrowPoints[1].y)
+                    # self._canvas.coords(self.__listObjectsId("leftArrow"), )
+                    self._canvas.itemconfig(self.__listObjectsId["leftArrow"], state="hidden")
+                    self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="normal")
                     self.__arrowDirection = PsevdoArcArrow.CLOCKWISE
                 elif direction == PsevdoArcArrow.COUNTERCLOCKWISE:
-                    self.__arrowPoints[0].decart = (- abs(self.__arrowPoints[0].x), self.__arrowPoints[0].y)
-                    self.__arrowPoints[1].decart = (- abs(self.__arrowPoints[1].x), self.__arrowPoints[1].y)
+                    # self.__arrowPoints[0].decart = (abs(self.__arrowPoints[0].x), self.__arrowPoints[0].y)
+                    # self.__arrowPoints[1].decart = (abs(self.__arrowPoints[1].x), self.__arrowPoints[1].y)
+                    self._canvas.itemconfig(self.__listObjectsId["leftArrow"], state="normal")
+                    self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="hidden")
                     self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE
 
     def createOnCanvas(self):
@@ -500,18 +515,30 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
                                                                   start=self.__startAngle, extent=self.__finishAngle,
                                                                   width=self.__width, outline=self.__color, style=ARC)
 
-        if self.__listObjectsId["arrow"] == self.__doNotExist:
+        # вычисляем точки стрелки по левой стороне (положение по умолчанию, а так же по парковке)
+        arrowPoints = [*self.__calcMiniArrowToLeftPoints()]
+        if self.__listObjectsId["leftArrow"] == self.__doNotExist:
+            # запоминаем абциссы точек линии стрелки, когда она находится в расчётной позиции
+            arrowX = [arrowPoints[0].x, arrowPoints[1].x]
+            # координаты левой стрелки для канвы
             coords = []
-            for i in range(len(self.__arrowPoints)):
+            for i in range(len(arrowPoints)):
                 # смещаем стрелку из нулевой позиции в точку, связанную с центром дуги
-                self.__arrowPoints[i] += self._center
+                arrowPoints[i] += self._center
                 # получаем пару координат
-                pair = self.__arrowPoints[i].decart
+                pair = arrowPoints[i].decart
                 # собираем список координат
                 coords.extend(pair)
 
-            self.__listObjectsId["arrow"] = self._canvas.create_line(coords,
+            # левая стрелка на канве
+            self.__listObjectsId["leftArrow"] = self._canvas.create_line(coords,
                                                                      width=self.__width, fill=self.__color, arrow=LAST)
+
+            # правая стрелка на канве
+            self.__listObjectsId["rightArrow"] = self._canvas.create_line(coords[0]-arrowX[0]*2, coords[1], coords[2]-arrowX[1]*2, coords[3],
+                                                                     width=self.__width, fill=self.__color, arrow=LAST)
+            # прячем правую стрелку
+            self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="hidden")
 
         if self.__listObjectsId["zero"] == self.__doNotExist:
             start, finish = self.__calcMiniArrowInCenter()
@@ -569,20 +596,33 @@ class ArcArrowAndText:
 
     @property
     def text(self):
+        # todo метод не нужен?
         return self.__legendObject.text
 
     @text.setter
     def text(self, value):
+        # todo метод не нужен?
         self.__legendObject.text = value
 
     @property
     def direction(self):
+        # todo метод не нужен?
         return self.__arrowObject.direction
 
     @direction.setter
     def direction(self, value=None):
+        # todo метод не нужен?
         self.__arrowObject.changeArrowDirection(value)
 
+    def setInfo(self, value: float):
+        self.__legendObject.text = self.__format.format(value)
+        if value < 0:
+            direction = PsevdoArcArrow.CLOCKWISE
+        elif value == 0:
+            direction = PsevdoArcArrow.ZERO
+        else:
+            direction = PsevdoArcArrow.COUNTERCLOCKWISE
+        self.__arrowObject.changeArrowDirection(direction)
 
 class LineArrowInCirle(AbstractOnCanvasMark):
     """

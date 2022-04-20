@@ -41,6 +41,69 @@ frequency = 1000 / 1000
 # Предыдущее состояние модели
 previousStageStatus = None
 
+class DataFrequency:
+    """
+    Частота считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
+    """
+    # длительность (счётчик) нахождения в верхнем диапазоне после перехода с нижнего
+    borderCounter = 0
+    # текущая частота считывания показаний
+    # большое начальное значение обеспечит при первоначальном запуске программы
+    # автоматический "виртуальный" переход вниз из "виртуального" верхнего диапазона в реальный
+    currentFrequancy = float("inf")
+
+    @classmethod
+    def __border(cls, defaultFrequency: float, borderMax=10):
+        if DataFrequency.currentFrequancy >= defaultFrequency:
+            # если в этот диапазон произошёл переход сверху (по высоте/дистанции)
+            # или мы уже были в этом дапазоне в один из прошлых разов
+            # или же уже стабильно сидим в этом диапазоне после перехода сверху
+            # отмечаем этот факт
+            DataFrequency.borderCounter = 0
+            # фиксируем новую периодичность считывания
+            DataFrequency.currentFrequancy = defaultFrequency
+            # переходим на новую периодичность считывания
+            return defaultFrequency
+        else:
+            # Если в этот диапазоне оказались после посещения нижнего
+            if DataFrequency.borderCounter > borderMax:
+                # Если достигли постоянства нахождения в данном диапазоне после перехода снизу,
+                # переходим на его периодичность считывания данных
+                DataFrequency.borderCounter = 0
+                DataFrequency.currentFrequancy = defaultFrequency
+                return defaultFrequency
+            # отмечаем длительность нахождения в верхнем диапазоне после нижнего
+            DataFrequency.borderCounter += 1
+            # но сохраняем периодичность по нижнему диапазону высоты/дистанции)
+            return DataFrequency.currentFrequancy
+
+    @classmethod
+    def getFrequency(cls, distance: VectorComplex):
+        """
+        Частота считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
+
+        :param distance: вектор расстояния от точки приземления до центра масс изделия
+        :return: периодичность считывания показаний датчиков, сек
+        :rtype float:
+        """
+        # дальность до точки приземления, метров
+        module = abs(distance) + stage.Sizes.massCenterFromLandingPlaneDistance
+        # высота до поверхности, метров
+        altitude = distance.y + stage.Sizes.massCenterFromLandingPlaneDistance
+
+        if module < 1 or altitude < 1:
+            return DataFrequency.__border(0.001)
+        elif module < 10 or altitude < 5:
+            return DataFrequency.__border(0.01)
+        elif module < 100 or altitude < 50:
+            return DataFrequency.__border(0.1)
+        elif module < 10000 or altitude < 5000:
+            return DataFrequency.__border(1.)
+        elif module < 100000 or altitude < 50000:
+            return DataFrequency.__border(10.)
+        else:
+            # один раз в минуту
+            return DataFrequency.__border(60.)
 
 class HistoricData:
     """ Класс исторических данных, необходимых для расчёта ускорения и скорости """
@@ -219,7 +282,7 @@ class Action():
         :param ftopleft:Сила (ньютоны) верхнего левого двигателя
         :param ftopright:Сила (ньютоны) верхнего правого двигателя
         :param gdown:Сила тяжести (ньютоны) нижней массы
-        :param gcenter:Сила тяжести (ньютоны) средней масс в центре масс
+        :param gcenter:Сила тяжести (ньютоны) средней массы в центре масс
         :param gtop:Сила тяжести (ньютоны) верхней массы
         :param psi: угол отклонения вектора ориентации от вертикали
         """
@@ -281,6 +344,7 @@ class Moving():
 
         :return:
         """
+        # todo сделать private?
         # Если время действия сил равно нулю, то ускорение от этих сил заведомо равно нулю
         # if t == 0.: return 0.
 
@@ -303,6 +367,7 @@ class Moving():
 
         :return:
         """
+        # todo сделать private?
         # Если время действия сил равно нулю, то ускорение от этих сил заведомо равно нулю
         # if t == 0.: return 0.
 
@@ -325,6 +390,7 @@ class Moving():
         :return: перемещение (вектор) из начальной точки с V0 в новую ночку под действием суперпозиции сил
         :rtype: VectorComplex
         """
+        # todo сделать private или вообще убрать?
         # result = VectorComplex.getInstanceC(S0.cardanus + V0.cardanus*t + Axeleration.getA().cardanus*t**2)
         result = V0 * t + Moving.getA(forces) * t ** 2
         return result
@@ -336,6 +402,7 @@ class Moving():
 
         :return:
         """
+        # todo сделать private или вообще убрать?
         result = W0 * t + Moving.getE(forces) * t ** 2
         return result
 
@@ -344,18 +411,37 @@ class Moving():
         """ Возвращает новое состояние ступени """
 
         lineAxeleration = Moving.getA(Action(gcenter=VectorComplex.getInstance(-10000., -30000.)))
-        # lineAxeleration = VectorComplex.getInstance(-5., -10.)
+        # lineAxeleration = VectorComplex.getInstance(-3., 0.)
         lineVelocity = previousStageStatus.velocity + lineAxeleration * frequency
         linePosition = previousStageStatus.position + lineVelocity * frequency
 
         # новая ориентация
+        # угловое ускорение
+        angularAxeleration = 0.
+        # угловая скорость, рад/сек
+        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * frequency
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
-        cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
+        # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
+        # поворот на угол, рад.
+        angle = angularVelocity * frequency
+        # переводим угол из радианов в форму комплексного числа
+        complexAngle = cmath.rect(1., angle)
+        # поворот вектора ориентации через перемножение комплексных чисел
+        cardanus = previousStageStatus.orientation.cardanus * complexAngle
         # приводим к единичному вектору
         cardanus = cardanus / abs(cardanus)
         # новая ориентация
         orientation = VectorComplex.getInstanceC(cardanus)
 
-        newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity,
-                                           axeleration=lineAxeleration, orientation=orientation)
+        # # новая ориентация
+        # # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
+        # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
+        # # приводим к единичному вектору
+        # cardanus = cardanus / abs(cardanus)
+        # # новая ориентация
+        # orientation = VectorComplex.getInstanceC(cardanus)
+
+        newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
+                                           angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
+                                           orientation=orientation)
         return newPosition

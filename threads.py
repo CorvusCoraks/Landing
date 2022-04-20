@@ -5,7 +5,32 @@ from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoord
 from physics import BigMap, HistoricData, RealWorldStageStatus, Moving
 from queue import Queue
 import cmath
+from tools import Finish
 
+# Необходима синхронизация обрабатываемых данных в разных нитях.
+# Модель реальности:
+# 1. датчики ступени считывают данные в момент времени t.
+# 2. По разнице показаний датчиков в t и t-1 вычисляются динамические параметры для момента t
+# 3. динамические параметры момента t передаются в нить отображения и в нить нейросети
+# 4. Окно отображения отображает ситуацию, нейросеть обрабатывает (обучается).
+# 5. Указания нейросети передаются в нить физической модели (сила управляющего воздействия)
+# 6. В нити физической модели пересчитывается состояние ОС (показания датчиков) для момента t+1 с учётом того,
+# что с момента времени t до момента времени t+1 действуют управляющие воздействия из п. 5.
+# 7. Переходим к п. 2
+
+# _Примечание_ В каждый момент считывания показаний датчиков, все управляющие воздействия прекращаются
+# (т. е. любое управляющее воздействие действует только до следующего момента считывания показаний датчиков)
+# _Примечание_ Промежуток времени между считываниями данных t-1, t, t+1 и т. д. постоянный для определённого диапазона
+# высот.
+# _Примечание_ В НС необходимо передавать ожидаемое время до следующего считывания данных
+# (время действия возможного управляющего воздействия)
+# _Примечание_ Так как диапазон скорости изделия колеблется от 0 до 8000 м/с, а высота от 0 до 250000 м, необходимо
+# при уменьшении высоты увеличить частоту снятия показаний датчиков
+# _Примечание_ Так как очереди для передачи данных между нитями независимые, в каждый объект элемента очереди необходимо
+# включить поле момента времени (например, в секундах или их долях),
+# по которому будут синхронизироваться действия в разных нитях
+# _Допущение_ Считаем, что изменение динамических и статических параметров изделия пренебрежимо мало
+# за время отработки данных нейросетью.
 
 class KillNeuroNetThread:
     """ Флаг-команда завершения нити. """
@@ -120,9 +145,16 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
     # previousStatusTest = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
     #                                                orientation=VectorComplex.getInstance(0., 1.))
 
+    finishControl = Finish()
+
     physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
                          orientation=VectorComplex.getInstance(0., 1.),
-                         velocity=VectorComplex.getInstance(0., 0.))
+                         velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
+
+    # physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
+    #                                                    orientation=VectorComplex.getInstance(0., 1.))
+
+    # -cmath.pi / 36
 
     # newStatus = RealWorldStageStatus()
     # пока в тестовых целях сделано через счётчик i
@@ -141,6 +173,7 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
         # newStatus.position = VectorComplex.getInstance(previousStatusTest.position.x, previousStatusTest.position.y - i * 1)
 
         newStageStatus = Moving.getNewStatus()
+        # tempPosition = newStageStatus.position
         physics.previousStageStatus = newStageStatus
         print("{0} Posititon: {1}, Velocyty: {2},\n Axelerantion: {3}, Orientation: {4}".
               format(i, newStageStatus.position, newStageStatus.velocity,
@@ -171,6 +204,11 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
         # newStatus = RealWorldStageStatus()
 
         # КОД
+        if finishControl.isOneTestFinished(physics.previousStageStatus.position):
+            # завершение единичного испытания по достижению границ полигона
+            # Факт данного события должен передаваться в нить нейросети
+            # Либо перенести эту проверку в нить нейросети
+            killReality.kill = True
         if i == 80:
             killReality.kill = True
         i += 1
@@ -183,7 +221,7 @@ def neuronet_thread(queue: Queue, killThisThread: KillNeuroNetThread):
     """
     Метод, запускаемый в отдельной нитке для обучения нейросети.
 
-    :param queue: очередь, для передачи даннных в модуль визуализации
+    :param queue: очередь, для передачи даннных
     :return:
     """
     print("Вход в нить нейросети.")

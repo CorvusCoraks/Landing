@@ -363,7 +363,7 @@ class StageViewWindow():
 
         self.__lineVelocityInfo = LineArrowAndText(self.__canvas, VectorComplex.getInstance(450, 200), "Velocity", 120., "{0:7.2f} m/s", "green")
         self.__lineAxelerationInfo = LineArrowAndText(self.__canvas, VectorComplex.getInstance(550, 200), "Axeleration", 120., "{0:7.2f} m/s^2", "green")
-        self.__angleVelocity = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(450, 300), "Velocity", 120., "00,00 r/s", "green")
+        self.__angleVelocity = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(450, 300), "Velocity", 120., "{0:7.2f} r/s", "green")
         self.__angleAxeleration = ArcArrowAndText(self.__canvas, VectorComplex.getInstance(550, 300), "Axeleration", 120., "00,00 r/s^2", "green")
         self.__stageDistance = LineArrowAndText(self.__canvas, VectorComplex.getInstance(450, 350), "Distance", 120., "{0:7.2f} m", "green")
         self.__stageAltitude = LineArrowAndText(self.__canvas, VectorComplex.getInstance(550, 350), "Altitude", 120., "0000,00 m", "green")
@@ -439,6 +439,10 @@ class StageViewWindow():
             axelerationVectorCCS = complexChangeSystemCoordinatesUniversal(transform.axeleration,
                                                                            VectorComplex.getInstance(0., 0.), 0., True)
             self.__lineAxelerationInfo.setInfo(abs(transform.axeleration), axelerationVectorCCS)
+
+            self.__angleVelocity.setInfo(transform.angularVelocity)
+
+            self.__angleAxeleration.setInfo(transform.angularAxeleration)
 
             # На всякий случай вытаскиваем величину. Пока не понятно зачем она нам понадобится.
             BigMap.stageViewOriginInPoligonCoordinates = transform.position

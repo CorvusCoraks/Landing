@@ -16,7 +16,7 @@ def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', cri
     # Загрузка сохранённых параметров НС
 
     # инициализация класса проверки на выход за пределы тестового полигона
-    finish = tools.Finish(-10)
+    finish = tools.Finish()
 
     startEpoch = 0
     stopEpochNumber = 2
@@ -25,7 +25,7 @@ def start_nb(frameRate, savePath='.\\', actorCheckPointFile='actor.pth.tar', cri
         # генерация начального состояния игры (состояния ступени)
         rocket.ganerateState()
 
-        # Цикл последовательных переходов из одного состояния ОС в друго
+        # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход
         # while not rf.isLandingFinished(Point(10, 10), 4.):
         # while (not finish.isOneTestFinished(Point(10, 10))) or (not rf.isLandingFinished(Point(10, 10), 4.)):

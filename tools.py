@@ -1,6 +1,7 @@
 from point import VectorComplex
 from math import fabs
 from physics import BigMap
+from stage import Sizes
 # Разные утилиты
 
 
@@ -51,26 +52,20 @@ class Finish():
     Класс завершения единичного испытания
     """
     # Необходим для того, чтобы единичное испытание не длилось чрезмерное неразумное время
-    def __init__(self, legRelativeY: float):
-        """
-
-        :param width: ширина испытательной зоны
-        :param heigth: высота испытательной зоны
-
-        """
+    def __init__(self):
         # Ширина тестового полигона. Точка посадки находится посередине
         # self.__testPoligonWidth = BigMap.width
         # Высота тестового полигона. Имеет смысл задавать её от высоты начальной точки движения до высоты точки посадки
         # self.__testPoligonHeight = BigMap.height
-        # Допустимое отклонение при выявлении факта посадки
-        # Высота выключения двигателей
+        # Допустимое отклонение при выявлении факта посадки (метров)
         self.__yEpsilon = 0.01
-        self.__legRelativeY = legRelativeY
+        # Высота выключения двигателей (по высоте центра масс)
+        self.__legRelativeY = Sizes.massCenterFromLandingPlaneDistance
 
     def isOneTestFinished(self, coord: VectorComplex):
         """ Проверка на неблагополучное завершение очередной тренировки
 
-        :param coord: центр масс ракеты
+        :param coord: центр масс ракеты в СКИП
         """
         # Очередная тренировка заканчивается либо удачной посадкой, либо ударом о землю,
         # либо выходом за пределы зоны испытаний
@@ -79,16 +74,13 @@ class Finish():
         # poligonLegY = coord.y + self.__legRelativeY
         if fabs(coord.x) * 2 > BigMap.width \
             or coord.y > BigMap.height \
-            or (-self.__yEpsilon < coord.y + self.__legRelativeY < self.__yEpsilon) \
-            or coord.y + self.__legRelativeY < 0:
+            or coord.y < self.__legRelativeY - self.__yEpsilon:
+            # or (-self.__yEpsilon < coord.y + self.__legRelativeY < self.__yEpsilon) \
+            # or coord.y < self.__legRelativeY - self.__yEpsilon:
             # Если ступень вылетела за пределы испытательного полигона:
             # - ступень вылетела за левую/правую границу полигона
             # - вылетела за верхнюю границу полигона
-            # - координаты посадочной опоры ступени выше или ниже уровня земли (с некоторой погрешностью),
-            # т. е. опора чуть выше / чуть ниже нулевой поверхности грунта (для фиксации возможной удачной посадки).
-            # При большой скорости движения ступени у уровня земли (заведомая катастрофа),
-            # в дискретных расчётах эта проверка может и не сработать, но тогда сработает последняя.
-            # - координаты посадочной опоры окончательно зарылись в землю - катастрофа
+            # - вылетела за нижнюю границу полигона
             # испытание завершено
             return True
 

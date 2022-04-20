@@ -33,6 +33,8 @@ class Sizes():
     topEnginesLeverage = heightCenterBlock * 2/3
     downEnginesLeverage = heightCenterBlock * 1/3
 
+    # расстояние от центра масс до плоскости опоры (в реальности, положение центра масс является функцией времени)
+    massCenterFromLandingPlaneDistance = 2 + downMassDistance
 
 class Stage():
     """ Физические параметры ступени. """
