@@ -4,8 +4,8 @@ from queue import Queue
 from point import VectorComplex
 from stage import Stage, Sizes
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text, LineArrowAndText, ArcArrowAndText
-from threads import KillNeuroNetThread, KillRealWorldThread
-from physics import BigMap, RealWorldStageStatus
+from kill_flags import KillNeuroNetThread, KillRealWorldThread
+from physics import BigMap
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
 # from torch import tensor

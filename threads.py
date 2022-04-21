@@ -2,10 +2,13 @@
 import physics
 from point import VectorComplex
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
-from physics import BigMap, HistoricData, RealWorldStageStatus, Moving
+from physics import BigMap, Moving, RealWorldStageStatus
 from queue import Queue
 import cmath
 from tools import Finish
+from threading import Thread
+from training import start_nb
+from kill_flags import KillNeuroNetThread, KillRealWorldThread
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -32,55 +35,32 @@ from tools import Finish
 # _Допущение_ Считаем, что изменение динамических и статических параметров изделия пренебрежимо мало
 # за время отработки данных нейросетью.
 
-class KillNeuroNetThread:
-    """ Флаг-команда завершения нити. """
-    def __init__(self, kill: bool):
-        self.__value = kill
-
-    @property
-    def kill(self):
-        return self.__value
-
-    @kill.setter
-    def kill(self, value: bool):
-        self.__value = value
-
-
-class KillRealWorldThread:
-    """ Флаг-команда завершения нити. """
-    def __init__(self, kill: bool):
-        self.__value = kill
-
-    @property
-    def kill(self):
-        return self.__value
-
-    @kill.setter
-    def kill(self, value: bool):
-        self.__value = value
-
-
-# class Transform():
-#     """
-#     Изменение положения объекта (точки).
-#     """
-#     # Класс данных для передачи информации через очередь в окно отрисовки ситуации
-#     # Передаются данные конкретного момента времени.
-#     # todo в перспективе класс удалить. Все данные передавать в очередь через класс RealWorldStageStatus
-#     def __init__(self, vector2d: VectorComplex, orientation2d: VectorComplex, lineVelocity: VectorComplex, text: str, stageStatus: RealWorldStageStatus):
-#         """
+# class KillNeuroNetThread:
+#     """ Флаг-команда завершения нити. """
+#     def __init__(self, kill: bool):
+#         self.__value = kill
 #
-#         :param vector2d: вектор нового положения центра масс объекта в системе координат полигона
-#         :param orientation2d: вектор новой ориентации объекта в системе координат полигона
-#         :param lineVelocity: вектор линейной скорости
-#         :param text: строка допоплнительной информации
-#         """
-#         self.vector2d = vector2d
-#         self.orientation2d = orientation2d
-#         self.lineVelocity = lineVelocity
-#         self.text = text
-#         # todo в перспективе, передавать информацию через нить именно через этот объект, а не через Transform
-#         self.stageStatus = stageStatus
+#     @property
+#     def kill(self):
+#         return self.__value
+#
+#     @kill.setter
+#     def kill(self, value: bool):
+#         self.__value = value
+#
+#
+# class KillRealWorldThread:
+#     """ Флаг-команда завершения нити. """
+#     def __init__(self, kill: bool):
+#         self.__value = kill
+#
+#     @property
+#     def kill(self):
+#         return self.__value
+#
+#     @kill.setter
+#     def kill(self, value: bool):
+#         self.__value = value
 
 
 class StageStatus:
@@ -118,28 +98,13 @@ class StageStatus:
             self.timerCounter = StageStatus.currentTimerCounter
 
 
-# class ThreadsConnector:
-#     """ Класс организующий перемещение данных между очередями, связывающими различные нити """
-#     def __init__(self, fromReality: Queue, toReality: Queue, toCanvas: Queue):
-#         """
-#
-#         :param fromReality: очередь данных из реальности (параметры ступени, подкрепление и пр.)
-#         :param toReality: управляющие команды нейросети
-#         :param toCanvas: данные из реальности для иллюстрирования процесса на канве
-#         """
-#         self.__fromReality = fromReality
-#         self.__toReality = toReality
-#         self.__toCanvas = toCanvas
-#
-#
-
-
-def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
+def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
     """
     Функция моделирующая поведение ступени в реальной физической среде
     :return:
     """
     print("Вход в нить окружающей среды.")
+    # print(testStageStatus)
     # Блок имитационных данных для отображения
     # начальное состояние ступени в СКИП
     # previousStatusTest = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
@@ -150,6 +115,7 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
     physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
                          orientation=VectorComplex.getInstance(0., 1.),
                          velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
+    physics.previousStageStatus.timeStamp = 0.
 
     # physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
     #                                                    orientation=VectorComplex.getInstance(0., 1.))
@@ -163,19 +129,10 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
     while not killReality.kill:
         # КОД
         # новое состояние в СКИП
-        # newStatus = RealWorldStageStatus()
-        # # новая ориентация
-        # # сложениself.orientation = orientationе двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
-        # newStatus.orientation.cardanus = previousStatusTest.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
-        # # приводим к единичному вектору
-        # newStatus.orientation.cardanus = newStatus.orientation.cardanus / abs(newStatus.orientation.cardanus)
-        # # новое положение ступени в СКИП
-        # newStatus.position = VectorComplex.getInstance(previousStatusTest.position.x, previousStatusTest.position.y - i * 1)
-
         newStageStatus = Moving.getNewStatus()
         # tempPosition = newStageStatus.position
         physics.previousStageStatus = newStageStatus
-        print("{0} Posititon: {1}, Velocyty: {2},\n Axelerantion: {3}, Orientation: {4}".
+        print("{0} Posititon: {1}, Velocyty: {2},\n Axelerantion: {3}, Orientation: {4}\n".
               format(i, newStageStatus.position, newStageStatus.velocity,
                      newStageStatus. axeleration, newStageStatus.orientation))
 
@@ -194,7 +151,8 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
         #                     newStageStatus.velocity.lazyCopy(),
         #                     "Команда №{}".format(i),
         #                     newStageStatus.lazyCopy()))
-        queue.put(newStageStatus.lazyCopy())
+        toWindowsQueue.put(newStageStatus.lazyCopy())
+        toNeuroNetQueue.put(newStageStatus.lazyCopy())
         # print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
         # # запоминаем позицию
         # previousStatusTest.position = newStatus.position
@@ -215,70 +173,23 @@ def reality_thread(queue: Queue, killReality: KillRealWorldThread, killNeuro: Ki
     else:
         killNeuro.kill = True
 
-
-# фунция нити нейросети
-def neuronet_thread(queue: Queue, killThisThread: KillNeuroNetThread):
+def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, killThisThread: KillNeuroNetThread):
     """
     Метод, запускаемый в отдельной нитке для обучения нейросети.
 
     :param queue: очередь, для передачи даннных
     :return:
     """
-    print("Вход в нить нейросети.")
-    # заглушка, чтобы эта функция не работала
-    return
-    #
+    print("Вход в нить нейросети.\n")
+
+    # запуск дочерней нити, так как в этой цикла не предусматривается, а вот в дочерней будет цикл обучения
+    neuroNetTrainingThread = Thread(target=start_nb, name="neutoNetTraningThread", args=(controlQueue, environmentQueue, killThisThread,))
     # запуск метода обучения сети
-    # start_nb(frameRate)
-    # получить новое положение и ориентацию объекта
-    #
-    # преобразовать положение и ориентацию объекта из системы координат пространства в систему координат канвы
-    #
-    # отправить новое положение и ориентацию (в системе координат канвы) в нить вывода
-    # queue.put(Transform(Point(), Point(), ''))
-    #
-    # Блок имитационных данных для отображения
-    # начальная ориентация объекта в системе координат канвы
-    orientation = VectorComplex.getInstance(0., -1.)
-    for i in range(80):
-    # while not killNeuronetThread:
-        # new_orientation = Point()
-        new_orientation = VectorComplex.getInstance()
-        # АХТУНГ!
-        # В левой системе координат (система координат канвы) положительный угол поворота - по часовой стрелке!
-        # Т. е., положительный угол поворота,
-        # это угол поворота от положительной полуоси абцисс к положительной полуоси ординат
-        # новая ориентация
-        # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
-        new_orientation.cardanus = orientation.cardanus * cmath.rect(1., (cmath.pi / 36))
-        # отправляем новое абсолютное положение в системе координат канвы и абсолютный угол (относительно положительной
-        # полуоси абцисс) ориентации объекта в очередь
-        # queue.put(Transform(Point(55, 20 + i * 10), new_orientation, "Команда №{}".format(i)))
-        queue.put(Transform(VectorComplex.getInstance(BigMap.width/2, 20 + i * 1), new_orientation, "Команда №{}".format(i)))
-        # запоминаем ориентацию, для использования в следующей итерации
-        orientation = new_orientation
+    neuroNetTrainingThread.start()
 
-        if killThisThread.kill:
-            print("Завершение нити нейросети.")
-            break
+    neuroNetTrainingThread.join()
+
+    print("Завершение нити нейросети.\n")
 
 
-# def fromTPCStoCCS(status: StageStatus):
-#     """
-#     Функция перобразования данных из очереди физической модели в данные очереди канвы
-#
-#     :param status: очередное состояние ступени
-#     """
-#     # todo убрать за ненадобностью
-#     # преобразовать вектора из СКИП в СКК
-#     position = complexChangeSystemCoordinatesUniversal(status.positionVector2d,
-#                                                        VectorComplex.getInstance(- BigMap.testPoligonOriginInCCS.x,
-#                                                                                  BigMap.testPoligonOriginInCCS.y),
-#                                                        0,
-#                                                        True)
-#     verticalAxis = complexChangeSystemCoordinatesUniversal(status.axisVector2d,
-#                                                            VectorComplex.getInstance( - BigMap.testPoligonOriginInCCS.x,
-#                                                                                       BigMap.testPoligonOriginInCCS.y),
-#                                                            0,
-#                                                            True)
-#     return Transform(position, verticalAxis, "text")
+

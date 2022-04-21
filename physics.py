@@ -4,6 +4,7 @@ import torch
 from point import VectorComplex
 import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
+# from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
 # массой m1 (центр дна ракеты), m2 (средняя точка, центр масс), m3 (верх ступени)
@@ -36,10 +37,11 @@ from decart import complexChangeSystemCoordinatesUniversal
 # раз в секунду / Герц, если 1000, то это секунда
 # Вполне возможно будет переменной: чем ниже скорость, тем меньше частота
 # В числителе Герцы, а на итоге - секунды
-frequency = 1000 / 1000
+# frequency = 1000 / 1000
 # frequency = 1.
-# Предыдущее состояние модели
-previousStageStatus = None
+
+# # Предыдущее состояние модели
+# previousStageStatus = None
 
 class DataFrequency:
     """
@@ -80,12 +82,17 @@ class DataFrequency:
     @classmethod
     def getFrequency(cls, distance: VectorComplex):
         """
-        Частота считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
+        Периодичность считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
 
         :param distance: вектор расстояния от точки приземления до центра масс изделия
         :return: периодичность считывания показаний датчиков, сек
         :rtype float:
         """
+
+        # todo убрать, при переходе к более-менее реальным процессам
+        # временная отладочная установка
+        return 1.
+
         # дальность до точки приземления, метров
         module = abs(distance) + stage.Sizes.massCenterFromLandingPlaneDistance
         # высота до поверхности, метров
@@ -105,26 +112,26 @@ class DataFrequency:
             # один раз в минуту
             return DataFrequency.__border(60.)
 
-class HistoricData:
-    """ Класс исторических данных, необходимых для расчёта ускорения и скорости """
-    # todo Возможно, класс не нужен
-    # Так как без знания двух очередных значений положения и времени между ними невозможно посчитать скорость
-    # и ускорение объекта
-    # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-    previousPosition: VectorComplex
-    previousVelocity: VectorComplex
-    # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-    previousAxeleration: VectorComplex
-    # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
-    previousOrientation: VectorComplex
-    previousAngularVelocity: float
-    # Аналогично, зачем мне предыдущее угловое ускорение?
-    previousAngularAxeleration: float
-    # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-    previousTimeStamp: float
-    # Длительность действия этих параметров, сек
-    timeLength: float
-    # todo использовать или previousTimeStamp, или timeLength
+# class HistoricData:
+#     """ Класс исторических данных, необходимых для расчёта ускорения и скорости """
+#     # todo Возможно, класс не нужен
+#     # Так как без знания двух очередных значений положения и времени между ними невозможно посчитать скорость
+#     # и ускорение объекта
+#     # Линейные положение, линейная скорость и ускорение - всё это в СКИП
+#     previousPosition: VectorComplex
+#     previousVelocity: VectorComplex
+#     # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
+#     previousAxeleration: VectorComplex
+#     # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
+#     previousOrientation: VectorComplex
+#     previousAngularVelocity: float
+#     # Аналогично, зачем мне предыдущее угловое ускорение?
+#     previousAngularAxeleration: float
+#     # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
+#     previousTimeStamp: float
+#     # Длительность действия этих параметров, сек
+#     timeLength: float
+#     # todo использовать или previousTimeStamp, или timeLength
 
 
 class RealWorldStageStatus():
@@ -135,7 +142,7 @@ class RealWorldStageStatus():
                  orientation=None,
                  angularVelocity=0.,
                  angularAxeleration=0.,
-                 timeLength=0.):
+                 timeStamp=0.):
         """
 
         :param position:
@@ -150,8 +157,8 @@ class RealWorldStageStatus():
         :type angularVelocity: float
         :param angularAxeleration:
         :type angularAxeleration: float
-        :param timeLength:
-        :type timeLength: float
+        :param timeStamp:
+        :type timeStamp: float
         """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
         self.position = position if position is not None else VectorComplex.getInstance()
@@ -168,9 +175,10 @@ class RealWorldStageStatus():
         # Аналогично, зачем мне предыдущее угловое ускорение?
         self.angularAxeleration = angularAxeleration
         # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-        self.timeStamp: float = 0.
+        self.timeStamp: float = timeStamp
         # Длительность действия этих параметров, сек
-        self.timeLength = timeLength
+        # todo убрать и перейти на timeStamp
+        # self.timeLength = timeLength
         # todo использовать или previousTimeStamp, или timeLength. Одновременно, скорее всего излишне.
 
     def lazyCopy(self):
@@ -182,38 +190,12 @@ class RealWorldStageStatus():
         newObject.angularVelocity = self.angularVelocity
         newObject.angularAxeleration = self.angularAxeleration
         newObject.timeStamp = self.timeStamp
-        newObject.timeLength = self.timeLength
+        # newObject.timeLength = self.timeLength
         return newObject
 
-    # @classmethod
-    # def zero(cls):
-    #     return RealWorldStageStatus
 
-
-
-class Rocket():
-    """ Класс ракеты / ступени. Динамические параметры. """
-    # todo не нужный класс?
-    def __init__(self):
-        # self.__baseVector: tensor = torch.zeros([1, 4])
-        # координаты центра масс ракеты относительно точки посадки
-        self.__coord: VectorComplex
-        # угол отклонения оси ступени от вертикали
-        self.__psi = 0.
-
-        # вектор скорости ракеты
-        self.__v: VectorComplex
-        # вектор ускорения ракеты
-        self.__a: VectorComplex
-
-        # угловая скорость ступени
-        self.__w: float
-        # угловое ускорение ступени
-        self.__e: float
-
-    def ganerateState(self):
-        """ Генерация начального положения ракеты / состояния всей системы """
-        pass
+# Предыдущее состояние модели
+previousStageStatus = RealWorldStageStatus()
 
 
 class BigMap:
@@ -412,18 +394,18 @@ class Moving():
 
         lineAxeleration = Moving.getA(Action(gcenter=VectorComplex.getInstance(-10000., -30000.)))
         # lineAxeleration = VectorComplex.getInstance(-3., 0.)
-        lineVelocity = previousStageStatus.velocity + lineAxeleration * frequency
-        linePosition = previousStageStatus.position + lineVelocity * frequency
+        lineVelocity = previousStageStatus.velocity + lineAxeleration * DataFrequency.getFrequency(previousStageStatus.position)
+        linePosition = previousStageStatus.position + lineVelocity * DataFrequency.getFrequency(previousStageStatus.position)
 
         # новая ориентация
         # угловое ускорение
         angularAxeleration = 0.
         # угловая скорость, рад/сек
-        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * frequency
+        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * DataFrequency.getFrequency(previousStageStatus.position)
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
         # поворот на угол, рад.
-        angle = angularVelocity * frequency
+        angle = angularVelocity * DataFrequency.getFrequency(previousStageStatus.position)
         # переводим угол из радианов в форму комплексного числа
         complexAngle = cmath.rect(1., angle)
         # поворот вектора ориентации через перемножение комплексных чисел
@@ -444,4 +426,6 @@ class Moving():
         newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
                                            angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
                                            orientation=orientation)
+        newPosition.timeStamp += DataFrequency.getFrequency(previousStageStatus.position)
+
         return newPosition

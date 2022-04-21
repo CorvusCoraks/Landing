@@ -16,10 +16,9 @@ from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST
 # Это всё проверено опытным путём....
 
 
-root = Tk()
-root.title("Stage view")
-canvas = Canvas(root, width=100, height=100)
-id = canvas.create_oval(20, 20, 50, 50, fill="red")
-id.pack_forget()
-canvas.pack()
-root.mainloop()
+
+
+if isinstance(2., complex):
+    print("Complex")
+else:
+    print("None")

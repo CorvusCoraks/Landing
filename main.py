@@ -6,9 +6,10 @@ from queue import Queue
 from threading import Thread
 from point import VectorComplex
 import cmath
-from physics import BigMap, Rocket
+from physics import BigMap
 from stage import Sizes
-from threads import KillNeuroNetThread, KillRealWorldThread, StageStatus, reality_thread, neuronet_thread
+from threads import reality_thread, neuronet_thread
+from kill_flags import  KillNeuroNetThread, KillRealWorldThread
 import decart
 from training import start_nb
 
@@ -16,11 +17,16 @@ from training import start_nb
 # todo устаревшее, убрать
 frameRate = 1000
 
-stage = Rocket()
+# stage = Rocket()
 # qPoligon = Queue()
 
 # Очередь, через которую возвращаются данные о поведении ступени в реальном мире.
 fromRealWorldQueue = Queue()
+# очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
+fromNeuroNetQueue = Queue()
+# очередь, для передачи инфомации в нейросеть
+toNeuroNetQueue = Queue()
+
 # fromRealWorldQueue: Queue
 # Команда на завершение нити реального мира
 killRealWorldThread = KillRealWorldThread(False)
@@ -28,19 +34,15 @@ killRealWorldThread = KillRealWorldThread(False)
 killNeuronetThread = KillNeuroNetThread(False)
 
 # Нить модели реального мира
-realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(fromRealWorldQueue, killRealWorldThread, killNeuronetThread,))
+realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(fromRealWorldQueue, toNeuroNetQueue, killRealWorldThread, killNeuronetThread,))
 realWorldThread.start()
-
-# очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
-fromNeuroNetQueue = Queue()
-
 
 # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.
 # Т. е. отображение хода обучения идёт через tkinter в главной нити,
 # расчёт нейросети и физическое моделирование в отдельной нити
 
 # Создание отдельной нити для нейросети
-neuroNetThread = Thread(target=neuronet_thread, name="NeuroNetThread", args=(fromNeuroNetQueue, killNeuronetThread,))
+neuroNetThread = Thread(target=neuronet_thread, name="NeuroNetThread", args=(fromNeuroNetQueue, toNeuroNetQueue, killNeuronetThread,))
 neuroNetThread.start()
 
 # Размер полигона в метрах!
