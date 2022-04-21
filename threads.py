@@ -9,6 +9,7 @@ from tools import Finish
 from threading import Thread
 from training import start_nb
 from kill_flags import KillNeuroNetThread, KillRealWorldThread
+from sructures import StageControlCommands
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -98,7 +99,7 @@ class StageStatus:
             self.timerCounter = StageStatus.currentTimerCounter
 
 
-def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
+def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
     """
     Функция моделирующая поведение ступени в реальной физической среде
     :return:
@@ -112,15 +113,21 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, killReality: K
 
     finishControl = Finish()
 
-    physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
+    initialStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
                          orientation=VectorComplex.getInstance(0., 1.),
                          velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
-    physics.previousStageStatus.timeStamp = 0.
+    initialStatus.timeStamp = 0
+
+    physics.previousStageStatus = initialStatus
+    # physics.previousStageStatus.timeStamp = 0.
 
     # physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
     #                                                    orientation=VectorComplex.getInstance(0., 1.))
 
     # -cmath.pi / 36
+
+    # Бутафорская команда для первого прохода
+    command = StageControlCommands(0, duration=0)
 
     # newStatus = RealWorldStageStatus()
     # пока в тестовых целях сделано через счётчик i
@@ -128,8 +135,16 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, killReality: K
     i = 0
     while not killReality.kill:
         # КОД
+        # command = None
         # новое состояние в СКИП
-        newStageStatus = Moving.getNewStatus()
+        newStageStatus = Moving.getNewStatus(command)
+        # if physics.previousStageStatus is initialStatus:
+        #     # Если это - первый проход, то никаких команд из нейросети нет
+        #     newStageStatus = Moving.getNewStatus(StageControlCommands(1, duration=0))
+        # else:
+        #     # при последующих проходах поступают команды из нейросети
+        #     newStageStatus = Moving.getNewStatus(command)
+        # newStageStatus = Moving.getNewStatus() if physics.previousStageStatus is initialStatus else Moving.
         # tempPosition = newStageStatus.position
         physics.previousStageStatus = newStageStatus
         print("{0} Posititon: {1}, Velocyty: {2},\n Axelerantion: {3}, Orientation: {4}\n".
@@ -170,6 +185,13 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, killReality: K
         if i == 80:
             killReality.kill = True
         i += 1
+
+        while not killReality.kill:
+            # ждём команду из нейросети на отправленное состояние
+            if not fromNeuroNetQueue.empty():
+                command = fromNeuroNetQueue.get()
+                # команда получена
+                break
     else:
         killNeuro.kill = True
 
@@ -183,7 +205,8 @@ def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, killThisThread
     print("Вход в нить нейросети.\n")
 
     # запуск дочерней нити, так как в этой цикла не предусматривается, а вот в дочерней будет цикл обучения
-    neuroNetTrainingThread = Thread(target=start_nb, name="neutoNetTraningThread", args=(controlQueue, environmentQueue, killThisThread,))
+    # todo возможно, следует вызывать из модуля main сразу функцию обучения как нить, без этой промежуточной
+    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(controlQueue, environmentQueue, killThisThread,))
     # запуск метода обучения сети
     neuroNetTrainingThread.start()
 

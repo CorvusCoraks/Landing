@@ -21,20 +21,20 @@ frameRate = 1000
 # qPoligon = Queue()
 
 # Очередь, через которую возвращаются данные о поведении ступени в реальном мире.
-fromRealWorldQueue = Queue()
+envFromRealWorldQueue = Queue()
 # очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
-fromNeuroNetQueue = Queue()
+controlFromNeuroNetQueue = Queue()
 # очередь, для передачи инфомации в нейросеть
-toNeuroNetQueue = Queue()
+envToNeuroNetQueue = Queue()
 
-# fromRealWorldQueue: Queue
+# envFromRealWorldQueue: Queue
 # Команда на завершение нити реального мира
 killRealWorldThread = KillRealWorldThread(False)
 # команда на завершение нити нейросети
 killNeuronetThread = KillNeuroNetThread(False)
 
 # Нить модели реального мира
-realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(fromRealWorldQueue, toNeuroNetQueue, killRealWorldThread, killNeuronetThread,))
+realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(envFromRealWorldQueue, envToNeuroNetQueue, controlFromNeuroNetQueue, killRealWorldThread, killNeuronetThread,))
 realWorldThread.start()
 
 # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.
@@ -42,7 +42,7 @@ realWorldThread.start()
 # расчёт нейросети и физическое моделирование в отдельной нити
 
 # Создание отдельной нити для нейросети
-neuroNetThread = Thread(target=neuronet_thread, name="NeuroNetThread", args=(fromNeuroNetQueue, toNeuroNetQueue, killNeuronetThread,))
+neuroNetThread = Thread(target=neuronet_thread, name="NeuroNetThread", args=(controlFromNeuroNetQueue, envToNeuroNetQueue, killNeuronetThread,))
 neuroNetThread.start()
 
 # Размер полигона в метрах!
@@ -52,7 +52,7 @@ neuroNetThread.start()
 poligonScale = 1
 stageScale = 0.1
 # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
-poligonWindow = PoligonWindow(frameRate, fromRealWorldQueue,
+poligonWindow = PoligonWindow(frameRate, envFromRealWorldQueue,
                               BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
                               killNeuronetThread, killRealWorldThread)
 

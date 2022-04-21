@@ -4,6 +4,7 @@ import torch
 from point import VectorComplex
 import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
+from sructures import StageControlCommands
 # from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
@@ -54,6 +55,9 @@ class DataFrequency:
     # автоматический "виртуальный" переход вниз из "виртуального" верхнего диапазона в реальный
     currentFrequancy = float("inf")
 
+    # Множитель преобразования в микросекунды
+    __multiplier = 0.001
+
     @classmethod
     def __border(cls, defaultFrequency: float, borderMax=10):
         if DataFrequency.currentFrequancy >= defaultFrequency:
@@ -86,12 +90,13 @@ class DataFrequency:
 
         :param distance: вектор расстояния от точки приземления до центра масс изделия
         :return: периодичность считывания показаний датчиков, сек
-        :rtype float:
+        :rtype int:
         """
 
         # todo убрать, при переходе к более-менее реальным процессам
-        # временная отладочная установка
-        return 1.
+        # временная отладочная установка, чтобы метод отдавал 1 сек.
+        DataFrequency.currentFrequancy = 1000
+        return 1000
 
         # дальность до точки приземления, метров
         module = abs(distance) + stage.Sizes.massCenterFromLandingPlaneDistance
@@ -99,39 +104,24 @@ class DataFrequency:
         altitude = distance.y + stage.Sizes.massCenterFromLandingPlaneDistance
 
         if module < 1 or altitude < 1:
-            return DataFrequency.__border(0.001)
+            return DataFrequency.__border(1)
         elif module < 10 or altitude < 5:
-            return DataFrequency.__border(0.01)
+            return DataFrequency.__border(10)
         elif module < 100 or altitude < 50:
-            return DataFrequency.__border(0.1)
+            return DataFrequency.__border(100)
         elif module < 10000 or altitude < 5000:
-            return DataFrequency.__border(1.)
+            return DataFrequency.__border(1000)
         elif module < 100000 or altitude < 50000:
-            return DataFrequency.__border(10.)
+            return DataFrequency.__border(10000)
         else:
             # один раз в минуту
-            return DataFrequency.__border(60.)
-
-# class HistoricData:
-#     """ Класс исторических данных, необходимых для расчёта ускорения и скорости """
-#     # todo Возможно, класс не нужен
-#     # Так как без знания двух очередных значений положения и времени между ними невозможно посчитать скорость
-#     # и ускорение объекта
-#     # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-#     previousPosition: VectorComplex
-#     previousVelocity: VectorComplex
-#     # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-#     previousAxeleration: VectorComplex
-#     # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
-#     previousOrientation: VectorComplex
-#     previousAngularVelocity: float
-#     # Аналогично, зачем мне предыдущее угловое ускорение?
-#     previousAngularAxeleration: float
-#     # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-#     previousTimeStamp: float
-#     # Длительность действия этих параметров, сек
-#     timeLength: float
-#     # todo использовать или previousTimeStamp, или timeLength
+            return DataFrequency.__border(60000)
+    @classmethod
+    def toSec(cls, value):
+        """
+        Преобразование значения периодичности в микросекунды
+        """
+        return value * DataFrequency.__multiplier
 
 
 class RealWorldStageStatus():
@@ -142,23 +132,23 @@ class RealWorldStageStatus():
                  orientation=None,
                  angularVelocity=0.,
                  angularAxeleration=0.,
-                 timeStamp=0.):
+                 timeStamp=0):
         """
 
-        :param position:
+        :param position: вектор положения издения в СКИП
         :type position: VectorComplex
-        :param velocity:
+        :param velocity: вектор линейной скорости
         :type velocity: VectorComplex
-        :param axeleration:
+        :param axeleration: вектор линейного ускорения
         :type axeleration: VectorComplex
-        :param orientation:
+        :param orientation: ориентация (положительно - против часовой стрелки), рад
         :type orientation: VectorComplex
-        :param angularVelocity:
+        :param angularVelocity: угловая скорость (положительно - против часовой стрелки)
         :type angularVelocity: float
-        :param angularAxeleration:
+        :param angularAxeleration: угловое ускорение (положительно - против часовой стрелки)
         :type angularAxeleration: float
-        :param timeStamp:
-        :type timeStamp: float
+        :param timeStamp: метка времени в микросекундах
+        :type timeStamp: int
         """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
         self.position = position if position is not None else VectorComplex.getInstance()
@@ -175,7 +165,7 @@ class RealWorldStageStatus():
         # Аналогично, зачем мне предыдущее угловое ускорение?
         self.angularAxeleration = angularAxeleration
         # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-        self.timeStamp: float = timeStamp
+        self.timeStamp: int = timeStamp
         # Длительность действия этих параметров, сек
         # todo убрать и перейти на timeStamp
         # self.timeLength = timeLength
@@ -389,23 +379,24 @@ class Moving():
         return result
 
     @classmethod
-    def getNewStatus(cls):
+    def getNewStatus(cls, controlCommands: StageControlCommands):
         """ Возвращает новое состояние ступени """
+        duration = DataFrequency.toSec(DataFrequency.getFrequency(previousStageStatus.position))
 
         lineAxeleration = Moving.getA(Action(gcenter=VectorComplex.getInstance(-10000., -30000.)))
         # lineAxeleration = VectorComplex.getInstance(-3., 0.)
-        lineVelocity = previousStageStatus.velocity + lineAxeleration * DataFrequency.getFrequency(previousStageStatus.position)
-        linePosition = previousStageStatus.position + lineVelocity * DataFrequency.getFrequency(previousStageStatus.position)
+        lineVelocity = previousStageStatus.velocity + lineAxeleration * duration
+        linePosition = previousStageStatus.position + lineVelocity * duration
 
         # новая ориентация
         # угловое ускорение
         angularAxeleration = 0.
         # угловая скорость, рад/сек
-        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * DataFrequency.getFrequency(previousStageStatus.position)
+        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * duration
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
         # поворот на угол, рад.
-        angle = angularVelocity * DataFrequency.getFrequency(previousStageStatus.position)
+        angle = angularVelocity * duration
         # переводим угол из радианов в форму комплексного числа
         complexAngle = cmath.rect(1., angle)
         # поворот вектора ориентации через перемножение комплексных чисел
@@ -426,6 +417,6 @@ class Moving():
         newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
                                            angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
                                            orientation=orientation)
-        newPosition.timeStamp += DataFrequency.getFrequency(previousStageStatus.position)
+        newPosition.timeStamp = previousStageStatus.timeStamp + DataFrequency.getFrequency(previousStageStatus.position)
 
         return newPosition
