@@ -2,10 +2,10 @@
 # from physics import Rocket
 import tools
 from point import VectorComplex
-from physics import RealWorldStageStatus, BigMap
+from physics import BigMap
 from kill_flags import KillNeuroNetThread
 from queue import Queue
-from sructures import StageControlCommands
+from sructures import StageControlCommands, RealWorldStageStatusN
 
 
 def start_nb(controlQueue: Queue, environmentQueue: Queue, killThisThread: KillNeuroNetThread, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
@@ -25,6 +25,9 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, killThisThread: KillN
 
     # инициализация класса проверки на выход за пределы тестового полигона
     finish = tools.Finish()
+
+    # очередное состояние окружающей среды
+    environmentStatus = RealWorldStageStatusN()
 
     startEpoch = 0
     stopEpochNumber = 2
@@ -46,6 +49,12 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, killThisThread: KillN
                 break
             pass
             # получить предыдущее (начальное) состояние
+            while not killThisThread.kill:
+                # ждём очередное состояние окружающей среды
+                if not environmentQueue.empty():
+                    environmentStatus = environmentQueue.get()
+                    # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
+                    break
 
             # вывод картинки предыдущего (начального) состояния
 
@@ -57,7 +66,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, killThisThread: KillN
             # выбор максимального значения функции ценности
 
             # Отправка команды, согласно максимального значения функции ценности
-            controlQueue.put(StageControlCommands(1, duration=1))
+            controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=1))
 
             # Целевое значение функции ценности
             targetQtp1 = 0
@@ -84,7 +93,7 @@ def generateStartState():
     :return:
     :rtype RealWorldStageStatus:
     """
-    startState = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
+    startState = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
                                   orientation=VectorComplex.getInstance(0., 1.))
     startState.timeStamp = 0
 

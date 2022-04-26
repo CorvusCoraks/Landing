@@ -2,14 +2,14 @@
 import physics
 from point import VectorComplex
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
-from physics import BigMap, Moving, RealWorldStageStatus
+from physics import BigMap, Moving
 from queue import Queue
 import cmath
 from tools import Finish
 from threading import Thread
 from training import start_nb
 from kill_flags import KillNeuroNetThread, KillRealWorldThread
-from sructures import StageControlCommands
+from sructures import StageControlCommands, RealWorldStageStatusN
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -113,7 +113,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
 
     finishControl = Finish()
 
-    initialStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
+    initialStatus = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
                          orientation=VectorComplex.getInstance(0., 1.),
                          velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
     initialStatus.timeStamp = 0

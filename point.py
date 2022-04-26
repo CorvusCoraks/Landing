@@ -181,22 +181,48 @@ class VectorComplex():
         """
         return VectorComplex.getInstanceC(self.cardanus - other.cardanus)
 
+    # def __mul__(self, other):
+    #     """
+    #     Умножение на число.
+    #
+    #     """
+    #     if isinstance(other, complex):
+    #         return VectorComplex.getInstanceC(self.cardanus * other)
+    #
+    #     try:
+    #         # Вектор может умножаться только на число. К int можно привести любой объект, если он число, в т. ч. и float
+    #         test = int(other)
+    #     except TypeError("The 'other' argument is not a number-type"):
+    #         # Бутафорская строка, чтобы что-то было в этом блоке
+    #         other = other
+    #     else:
+    #         return VectorComplex.getInstanceC(self.cardanus * other)
+
     def __mul__(self, other):
         """
         Умножение на число.
 
         """
-        if isinstance(other, complex):
+        if isinstance(other, (complex, int, float)):
             return VectorComplex.getInstanceC(self.cardanus * other)
-
-        try:
-            # Вектор может умножаться только на число.
-            test = int(other)
-        except TypeError("The 'other' argument is not a number-type"):
-            # Бутафорская строка, чтобы что-то было в этом блоке
-            other = other
         else:
-            return VectorComplex.getInstanceC(self.cardanus * other)
+            raise TypeError("The 'other' argument is not a number-type")
+
+    def __rmul__(self, other):
+        """
+        Умножение на число. Обеспечение коммутативности.
+
+        """
+        return self.__mul__(other)
+
+        # try:
+        #     # Вектор может умножаться только на число.
+        #     test = int(other)
+        # except TypeError("The 'other' argument is not a number-type"):
+        #     # Бутафорская строка, чтобы что-то было в этом блоке
+        #     other = other
+        # else:
+        #     return VectorComplex.getInstanceC(self.cardanus * other)
 
     def __truediv__(self, other):
         """

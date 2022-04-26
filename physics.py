@@ -4,7 +4,7 @@ import torch
 from point import VectorComplex
 import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
-from sructures import StageControlCommands
+from sructures import StageControlCommands, RealWorldStageStatusN
 # from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
@@ -41,8 +41,11 @@ from sructures import StageControlCommands
 # frequency = 1000 / 1000
 # frequency = 1.
 
-# # Предыдущее состояние модели
-# previousStageStatus = None
+# Предыдущее состояние модели
+previousStageStatus = RealWorldStageStatusN()
+
+# Ускорение свободного падения в СКИП и СКЦМ
+GravitationalAcceleration = VectorComplex.getInstance(0., -9.8067)
 
 class DataFrequency:
     """
@@ -124,68 +127,64 @@ class DataFrequency:
         return value * DataFrequency.__multiplier
 
 
-class RealWorldStageStatus():
-    """ Состояние ступени в конкретный момент времени """
-    def __init__(self, position=None,
-                 velocity=None,
-                 axeleration=None,
-                 orientation=None,
-                 angularVelocity=0.,
-                 angularAxeleration=0.,
-                 timeStamp=0):
-        """
-
-        :param position: вектор положения издения в СКИП
-        :type position: VectorComplex
-        :param velocity: вектор линейной скорости
-        :type velocity: VectorComplex
-        :param axeleration: вектор линейного ускорения
-        :type axeleration: VectorComplex
-        :param orientation: ориентация (положительно - против часовой стрелки), рад
-        :type orientation: VectorComplex
-        :param angularVelocity: угловая скорость (положительно - против часовой стрелки)
-        :type angularVelocity: float
-        :param angularAxeleration: угловое ускорение (положительно - против часовой стрелки)
-        :type angularAxeleration: float
-        :param timeStamp: метка времени в микросекундах
-        :type timeStamp: int
-        """
-        # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-        self.position = position if position is not None else VectorComplex.getInstance()
-        self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
-        # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-        self.axeleration = axeleration if axeleration is not None else VectorComplex.getInstance()
-        # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
-        # if orientation is None:
-        #     self.orientation = VectorComplex.getInstance(0., 0.)
-        # else:
-        #     self.orientation = orientation
-        self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
-        self.angularVelocity = angularVelocity
-        # Аналогично, зачем мне предыдущее угловое ускорение?
-        self.angularAxeleration = angularAxeleration
-        # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-        self.timeStamp: int = timeStamp
-        # Длительность действия этих параметров, сек
-        # todo убрать и перейти на timeStamp
-        # self.timeLength = timeLength
-        # todo использовать или previousTimeStamp, или timeLength. Одновременно, скорее всего излишне.
-
-    def lazyCopy(self):
-        newObject = RealWorldStageStatus()
-        newObject.position = self.position.lazyCopy()
-        newObject.velocity = self.velocity.lazyCopy()
-        newObject.axeleration = self.axeleration.lazyCopy()
-        newObject.orientation = self.orientation.lazyCopy()
-        newObject.angularVelocity = self.angularVelocity
-        newObject.angularAxeleration = self.angularAxeleration
-        newObject.timeStamp = self.timeStamp
-        # newObject.timeLength = self.timeLength
-        return newObject
-
-
-# Предыдущее состояние модели
-previousStageStatus = RealWorldStageStatus()
+# class RealWorldStageStatus():
+#     """ Состояние ступени в конкретный момент времени """
+#     def __init__(self, position=None,
+#                  velocity=None,
+#                  axeleration=None,
+#                  orientation=None,
+#                  angularVelocity=0.,
+#                  angularAxeleration=0.,
+#                  timeStamp=0):
+#         """
+#
+#         :param position: вектор положения издения в СКИП
+#         :type position: VectorComplex
+#         :param velocity: вектор линейной скорости
+#         :type velocity: VectorComplex
+#         :param axeleration: вектор линейного ускорения
+#         :type axeleration: VectorComplex
+#         :param orientation: ориентация (положительно - против часовой стрелки), рад
+#         :type orientation: VectorComplex
+#         :param angularVelocity: угловая скорость (положительно - против часовой стрелки)
+#         :type angularVelocity: float
+#         :param angularAxeleration: угловое ускорение (положительно - против часовой стрелки)
+#         :type angularAxeleration: float
+#         :param timeStamp: метка времени в микросекундах
+#         :type timeStamp: int
+#         """
+#         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
+#         self.position = position if position is not None else VectorComplex.getInstance()
+#         self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
+#         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
+#         self.axeleration = axeleration if axeleration is not None else VectorComplex.getInstance()
+#         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
+#         # if orientation is None:
+#         #     self.orientation = VectorComplex.getInstance(0., 0.)
+#         # else:
+#         #     self.orientation = orientation
+#         self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
+#         self.angularVelocity = angularVelocity
+#         # Аналогично, зачем мне предыдущее угловое ускорение?
+#         self.angularAxeleration = angularAxeleration
+#         # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
+#         self.timeStamp: int = timeStamp
+#         # Длительность действия этих параметров, сек
+#         # todo убрать и перейти на timeStamp
+#         # self.timeLength = timeLength
+#         # todo использовать или previousTimeStamp, или timeLength. Одновременно, скорее всего излишне.
+#
+#     def lazyCopy(self):
+#         newObject = RealWorldStageStatus()
+#         newObject.position = self.position.lazyCopy()
+#         newObject.velocity = self.velocity.lazyCopy()
+#         newObject.axeleration = self.axeleration.lazyCopy()
+#         newObject.orientation = self.orientation.lazyCopy()
+#         newObject.angularVelocity = self.angularVelocity
+#         newObject.angularAxeleration = self.angularAxeleration
+#         newObject.timeStamp = self.timeStamp
+#         # newObject.timeLength = self.timeLength
+#         return newObject
 
 
 class BigMap:
@@ -324,8 +323,9 @@ class Moving():
         f = forces.FdownLeft + forces.FdownRight + forces.FdownUp + forces.FtopLeft + forces.FtopRight
         # Переводим суперпозицию сил двигателей в СКЦМ
         f = complexChangeSystemCoordinatesUniversal(f, VectorComplex.getInstance(0., 0.), -forces.psi)
-        # Складываем силы тяжести в их суперпозицию
-        g = forces.Gdown + forces.Gcenter + forces.Gtop
+        # Складываем силы тяжести в их суперпозицию в СКЦМ
+        # g = forces.Gdown + forces.Gcenter + forces.Gtop
+        g = (stage.Stage.topMass + stage.Stage.centerMass + stage.Stage.downMass) * GravitationalAcceleration
         # Векторно складываем суперпозицию сил двигателей и суперпозицию сил тяжести от масс
         sum = f + g
         # Получаем вектор линейного ускорения центра масс под действием суммы всех сил (Второй закон Ньютона)
@@ -335,7 +335,7 @@ class Moving():
     @classmethod
     def getE(cls, forces: Action):
         """
-        Мгновенное угловое ускорение в системе коодинат ступени.
+        Мгновенное угловое ускорение в системе коодинат ступени (СКС).
 
         :return:
         """
@@ -383,7 +383,8 @@ class Moving():
         """ Возвращает новое состояние ступени """
         duration = DataFrequency.toSec(DataFrequency.getFrequency(previousStageStatus.position))
 
-        lineAxeleration = Moving.getA(Action(gcenter=VectorComplex.getInstance(-10000., -30000.)))
+        lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.getInstance(0.,stage.Engine.mainEngineForce)))
+        # lineAxeleration = Moving.getA(Action())
         # lineAxeleration = VectorComplex.getInstance(-3., 0.)
         lineVelocity = previousStageStatus.velocity + lineAxeleration * duration
         linePosition = previousStageStatus.position + lineVelocity * duration
@@ -414,7 +415,7 @@ class Moving():
         # # новая ориентация
         # orientation = VectorComplex.getInstanceC(cardanus)
 
-        newPosition = RealWorldStageStatus(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
+        newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
                                            angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
                                            orientation=orientation)
         newPosition.timeStamp = previousStageStatus.timeStamp + DataFrequency.getFrequency(previousStageStatus.position)
