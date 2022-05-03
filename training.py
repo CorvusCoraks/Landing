@@ -119,10 +119,10 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             random.seed()
             if random.choice([0, 1]):
                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=0))
+                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=environmentStatus.duration))
             else:
                 # Нейросеть актора даёт команду
-                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=1000))
+                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=environmentStatus.duration, main=True))
 
             # Ждём появления подкрепления в очереди
             while reinforcementQueue.empty():
@@ -158,18 +158,18 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             #     Сохранение состяния нейросетей
     print("Выход из поднити обучения.\n")
 
-def generateStartState():
-    """
-    Генерация начального положения изделия
-
-    :return:
-    :rtype RealWorldStageStatus:
-    """
-    startState = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-                                  orientation=VectorComplex.getInstance(0., 1.))
-    startState.timeStamp = 0
-
-    return startState
+# def generateStartState():
+#     """
+#     Генерация начального положения изделия
+#
+#     :return:
+#     :rtype RealWorldStageStatus:
+#     """
+#     startState = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+#                                   orientation=VectorComplex.getInstance(0., 1.))
+#     startState.timeStamp = 0
+#
+#     return startState
 
 def actorInputTensor(environment: RealWorldStageStatusN):
     """

@@ -119,6 +119,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
                          orientation=VectorComplex.getInstance(0., 1.),
                          velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
     initialStatus.timeStamp = 0
+    initialStatus.duration = physics.DataFrequency.getFrequency(initialStatus.position)
 
     physics.previousStageStatus = initialStatus
     # physics.previousStageStatus.timeStamp = 0.
@@ -129,7 +130,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
     # -cmath.pi / 36
 
     # Бутафорская команда для первого прохода
-    command = StageControlCommands(0, duration=0)
+    command = StageControlCommands(0, duration=initialStatus.duration)
 
     # newStatus = RealWorldStageStatus()
     # пока в тестовых целях сделано через счётчик i

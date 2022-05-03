@@ -419,5 +419,6 @@ class Moving():
                                            angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
                                            orientation=orientation)
         newPosition.timeStamp = previousStageStatus.timeStamp + DataFrequency.getFrequency(previousStageStatus.position)
+        newPosition.duration = DataFrequency.getFrequency(linePosition)
 
         return newPosition

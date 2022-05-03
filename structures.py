@@ -26,7 +26,8 @@ class RealWorldStageStatusN():
                  orientation=None,
                  angularVelocity=0.,
                  angularAxeleration=0.,
-                 timeStamp=0):
+                 timeStamp=0,
+                 duration=0):
         """
 
         :param position: вектор положения издения в СКИП
@@ -41,8 +42,10 @@ class RealWorldStageStatusN():
         :type angularVelocity: float
         :param angularAxeleration: угловое ускорение (положительно - против часовой стрелки)
         :type angularAxeleration: float
-        :param timeStamp: метка времени в микросекундах
+        :param timeStamp: метка времени в миллисекундах
         :type timeStamp: int
+        :param duration: длительность действия данного состояния, миллисекунд. Для использования в модуле отображения.
+        :type duration: int
         """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
         # self.position = position if position is not None else VectorComplex.getInstance()
@@ -64,10 +67,9 @@ class RealWorldStageStatusN():
         self.angularAxeleration = angularAxeleration
         # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
         self.timeStamp: int = timeStamp
-        # Длительность действия этих параметров, сек
-        # todo убрать и перейти на timeStamp
-        # self.timeLength = timeLength
-        # todo использовать или previousTimeStamp, или timeLength. Одновременно, скорее всего излишне.
+        # Длительность действия этих параметров
+        # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
+        self.duration = duration
 
     def lazyCopy(self):
         newObject = RealWorldStageStatusN()
@@ -78,7 +80,7 @@ class RealWorldStageStatusN():
         newObject.angularVelocity = self.angularVelocity
         newObject.angularAxeleration = self.angularAxeleration
         newObject.timeStamp = self.timeStamp
-        # newObject.timeLength = self.timeLength
+        newObject.duration = self.duration
         return newObject
 
 class ReinforcementValue:

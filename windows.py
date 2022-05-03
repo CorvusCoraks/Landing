@@ -137,6 +137,8 @@ class PoligonWindow():
         self.__killNeuroNetFlag = killNeuronetFlag
         self.__killRealityFlag = killRealityFlag
 
+        # ВременнАя точка предыдущего состояния изделия
+        self.__previousStatusTimeStamp = 0
         # self.__poligonWindowPosition = VectorComplex(100., 20.)
         # self.__stageWindowPosition = VectorComplex(20., 20.)
 
@@ -151,7 +153,8 @@ class PoligonWindow():
         self.__stageMark = PoligonWindow.StageMark(self.__currentPoint, self.__canvas)
         # Устаналвиваем обработчик закрытия главного окна
         self.__root.protocol("WM_DELETE_WINDOW", self.__onClosing)
-        self.__root.after(self.__frameRate, self.__draw)
+        # self.__root.after(self.__frameRate, self.__draw)
+        self.__root.after(0, self.__draw)
         # self.__root.mainloop()
 
         # Окно увеличенного изображения ступени в процессе посадки
@@ -160,11 +163,15 @@ class PoligonWindow():
     def __draw(self):
         # метод для периодического вызова и отрисовки на канве (точка траектории, данные по высоте, тангажу, крену и пр)
         transform = None
-
+        # длительность предыдущего статуса изделия
+        previousStatusDuration = 0
         # получение данных из внешних источников self.__anyQueue
         if not self.__queue.empty():
             # print(self.__anyQueue.get())
             transform = self.__queue.get()
+
+            previousStatusDuration = transform.timeStamp - self.__previousStatusTimeStamp
+            self.__previousStatusTimeStamp = transform.timeStamp
 
             # преобразование из СКИП в СКК
             # inCanvasCoordSystem = RealWorldStageStatus()
@@ -201,8 +208,9 @@ class PoligonWindow():
             # print(transform.text)
             # обновляем текущую точку ступени
 
-        # запускаем отрисовку цикл
-        self.__root.after(self.__frameRate, self.__draw)
+        # запускаем отрисовку в цикл
+        # self.__root.after(self.__frameRate, self.__draw)
+        self.__root.after(previousStatusDuration, self.__draw)
 
     def __createStaticMarks(self):
         # метод расставляет необходимые отметки по полигону (точка сброса ступени, точка посадки ступени и пр.)
@@ -266,6 +274,9 @@ class StageViewWindow():
         self.__anyQueue = anyQueue
         self.__frameRate = frameRate  # частота кадров
 
+        # ВременнАя точка предыдущего состояния изделия
+        self.__previousStatusTimeStamp = 0
+
         # размеры окна в зависимости от максимального размера ступени и масштаба её изображения
         # self.__windowWidth = self.__stageSize / self.__stageScale * 4
         # self.__windowHeight = self.__stageSize / self.__stageScale * 2 * 4
@@ -312,7 +323,8 @@ class StageViewWindow():
         # self.__root.after(1000, function, self.__root, 0, True)
         # self.__stage.pack_foget
         self.__createObjectsOnCanvas()
-        self.__root.after(self.__frameRate, self.__draw)
+        # self.__root.after(self.__frameRate, self.__draw)
+        self.__root.after(0, self.__draw)
         self.__root.mainloop()
 
     def __draw0(self):
@@ -416,10 +428,15 @@ class StageViewWindow():
         """ метод для периодической перерисовки объектов на канве """
 
         transform = None
+        # Длительность предыдущего состояния
+        previousStatusDuration = 0
 
         # получение данных из внешних источников self.__anyQueue
         if not self.__anyQueue.empty():
             transform = self.__anyQueue.get()
+
+            previousStatusDuration = transform.timeStamp - self.__previousStatusTimeStamp
+            self.__previousStatusTimeStamp = transform.timeStamp
 
         # отрисовка нового положения объектов на основании полученных данных из очереди
         if transform is not None:
@@ -469,7 +486,8 @@ class StageViewWindow():
             self.__orientation = stageViewOrientation
 
         # запускаем отрисовку цикл
-        self.__root.after(self.__frameRate, self.__draw)
+        # self.__root.after(self.__frameRate, self.__draw)
+        self.__root.after(previousStatusDuration, self.__draw)
 
 
 class FirstStage2():
