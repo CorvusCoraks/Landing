@@ -20,6 +20,8 @@ frameRate = 1000
 # stage = Rocket()
 # qPoligon = Queue()
 
+# Очередь для передачи величины подкрепления из нити реального мира в нейросеть
+reinfFromRealToNeuroQueue = Queue()
 # Очередь, через которую возвращаются данные о поведении ступени в реальном мире.
 envFromRealWorldQueue = Queue()
 # очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
@@ -34,7 +36,8 @@ killRealWorldThread = KillRealWorldThread(False)
 killNeuronetThread = KillNeuroNetThread(False)
 
 # Нить модели реального мира
-realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(envFromRealWorldQueue, envToNeuroNetQueue, controlFromNeuroNetQueue, killRealWorldThread, killNeuronetThread,))
+realWorldThread = Thread(target=reality_thread, name="realWorldThread",
+                         args=(envFromRealWorldQueue, envToNeuroNetQueue, controlFromNeuroNetQueue, reinfFromRealToNeuroQueue, killRealWorldThread, killNeuronetThread,))
 realWorldThread.start()
 
 # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.
@@ -42,7 +45,12 @@ realWorldThread.start()
 # расчёт нейросети и физическое моделирование в отдельной нити
 
 # Создание отдельной нити для нейросети
-neuroNetThread = Thread(target=neuronet_thread, name="NeuroNetThread", args=(controlFromNeuroNetQueue, envToNeuroNetQueue, killNeuronetThread,))
+neuroNetThread = Thread(target=neuronet_thread,
+                        name="NeuroNetThread",
+                        args=(controlFromNeuroNetQueue,
+                              envToNeuroNetQueue,
+                              reinfFromRealToNeuroQueue,
+                              killNeuronetThread,))
 neuroNetThread.start()
 
 # Размер полигона в метрах!

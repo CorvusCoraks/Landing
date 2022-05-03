@@ -1,5 +1,6 @@
 """ Класс нитей и инструментов работы с ними. """
 import physics
+import tools
 from point import VectorComplex
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from physics import BigMap, Moving
@@ -9,7 +10,8 @@ from tools import Finish
 from threading import Thread
 from training import start_nb
 from kill_flags import KillNeuroNetThread, KillRealWorldThread
-from sructures import StageControlCommands, RealWorldStageStatusN
+from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue
+from stage import Sizes
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -99,7 +101,7 @@ class StageStatus:
             self.timerCounter = StageStatus.currentTimerCounter
 
 
-def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
+def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, reinforcementQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
     """
     Функция моделирующая поведение ступени в реальной физической среде
     :return:
@@ -138,6 +140,14 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
         # command = None
         # новое состояние в СКИП
         newStageStatus = Moving.getNewStatus(command)
+
+        # Отправляем величину подкрепления в НС
+        reinforcementQueue.put(ReinforcementValue(newStageStatus.timeStamp,
+                                                  tools.Reinforcement.getReinforcement(
+                                                      newStageStatus,
+                                                      Sizes.massCenterFromLandingPlaneDistance)
+                                                  )
+                               )
         # if physics.previousStageStatus is initialStatus:
         #     # Если это - первый проход, то никаких команд из нейросети нет
         #     newStageStatus = Moving.getNewStatus(StageControlCommands(1, duration=0))
@@ -195,7 +205,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
     else:
         killNeuro.kill = True
 
-def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, killThisThread: KillNeuroNetThread):
+def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Queue, killThisThread: KillNeuroNetThread):
     """
     Метод, запускаемый в отдельной нитке для обучения нейросети.
 
@@ -206,7 +216,7 @@ def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, killThisThread
 
     # запуск дочерней нити, так как в этой цикла не предусматривается, а вот в дочерней будет цикл обучения
     # todo возможно, следует вызывать из модуля main сразу функцию обучения как нить, без этой промежуточной
-    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(controlQueue, environmentQueue, killThisThread,))
+    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(controlQueue, environmentQueue, reinforcementQueue, killThisThread,))
     # запуск метода обучения сети
     neuroNetTrainingThread.start()
 

@@ -4,7 +4,7 @@ import torch
 from point import VectorComplex
 import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
-from sructures import StageControlCommands, RealWorldStageStatusN
+from structures import StageControlCommands, RealWorldStageStatusN
 # from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)

@@ -2,6 +2,7 @@ from point import VectorComplex
 from math import fabs
 from physics import BigMap
 from stage import Sizes
+from structures import RealWorldStageStatusN
 # Разные утилиты
 
 
@@ -17,25 +18,33 @@ class Reinforcement():
         pass
 
     # метод удалить на фиг. Использовать метод из класса Finish
-    def isLandingFinished(self, coord: VectorComplex, yMassCenter: float):
-        """
-        Считается, что процесс посадки (испытание) завершён. Результат  процесса - неизвестен
+    # def isLandingFinished(self, coord: VectorComplex, yMassCenter: float):
+    #     """
+    #     Считается, что процесс посадки (испытание) завершён. Результат  процесса - неизвестен
+    #
+    #     :param coord: координаты центра масс ступени в мировой системе координат
+    #     :param yMassCenter: высота центра масс ступени над плоскостью посадочных опор
+    #     :return: ступень коснулась земной поверхности?
+    #     """
+    #     # Процесс может завершиться по разному: успешная посадка, неудачная посадка, ступень улетела за границы
+    #     # контролируемого пространства. Все эти варианты надо учесть.
+    #     if coord.y <= yMassCenter + self.__yEpsilon:
+    #         # ступень коснулась земил
+    #         result = True
+    #     else:
+    #         result = False
+    #     return result
 
-        :param coord: координаты центра масс ступени в мировой системе координат
-        :param yMassCenter: высота центра масс ступени над плоскостю посадочных опор
-        :return: ступень коснулась земной поверхности?
+    @classmethod
+    def getReinforcement(cls, stageStatus: RealWorldStageStatusN, yMassCenter: float):
         """
-        # Процесс может завершиться по разному: успешная посадка, неудачная посадка, ступень улетела за границы
-        # контролируемого пространства. Все эти варианты надо учесть.
-        if coord.y <= yMassCenter + self.__yEpsilon:
-            # ступень коснулась земил
-            result = True
-        else:
-            result = False
-        return result
+        Подкрепление
 
-    def getReinforcement(self, coord: VectorComplex, yMassCenter: float):
-        if self.isLandingFinished(coord, yMassCenter):
+        :param stageStatus:
+        :param yMassCenter:
+        :return:
+        """
+        if Finish.isOneTestFinished(stageStatus.position):
             # Проверка на высоту
             # Проверка на точность попадания в круг
             # Проверка на конечную скорость
@@ -44,6 +53,7 @@ class Reinforcement():
             # Проверка на конечную угловую скорость
             # Проверка на конечное угловое ускорение
             pass
+
         return 0
 
 
@@ -51,18 +61,26 @@ class Finish():
     """
     Класс завершения единичного испытания
     """
+
+    # Допустимое отклонение при выявлении факта посадки (метров)
+    __yEpsilon = 0.01
+    # Высота выключения двигателей (по высоте центра масс)
+    __legRelativeY = Sizes.massCenterFromLandingPlaneDistance
+
     # Необходим для того, чтобы единичное испытание не длилось чрезмерное неразумное время
     def __init__(self):
         # Ширина тестового полигона. Точка посадки находится посередине
         # self.__testPoligonWidth = BigMap.width
         # Высота тестового полигона. Имеет смысл задавать её от высоты начальной точки движения до высоты точки посадки
         # self.__testPoligonHeight = BigMap.height
-        # Допустимое отклонение при выявлении факта посадки (метров)
-        self.__yEpsilon = 0.01
-        # Высота выключения двигателей (по высоте центра масс)
-        self.__legRelativeY = Sizes.massCenterFromLandingPlaneDistance
+        # # Допустимое отклонение при выявлении факта посадки (метров)
+        # self.__yEpsilon = 0.01
+        # # Высота выключения двигателей (по высоте центра масс)
+        # self.__legRelativeY = Sizes.massCenterFromLandingPlaneDistance
+        pass
 
-    def isOneTestFinished(self, coord: VectorComplex):
+    @classmethod
+    def isOneTestFinished(cls, coord: VectorComplex):
         """ Проверка на неблагополучное завершение очередной тренировки
 
         :param coord: центр масс ракеты в СКИП
@@ -74,7 +92,7 @@ class Finish():
         # poligonLegY = coord.y + self.__legRelativeY
         if fabs(coord.x) * 2 > BigMap.width \
             or coord.y > BigMap.height \
-            or coord.y < self.__legRelativeY - self.__yEpsilon:
+            or coord.y < cls.__legRelativeY - cls.__yEpsilon:
             # or (-self.__yEpsilon < coord.y + self.__legRelativeY < self.__yEpsilon) \
             # or coord.y < self.__legRelativeY - self.__yEpsilon:
             # Если ступень вылетела за пределы испытательного полигона:
@@ -85,3 +103,4 @@ class Finish():
             return True
 
         return False
+

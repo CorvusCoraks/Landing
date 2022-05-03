@@ -60,10 +60,22 @@ class Stage():
     downMassVector = VectorComplex(tensor([0., - Sizes.downMassDistance]))
 
     # плоскость посадочной опоры. Этой плоскостью ступень касается Земли.
-    footVector = VectorComplex(tensor([0, - Sizes.heightCenterBlock * 1/3 - 1]))
+    footVector = VectorComplex(0., -Sizes.massCenterFromLandingPlaneDistance)
 
     # Момент инерции ступени
     InertionMoment = downMass * Sizes.downMassDistance ** 2 + topMass * Sizes.topMassDistance ** 2
+
+    # @classmethod
+    # def downMass(cls):
+    #     return 20000
+    #
+    # @classmethod
+    # def centerMass(cls):
+    #     return 30000
+    #
+    # @classmethod
+    # def topMass(cls):
+    #     return 10000
 
 
 class Engine():

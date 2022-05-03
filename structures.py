@@ -8,6 +8,7 @@ class StageControlCommands:
                  topLeft=False, topRight=False,
                  downLeft=False, downRight=False,
                  main=False):
+        # если duration=0, то двигатели не включаются. Пропуск такта. Пустая команда.
         timeStamp = timeStamp
         duration = duration
         topLeft = topLeft
@@ -44,16 +45,20 @@ class RealWorldStageStatusN():
         :type timeStamp: int
         """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-        self.position = position if position is not None else VectorComplex.getInstance()
-        self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
+        # self.position = position if position is not None else VectorComplex.getInstance()
+        self.position = position or VectorComplex.getInstance()
+        # self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
+        self.velocity = velocity or VectorComplex.getInstance()
         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-        self.axeleration = axeleration if axeleration is not None else VectorComplex.getInstance()
+        # self.axeleration = axeleration if axeleration is not None else VectorComplex.getInstance()
+        self.axeleration = axeleration or VectorComplex.getInstance()
         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
         # if orientation is None:
         #     self.orientation = VectorComplex.getInstance(0., 0.)
         # else:
         #     self.orientation = orientation
-        self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
+        # self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
+        self.orientation = orientation or VectorComplex.getInstance()
         self.angularVelocity = angularVelocity
         # Аналогично, зачем мне предыдущее угловое ускорение?
         self.angularAxeleration = angularAxeleration
@@ -75,3 +80,18 @@ class RealWorldStageStatusN():
         newObject.timeStamp = self.timeStamp
         # newObject.timeLength = self.timeLength
         return newObject
+
+class ReinforcementValue:
+    """
+    Класс величины подкрепления для передачи через очередь между нитями
+    """
+    def __init__(self, timestamp: int, reinforcement: float):
+        self.timestamp = timestamp
+        self.reinforcement = reinforcement
+
+    def getReinforcement(self):
+        return self.timestamp, self.reinforcement
+
+    # @property
+    # def reinforcement(self):
+    #     return self.reinforcement
