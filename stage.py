@@ -85,4 +85,28 @@ class Engine():
     mainEngineForce = 100000
     steeringEngineForce = 10000
 
+class BigMap:
+    """ Класс испытательного полигона """
+    # # Ширина полигона в метрах
+    # width = 300000
+    # # Высота полигона в метрах
+    # height = 100000
+    # Временный размер на отладку
+    # Ширина полигона в метрах
+    width = 100
+    # Высота полигона в метрах
+    height = 500
+    # Координаты начала координат СКИП в системе координат канвы (СКК) в масштабе 1:1
+    # todo логически не верно, это же карта полигона. Убрать.
+    testPoligonOriginInCCS = VectorComplex.getInstance(width / 2, height * 0.95)
+    # Координаты начала координат СКК в СКИП в масштабе 1:1
+    canvasOriginInPoligonCoordinates = VectorComplex.getInstance(- width / 2, height * 0.95)
+    # Координаты точки приземления в СКИП
+    landingPointInPoligonCoordinates = VectorComplex.getInstance()
+    # Координаты стартовой точки в СКИП
+    startPointInPoligonCoordinates = VectorComplex.getInstance(0., height * 0.9)
+    # Координаты центра тяжести ступени (координаты начала координат СКС в СКИП в масштабе 1:1)
+    # Движущаяся система координат.
+    stageViewOriginInPoligonCoordinates = VectorComplex.getInstance()
+
 

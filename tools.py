@@ -1,7 +1,7 @@
 from point import VectorComplex
 from math import fabs
-from physics import BigMap
-from stage import Sizes
+# from stage import BigMap
+from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN
 # Разные утилиты
 
@@ -103,4 +103,13 @@ class Finish():
             return True
 
         return False
+
+def mathInt(value: float)->int:
+    """
+    Округление до целого по правилу математики.
+
+    :param value: входное число с плавающей точкой
+    :return: округлённое до целого
+    """
+    return int(value + (0.5 if value > 0 else -0.5))
 

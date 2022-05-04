@@ -5,6 +5,7 @@ from point import VectorComplex
 import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
 from structures import StageControlCommands, RealWorldStageStatusN
+from tools import mathInt
 # from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
@@ -30,8 +31,8 @@ from structures import StageControlCommands, RealWorldStageStatusN
 
 # Каждый отсчётный момент времени:
 # 1. С датчиков ракеты поступает информация о её координатах в СКИП.
-# 2. На основании координат п. 1, и сохранённых координат предыыдущей точки, считается скорость ракеты в текущей точке
-# 3. На основании скорости в текущей точке и скорости в прредыдущей точки, считается ускорение.
+# 2. На основании координат п. 1, и сохранённых координат предыдущей точки, считается скорость ракеты в текущей точке
+# 3. На основании скорости в текущей точке и скорости в предыдущей точки, считается ускорение.
 # 4. Аналогично п. 2 и п. 3 считаются угловые скорости и ускорения.
 
 # Частота считывания/передачи данных с датчиков ступени
@@ -49,27 +50,35 @@ GravitationalAcceleration = VectorComplex.getInstance(0., -9.8067)
 
 class DataFrequency:
     """
-    Частота считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
+    Интервал считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
     """
     # длительность (счётчик) нахождения в верхнем диапазоне после перехода с нижнего
     borderCounter = 0
-    # текущая частота считывания показаний
+    # текущий интервал между считываниями показаний
     # большое начальное значение обеспечит при первоначальном запуске программы
     # автоматический "виртуальный" переход вниз из "виртуального" верхнего диапазона в реальный
+    # к сожалению только float, потому в процессе работы, контролируемо переведём её в int
     currentFrequancy = float("inf")
 
-    # Множитель преобразования в микросекунды
+    # Множитель преобразования в секунды
     __multiplier = 0.001
 
     @classmethod
-    def __border(cls, defaultFrequency: float, borderMax=10):
+    def __border(cls, defaultFrequency: int, borderMax=10) -> int:
+        """
+        Метод определяет, пересечение границ между диапазонами и устойчивость нахождения в диапазоне
+
+        :param defaultFrequency: длительность интервала между считываниями показаний по умолчанию
+        :param borderMax: порог нахождения в диапазоне, после которого считается, что нахождение в нём устойчиво
+        :return: подтверждённая длительность между интервалами считывания
+        """
         if DataFrequency.currentFrequancy >= defaultFrequency:
             # если в этот диапазон произошёл переход сверху (по высоте/дистанции)
             # или мы уже были в этом дапазоне в один из прошлых разов
             # или же уже стабильно сидим в этом диапазоне после перехода сверху
             # отмечаем этот факт
             DataFrequency.borderCounter = 0
-            # фиксируем новую периодичность считывания
+            # фиксируем новую периодичность считывания и, автоматически, превращаем левую величину из float в int
             DataFrequency.currentFrequancy = defaultFrequency
             # переходим на новую периодичность считывания
             return defaultFrequency
@@ -79,11 +88,16 @@ class DataFrequency:
                 # Если достигли постоянства нахождения в данном диапазоне после перехода снизу,
                 # переходим на его периодичность считывания данных
                 DataFrequency.borderCounter = 0
+                # фиксируем новую периодичность считывания и, автоматически, превращаем левую величину из float в int
                 DataFrequency.currentFrequancy = defaultFrequency
                 return defaultFrequency
             # отмечаем длительность нахождения в верхнем диапазоне после нижнего
             DataFrequency.borderCounter += 1
             # но сохраняем периодичность по нижнему диапазону высоты/дистанции)
+            # DataFrequency.currentFrequancy = int(DataFrequency.currentFrequancy)
+            if DataFrequency.currentFrequancy is float:
+                # для успокоения интерпретатора, превращаем выходную величину из float в int
+                DataFrequency.currentFrequancy = int(DataFrequency.currentFrequancy)
             return DataFrequency.currentFrequancy
 
     @classmethod
@@ -92,14 +106,14 @@ class DataFrequency:
         Периодичность считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
 
         :param distance: вектор расстояния от точки приземления до центра масс изделия
-        :return: периодичность считывания показаний датчиков, сек
+        :return: периодичность считывания показаний датчиков, миллисекунды
         :rtype int:
         """
 
-        # todo убрать, при переходе к более-менее реальным процессам
-        # временная отладочная установка, чтобы метод отдавал 1 сек.
-        DataFrequency.currentFrequancy = 1000
-        return 1000
+        # # todo убрать, при переходе к более-менее реальным процессам
+        # # временная отладочная установка, чтобы метод отдавал 1 сек.
+        # DataFrequency.currentFrequancy = 1000
+        # return 1000
 
         # дальность до точки приземления, метров
         module = abs(distance) + stage.Sizes.massCenterFromLandingPlaneDistance
@@ -120,11 +134,16 @@ class DataFrequency:
             # один раз в минуту
             return DataFrequency.__border(60000)
     @classmethod
-    def toSec(cls, value):
+    def to_Sec(cls, value: int)->float:
         """
-        Преобразование значения периодичности в микросекунды
+        Преобразование значения интервала в секунды
         """
         return value * DataFrequency.__multiplier
+
+    @classmethod
+    def to_mSec(cls, value: int)->int:
+        """ Преобразование значения интервала в миллисекунды """
+        return mathInt(DataFrequency.to_Sec(value) * 1000)
 
 
 # class RealWorldStageStatus():
@@ -187,29 +206,7 @@ class DataFrequency:
 #         return newObject
 
 
-class BigMap:
-    """ Класс испытательного полигона """
-    # # Ширина полигона в метрах
-    # width = 300000
-    # # Высота полигона в метрах
-    # height = 100000
-    # Временный размер на отладку
-    # Ширина полигона в метрах
-    width = 100
-    # Высота полигона в метрах
-    height = 500
-    # Координаты начала координат СКИП в системе координат канвы (СКК) в масштабе 1:1
-    # todo логически не верно, это же карта полигона. Убрать.
-    testPoligonOriginInCCS = VectorComplex.getInstance(width / 2, height * 0.95)
-    # Координаты начала координат СКК в СКИП в масштабе 1:1
-    canvasOriginInPoligonCoordinates = VectorComplex.getInstance(- width / 2, height * 0.95)
-    # Координаты точки приземления в СКИП
-    landingPointInPoligonCoordinates = VectorComplex.getInstance()
-    # Координаты стартовой точки в СКИП
-    startPointInPoligonCoordinates = VectorComplex.getInstance(0., height * 0.9)
-    # Координаты центра тяжести ступени (координаты начала координат СКС в СКИП в масштабе 1:1)
-    # Движущаяся система координат.
-    stageViewOriginInPoligonCoordinates = VectorComplex.getInstance()
+
 
 
 class Action():
@@ -381,7 +378,11 @@ class Moving():
     @classmethod
     def getNewStatus(cls, controlCommands: StageControlCommands):
         """ Возвращает новое состояние ступени """
-        duration = DataFrequency.toSec(DataFrequency.getFrequency(previousStageStatus.position))
+        if controlCommands.allOff():
+            # Если все двигатели выключены, все силы от двигателей сделать нулевыми
+            pass
+
+        duration = DataFrequency.to_Sec(DataFrequency.getFrequency(previousStageStatus.position))
 
         lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.getInstance(0.,stage.Engine.mainEngineForce)))
         # lineAxeleration = Moving.getA(Action())
@@ -419,6 +420,6 @@ class Moving():
                                            angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
                                            orientation=orientation)
         newPosition.timeStamp = previousStageStatus.timeStamp + DataFrequency.getFrequency(previousStageStatus.position)
-        newPosition.duration = DataFrequency.getFrequency(linePosition)
+        # newPosition.duration = DataFrequency.getFrequency(linePosition)
 
         return newPosition

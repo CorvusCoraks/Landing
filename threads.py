@@ -3,7 +3,7 @@ import physics
 import tools
 from point import VectorComplex
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
-from physics import BigMap, Moving
+from physics import Moving
 from queue import Queue
 import cmath
 from tools import Finish
@@ -11,7 +11,7 @@ from threading import Thread
 from training import start_nb
 from kill_flags import KillNeuroNetThread, KillRealWorldThread
 from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue
-from stage import Sizes
+from stage import Sizes, BigMap
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -119,7 +119,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
                          orientation=VectorComplex.getInstance(0., 1.),
                          velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
     initialStatus.timeStamp = 0
-    initialStatus.duration = physics.DataFrequency.getFrequency(initialStatus.position)
+    # initialStatus.duration = physics.DataFrequency.getFrequency(initialStatus.position)
 
     physics.previousStageStatus = initialStatus
     # physics.previousStageStatus.timeStamp = 0.
@@ -130,7 +130,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
     # -cmath.pi / 36
 
     # Бутафорская команда для первого прохода
-    command = StageControlCommands(0, duration=initialStatus.duration)
+    command = StageControlCommands(0)
 
     # newStatus = RealWorldStageStatus()
     # пока в тестовых целях сделано через счётчик i
@@ -158,8 +158,8 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
         # newStageStatus = Moving.getNewStatus() if physics.previousStageStatus is initialStatus else Moving.
         # tempPosition = newStageStatus.position
         physics.previousStageStatus = newStageStatus
-        print("{0} Posititon: {1}, Velocyty: {2},\n Axelerantion: {3}, Orientation: {4}\n".
-              format(i, newStageStatus.position, newStageStatus.velocity,
+        print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
+              format(i, newStageStatus.timeStamp, newStageStatus.position, newStageStatus.velocity,
                      newStageStatus. axeleration, newStageStatus.orientation))
 
         # добавить в выходную очередь очередную порцию информации о состоянии ступени
@@ -178,7 +178,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
         #                     "Команда №{}".format(i),
         #                     newStageStatus.lazyCopy()))
         toWindowsQueue.put(newStageStatus.lazyCopy())
-        toNeuroNetQueue.put(newStageStatus.lazyCopy())
+
         # print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
         # # запоминаем позицию
         # previousStatusTest.position = newStatus.position
@@ -188,7 +188,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
         # newStatus = RealWorldStageStatus()
 
         # КОД
-        if finishControl.isOneTestFinished(physics.previousStageStatus.position):
+        if finishControl.isOneTestFinished(newStageStatus.position):
             # завершение единичного испытания по достижению границ полигона
             # Факт данного события должен передаваться в нить нейросети
             # Либо перенести эту проверку в нить нейросети
@@ -197,6 +197,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
             killReality.kill = True
         i += 1
 
+        toNeuroNetQueue.put(newStageStatus.lazyCopy())
         while not killReality.kill:
             # ждём команду из нейросети на отправленное состояние
             if not fromNeuroNetQueue.empty():

@@ -6,8 +6,8 @@ from queue import Queue
 from threading import Thread
 from point import VectorComplex
 import cmath
-from physics import BigMap
-from stage import Sizes
+# from physics import BigMap
+from stage import Sizes, BigMap
 from threads import reality_thread, neuronet_thread
 from kill_flags import  KillNeuroNetThread, KillRealWorldThread
 import decart
@@ -15,7 +15,7 @@ from training import start_nb
 
 # Частота считывания/передачи данных с датчиков ступени
 # todo устаревшее, убрать
-frameRate = 1000
+# frameRate = 1000
 
 # stage = Rocket()
 # qPoligon = Queue()
@@ -60,7 +60,7 @@ neuroNetThread.start()
 poligonScale = 1
 stageScale = 0.1
 # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
-poligonWindow = PoligonWindow(frameRate, envFromRealWorldQueue,
+poligonWindow = PoligonWindow(-1, envFromRealWorldQueue,
                               BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
                               killNeuronetThread, killRealWorldThread)
 

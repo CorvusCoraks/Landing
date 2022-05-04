@@ -5,13 +5,14 @@ import random
 import structures
 import tools
 from point import VectorComplex
-from physics import BigMap
+# from physics import BigMap
 from kill_flags import KillNeuroNetThread
 from queue import Queue
 from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, cuda, tensor, float, mul, add, sub
 from torch.nn.functional import mse_loss
 from net import Net
+# from stage import BigMap
 
 
 def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Queue, killThisThread: KillNeuroNetThread, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
@@ -119,10 +120,10 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             random.seed()
             if random.choice([0, 1]):
                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=environmentStatus.duration))
+                controlQueue.put(StageControlCommands(environmentStatus.timeStamp))
             else:
                 # Нейросеть актора даёт команду
-                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, duration=environmentStatus.duration, main=True))
+                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, main=True))
 
             # Ждём появления подкрепления в очереди
             while reinforcementQueue.empty():

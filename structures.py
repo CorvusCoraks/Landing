@@ -4,19 +4,26 @@ class StageControlCommands:
     """
     Команда на работу двигателей в определённый момент времени на определённый срок
     """
-    def __init__(self, timeStamp: int, duration: int,
+    def __init__(self, timeStamp: int, duration=0,
                  topLeft=False, topRight=False,
                  downLeft=False, downRight=False,
                  main=False):
-        # если duration=0, то двигатели не включаются. Пропуск такта. Пустая команда.
-        timeStamp = timeStamp
-        duration = duration
-        topLeft = topLeft
-        topRight = topRight
-        downLeft = downLeft
-        downRight = downRight
-        main = main
+        self.timeStamp = timeStamp
+        # параметр "про запас", если будем делать в будущем длительность работы двигателей отличающейся от интервала
+        # снятия показаний.
+        self.duration: int = duration
+        self.topLeft = topLeft
+        self.topRight = topRight
+        self.downLeft = downLeft
+        self.downRight = downRight
+        self.main = main
 
+    def allOff(self)->bool:
+        """
+        Все двигатели выключены?
+
+        """
+        return not (self.topLeft or self.topRight or self.downLeft or self.downRight or self.main)
 
 class RealWorldStageStatusN():
     """ Состояние ступени в конкретный момент времени """
@@ -69,7 +76,7 @@ class RealWorldStageStatusN():
         self.timeStamp: int = timeStamp
         # Длительность действия этих параметров
         # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
-        self.duration = duration
+        # self.duration = duration
 
     def lazyCopy(self):
         newObject = RealWorldStageStatusN()
@@ -80,7 +87,7 @@ class RealWorldStageStatusN():
         newObject.angularVelocity = self.angularVelocity
         newObject.angularAxeleration = self.angularAxeleration
         newObject.timeStamp = self.timeStamp
-        newObject.duration = self.duration
+        # newObject.duration = self.duration
         return newObject
 
 class ReinforcementValue:

@@ -2,10 +2,10 @@
 from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST, NE, NW
 from queue import Queue
 from point import VectorComplex
-from stage import Stage, Sizes
+from stage import Sizes, BigMap
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text, LineArrowAndText, ArcArrowAndText
 from kill_flags import KillNeuroNetThread, KillRealWorldThread
-from physics import BigMap
+from physics import DataFrequency
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
 # from torch import tensor
@@ -129,7 +129,7 @@ class PoligonWindow():
         #                                               self.__poligonHeigt * 0.05 / self.__poligonScale)
         self.__currentPoint = self.__startPoint
 
-        self.__frameRate = frameRate
+        # self.__frameRate = -1
         self.__queue = queue
         # Очередь для передачи данных в дочернее окно
         self.__subQueue = Queue()
@@ -158,7 +158,7 @@ class PoligonWindow():
         # self.__root.mainloop()
 
         # Окно увеличенного изображения ступени в процессе посадки
-        self.__stageWindow = StageViewWindow(self.__root, stageSize, stageScale, frameRate, self.__subQueue)
+        self.__stageWindow = StageViewWindow(self.__root, stageSize, stageScale, -1, self.__subQueue)
 
     def __draw(self):
         # метод для периодического вызова и отрисовки на канве (точка траектории, данные по высоте, тангажу, крену и пр)
@@ -210,7 +210,7 @@ class PoligonWindow():
 
         # запускаем отрисовку в цикл
         # self.__root.after(self.__frameRate, self.__draw)
-        self.__root.after(previousStatusDuration, self.__draw)
+        self.__root.after(DataFrequency.to_mSec(previousStatusDuration), self.__draw)
 
     def __createStaticMarks(self):
         # метод расставляет необходимые отметки по полигону (точка сброса ступени, точка посадки ступени и пр.)
@@ -272,7 +272,7 @@ class StageViewWindow():
         self.__stageSize = stageSize
         self.__stageScale = stageScale
         self.__anyQueue = anyQueue
-        self.__frameRate = frameRate  # частота кадров
+        # self.__frameRate = -1  # частота кадров
 
         # ВременнАя точка предыдущего состояния изделия
         self.__previousStatusTimeStamp = 0
@@ -487,7 +487,8 @@ class StageViewWindow():
 
         # запускаем отрисовку цикл
         # self.__root.after(self.__frameRate, self.__draw)
-        self.__root.after(previousStatusDuration, self.__draw)
+        # duration = DataFrequency.to_Sec()
+        self.__root.after(DataFrequency.to_mSec(previousStatusDuration), self.__draw)
 
 
 class FirstStage2():
