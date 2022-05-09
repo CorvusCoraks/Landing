@@ -2,9 +2,25 @@ from point import VectorComplex
 from math import fabs
 # from stage import BigMap
 from stage import Sizes, BigMap
-from structures import RealWorldStageStatusN
+from structures import RealWorldStageStatusN, StageControlCommands
 # Разные утилиты
 
+# class SectorBorders:
+#     @classmethod
+#     def getCircleBorders(cls):
+#         return (1, 10, 100, 10000, 100000)
+#
+#     @classmethod
+#     def getAltitudeBorders(cls):
+#         return (1, 5, 50, 5000, 50000)
+#
+#     @classmethod
+#     def getPeriodBorders(cls):
+#         return (1, 10, 100, 1000, 10000, 60000)
+#
+#     @classmethod
+#     def getReinforcementBorders(cls):
+#         return ()
 
 class Reinforcement():
     """
@@ -36,30 +52,59 @@ class Reinforcement():
     # - Установить подкрепление за посадку (с оговоренной погрешностью) - 0,3 (выход за пределы оговорённой
     # погрешности по любому параметру на 10% уменьшает данную величину подкрепления на 1%, на 20% - на 5%,
     # на 30% - на 10% и т. д. до нуля), а суммарное базовое подкрепление за весь процесс приземления - 0,7
+    #
+    # Вариант 2.
+    # Логика: приближение к точке посадки должно поощеряться, работа двигателей должна наказываться.
+    # - Если при переходе из одного состояния в другое происходит приближение к точке посадки - поощеряем.
+    # - Если при переходе из одного состояния в другое радиус-вектор центра масс изделия
+    # меньше самого короткого в данном испытании - поощеряем.
+    # - Если при переходе из одного состояния в другое работают двигатели - уменьшаем поощерение.
+    # Т. е.
+    #
 
+    # successLandingBase = 0.3
+    # processBase = 1 - successLandingBase
+    # минимальный вектор положения центра масс изделия, достигнутый в одном испытании
+    minVector = VectorComplex.getInstance(0, 0)
 
     def __init__(self):
         pass
 
     @classmethod
-    def getReinforcement(cls, stageStatus: RealWorldStageStatusN, yMassCenter: float):
+    def getReinforcement(cls, stageStatus: RealWorldStageStatusN, jets: StageControlCommands):
         """
         Подкрепление
 
-        :param stageStatus:
-        :param yMassCenter:
+        :param stageStatus: состояние ступени
+        :param jets: информация о работавших двигателях
         :return:
         """
+        successReinforcement = 0.
+        landingReinforcement = 0.
         if Finish.isOneTestFailed(stageStatus.position):
-            # Проверка на высоту
-            # Проверка на точность попадания в круг
-            # Проверка на конечную скорость
-            # Проверка на конечное ускорение
-            # Проверка на ориентацию
-            # Проверка на конечную угловую скорость
-            # Проверка на конечное угловое ускорение
-            pass
-        return 0
+            cls.minVector = VectorComplex(0, 0)
+            return 0
+
+        # подкрепление за удачную посадку
+        if Finish.isOneTestSuccess(stageStatus, 0):
+            successReinforcement = 100
+
+        # подкрепление в процесс посадки
+        # корректирующий подкрепление множитель
+        mult = 0
+        if abs(stageStatus.position) < abs(cls.minVector):
+            # если достигли позиции ещё ближе, чем была самая близкая, то фиксируем данный радиус-вектор
+            cls.minVector = stageStatus.position
+            # собираем множитель, в зависимости от включённости двигателей
+            mult =+ 0.5 if jets.topLeft else 0
+            mult =+ 0.5 if jets.topRight else 0
+            mult =+ 0.5 if jets.downLeft else 0
+            mult =+ 0.5 if jets.downRight else 0
+            mult =+ 2.0 if jets.main else 0
+            # считаем подкрепление с учётом работавших двигателей
+            landingReinforcement = 10 / mult
+
+        return successReinforcement + landingReinforcement
 
 
 class Finish():
@@ -123,9 +168,10 @@ class Finish():
         if within(accuracyDict["dy"], state.position.y) and within(accuracyDict["dx"], state.position.x):
             if within(accuracyDict["dVy"], state.velocity.y) and within(accuracyDict["dVx"], state.velocity.x):
                 if within(accuracyDict["dAy"], state.axeleration.y) and within(accuracyDict["dAx"], state.axeleration.x):
-                    if within(accuracyDict["dW"], state.angularVelocity):
-                        if within(accuracyDict["dE"], state.angularAxeleration):
-                            return True
+                    if within(accuracyDict["dPhi"], state.orientation):
+                        if within(accuracyDict["dW"], state.angularVelocity):
+                            if within(accuracyDict["dE"], state.angularAxeleration):
+                                return True
         return False
 
     @classmethod
@@ -161,13 +207,24 @@ class Finish():
         # Кооректировка к точности в максимуме будет +0,01, в минимуме +45000
         resultY = result[1] if close else result[1] * 50 * step
 
-        return {"dy": {"min": cls.__legRelativeY, "max": cls.__legRelativeY + resultY},
+        return {
+                # допустимый диапазон положения по оси Y
+                "dy": {"min": cls.__legRelativeY, "max": cls.__legRelativeY + resultY},
+                # допустимый диапазон положения по оси Х
                 "dx": {"min": resultX[0], "max": resultX[1]},
+                # допустимый диапазон линейной скорости по оси Y
                 "dVy": {"min": result[0], "max": result[1]},
+                # допустимый диапазон линейной скорости по оси X
                 "dVx": {"min": result[0], "max": result[1]},
+                # допустимый диапазон линейного ускорения по оси Y
                 "dAy": {"min": result[0], "max": result[1]},
+                # допустимый диапазон линейного ускорения по оси Х
                 "dAx": {"min": result[0], "max": result[1]},
+                # допустимый диапазон угла ориентации
+                "dPhi": {"min": result[0], "max": result[1]},
+                # допустимый диапазон угловой скорости
                 "dW": {"min": result[0], "max": result[1]},
+                # допустимый диапазон уголового ускорения
                 "dE": {"min": result[0], "max": result[1]}
                 }
 

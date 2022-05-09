@@ -145,8 +145,7 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
         # Отправляем величину подкрепления в НС
         reinforcementQueue.put(ReinforcementValue(newStageStatus.timeStamp,
                                                   tools.Reinforcement.getReinforcement(
-                                                      newStageStatus,
-                                                      Sizes.massCenterFromLandingPlaneDistance)
+                                                      newStageStatus, command)
                                                   )
                                )
         # if physics.previousStageStatus is initialStatus:

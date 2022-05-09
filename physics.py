@@ -133,6 +133,7 @@ class CheckPeriod:
         else:
             # один раз в минуту
             return CheckPeriod.__border(60000)
+
     @classmethod
     def to_Sec(cls, value: int)->float:
         """
