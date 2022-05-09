@@ -89,7 +89,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
 
         # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход
-        while not finish.isOneTestFinished(VectorComplex.getInstance(0, 150)):
+        while not finish.isOneTestFailed(VectorComplex.getInstance(0, 150)):
             # процесс одной попытки посадить изделие, т. е. перебор состояний в процессе одной посадки
             if killThisThread.kill:
                 # если была дана команда на завершение нити

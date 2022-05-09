@@ -48,7 +48,7 @@ previousStageStatus = RealWorldStageStatusN()
 # Ускорение свободного падения в СКИП и СКЦМ
 GravitationalAcceleration = VectorComplex.getInstance(0., -9.8067)
 
-class DataFrequency:
+class CheckPeriod:
     """
     Интервал считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
     """
@@ -72,38 +72,38 @@ class DataFrequency:
         :param borderMax: порог нахождения в диапазоне, после которого считается, что нахождение в нём устойчиво
         :return: подтверждённая длительность между интервалами считывания
         """
-        if DataFrequency.currentFrequancy >= defaultFrequency:
+        if CheckPeriod.currentFrequancy >= defaultFrequency:
             # если в этот диапазон произошёл переход сверху (по высоте/дистанции)
             # или мы уже были в этом дапазоне в один из прошлых разов
             # или же уже стабильно сидим в этом диапазоне после перехода сверху
             # отмечаем этот факт
-            DataFrequency.borderCounter = 0
+            CheckPeriod.borderCounter = 0
             # фиксируем новую периодичность считывания и, автоматически, превращаем левую величину из float в int
-            DataFrequency.currentFrequancy = defaultFrequency
+            CheckPeriod.currentFrequancy = defaultFrequency
             # переходим на новую периодичность считывания
             return defaultFrequency
         else:
             # Если в этот диапазоне оказались после посещения нижнего
-            if DataFrequency.borderCounter > borderMax:
+            if CheckPeriod.borderCounter > borderMax:
                 # Если достигли постоянства нахождения в данном диапазоне после перехода снизу,
                 # переходим на его периодичность считывания данных
-                DataFrequency.borderCounter = 0
+                CheckPeriod.borderCounter = 0
                 # фиксируем новую периодичность считывания и, автоматически, превращаем левую величину из float в int
-                DataFrequency.currentFrequancy = defaultFrequency
+                CheckPeriod.currentFrequancy = defaultFrequency
                 return defaultFrequency
             # отмечаем длительность нахождения в верхнем диапазоне после нижнего
-            DataFrequency.borderCounter += 1
+            CheckPeriod.borderCounter += 1
             # но сохраняем периодичность по нижнему диапазону высоты/дистанции)
-            # DataFrequency.currentFrequancy = int(DataFrequency.currentFrequancy)
-            if DataFrequency.currentFrequancy is float:
+            # CheckPeriod.currentFrequancy = int(CheckPeriod.currentFrequancy)
+            if CheckPeriod.currentFrequancy is float:
                 # для успокоения интерпретатора, превращаем выходную величину из float в int
-                DataFrequency.currentFrequancy = int(DataFrequency.currentFrequancy)
-            return DataFrequency.currentFrequancy
+                CheckPeriod.currentFrequancy = int(CheckPeriod.currentFrequancy)
+            return CheckPeriod.currentFrequancy
 
     @classmethod
-    def getFrequency(cls, distance: VectorComplex):
+    def setDuration(cls, distance: VectorComplex):
         """
-        Периодичность считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
+        Периодичность считывания показаний датчиков. Вызывать только при установке нового состояния изделия.
 
         :param distance: вектор расстояния от точки приземления до центра масс изделия
         :return: периодичность считывания показаний датчиков, миллисекунды
@@ -112,7 +112,7 @@ class DataFrequency:
 
         # # todo убрать, при переходе к более-менее реальным процессам
         # # временная отладочная установка, чтобы метод отдавал 1 сек.
-        # DataFrequency.currentFrequancy = 1000
+        # CheckPeriod.currentFrequancy = 1000
         # return 1000
 
         # дальность до точки приземления, метров
@@ -121,29 +121,29 @@ class DataFrequency:
         altitude = distance.y + stage.Sizes.massCenterFromLandingPlaneDistance
 
         if module < 1 or altitude < 1:
-            return DataFrequency.__border(1)
+            return CheckPeriod.__border(1)
         elif module < 10 or altitude < 5:
-            return DataFrequency.__border(10)
+            return CheckPeriod.__border(10)
         elif module < 100 or altitude < 50:
-            return DataFrequency.__border(100)
+            return CheckPeriod.__border(100)
         elif module < 10000 or altitude < 5000:
-            return DataFrequency.__border(1000)
+            return CheckPeriod.__border(1000)
         elif module < 100000 or altitude < 50000:
-            return DataFrequency.__border(10000)
+            return CheckPeriod.__border(10000)
         else:
             # один раз в минуту
-            return DataFrequency.__border(60000)
+            return CheckPeriod.__border(60000)
     @classmethod
     def to_Sec(cls, value: int)->float:
         """
         Преобразование значения интервала в секунды
         """
-        return value * DataFrequency.__multiplier
+        return value * CheckPeriod.__multiplier
 
     @classmethod
     def to_mSec(cls, value: int)->int:
         """ Преобразование значения интервала в миллисекунды """
-        return mathInt(DataFrequency.to_Sec(value) * 1000)
+        return mathInt(CheckPeriod.to_Sec(value) * 1000)
 
 
 # class RealWorldStageStatus():
@@ -382,23 +382,24 @@ class Moving():
             # Если все двигатели выключены, все силы от двигателей сделать нулевыми
             pass
 
-        duration = DataFrequency.to_Sec(DataFrequency.getFrequency(previousStageStatus.position))
+        duration = CheckPeriod.setDuration(previousStageStatus.position)
+        secDuration = CheckPeriod.to_Sec(duration)
 
         lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.getInstance(0.,stage.Engine.mainEngineForce)))
         # lineAxeleration = Moving.getA(Action())
         # lineAxeleration = VectorComplex.getInstance(-3., 0.)
-        lineVelocity = previousStageStatus.velocity + lineAxeleration * duration
-        linePosition = previousStageStatus.position + lineVelocity * duration
+        lineVelocity = previousStageStatus.velocity + lineAxeleration * secDuration
+        linePosition = previousStageStatus.position + lineVelocity * secDuration
 
         # новая ориентация
         # угловое ускорение
         angularAxeleration = 0.
         # угловая скорость, рад/сек
-        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * duration
+        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * secDuration
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
         # поворот на угол, рад.
-        angle = angularVelocity * duration
+        angle = angularVelocity * secDuration
         # переводим угол из радианов в форму комплексного числа
         complexAngle = cmath.rect(1., angle)
         # поворот вектора ориентации через перемножение комплексных чисел
@@ -419,7 +420,7 @@ class Moving():
         newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
                                            angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
                                            orientation=orientation)
-        newPosition.timeStamp = previousStageStatus.timeStamp + DataFrequency.getFrequency(previousStageStatus.position)
-        # newPosition.duration = DataFrequency.getFrequency(linePosition)
+        newPosition.timeStamp = previousStageStatus.timeStamp + duration
+        # newPosition.secDuration = CheckPeriod.setDuration(linePosition)
 
         return newPosition

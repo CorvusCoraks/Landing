@@ -5,7 +5,7 @@ from point import VectorComplex
 from stage import Sizes, BigMap
 from primiteves import AbstractPrimitive, PoligonRectangleA, CenterMassMark, Arrow, Text, LineArrowAndText, ArcArrowAndText
 from kill_flags import KillNeuroNetThread, KillRealWorldThread
-from physics import DataFrequency
+from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from abc import ABC, abstractmethod
 # from torch import tensor
@@ -210,7 +210,7 @@ class PoligonWindow():
 
         # запускаем отрисовку в цикл
         # self.__root.after(self.__frameRate, self.__draw)
-        self.__root.after(DataFrequency.to_mSec(previousStatusDuration), self.__draw)
+        self.__root.after(CheckPeriod.to_mSec(previousStatusDuration), self.__draw)
 
     def __createStaticMarks(self):
         # метод расставляет необходимые отметки по полигону (точка сброса ступени, точка посадки ступени и пр.)
@@ -487,8 +487,8 @@ class StageViewWindow():
 
         # запускаем отрисовку цикл
         # self.__root.after(self.__frameRate, self.__draw)
-        # duration = DataFrequency.to_Sec()
-        self.__root.after(DataFrequency.to_mSec(previousStatusDuration), self.__draw)
+        # duration = CheckPeriod.to_Sec()
+        self.__root.after(CheckPeriod.to_mSec(previousStatusDuration), self.__draw)
 
 
 class FirstStage2():
