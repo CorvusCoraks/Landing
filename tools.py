@@ -65,7 +65,9 @@ class Reinforcement():
     # successLandingBase = 0.3
     # processBase = 1 - successLandingBase
     # минимальный вектор положения центра масс изделия, достигнутый в одном испытании
-    minVector = VectorComplex.getInstance(0, 0)
+    minVector = VectorComplex.getInstance(float("inf"), float("inf"))
+
+    accuracy = 0
 
     def __init__(self):
         pass
@@ -82,11 +84,12 @@ class Reinforcement():
         successReinforcement = 0.
         landingReinforcement = 0.
         if Finish.isOneTestFailed(stageStatus.position):
-            cls.minVector = VectorComplex(0, 0)
+            cls.minVector = VectorComplex.getInstance(float("inf"), float("inf"))
             return 0
 
         # подкрепление за удачную посадку
-        if Finish.isOneTestSuccess(stageStatus, 0):
+        if Finish.isOneTestSuccess(stageStatus, cls.accuracy):
+            # cls.minVector = VectorComplex.getInstance(float("inf"), float("inf"))
             successReinforcement = 100
 
         # подкрепление в процесс посадки
@@ -96,13 +99,17 @@ class Reinforcement():
             # если достигли позиции ещё ближе, чем была самая близкая, то фиксируем данный радиус-вектор
             cls.minVector = stageStatus.position
             # собираем множитель, в зависимости от включённости двигателей
-            mult =+ 0.5 if jets.topLeft else 0
-            mult =+ 0.5 if jets.topRight else 0
-            mult =+ 0.5 if jets.downLeft else 0
-            mult =+ 0.5 if jets.downRight else 0
-            mult =+ 2.0 if jets.main else 0
-            # считаем подкрепление с учётом работавших двигателей
-            landingReinforcement = 10 / mult
+            mult =+ 1.25 if jets.topLeft else 0
+            mult =+ 1.25 if jets.topRight else 0
+            mult =+ 1.25 if jets.downLeft else 0
+            mult =+ 1.25 if jets.downRight else 0
+            mult =+ 5.0 if jets.main else 0
+            # все одновременно работающие рулевые двигатели имеют "цену" одного работающего маршевого двигателя
+            # считаем, с учётом работавших двигателей, понижая подкрепление
+            landingReinforcement = 1 if mult == 0 else 10 / mult
+
+            if Finish.isOneTestSuccess(stageStatus, cls.accuracy):
+                cls.minVector = VectorComplex.getInstance(float("inf"), float("inf"))
 
         return successReinforcement + landingReinforcement
 
@@ -236,4 +243,76 @@ def mathInt(value: float)->int:
     :return: округлённое до целого
     """
     return int(value + (0.5 if value > 0 else -0.5))
+
+def onesAndZerosVariants(length:int)->list:
+    """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] по length штук
+
+    :param length: длинна списка, варианты расположения нулей и единиц в котором мы ищем
+    :return: список вида [[0, 0, 0], [0, 1, 0], ..., [1, 1, 1]]
+    """
+
+    # Суть работы функции.
+    # Везде нули - один вариант
+    # Единица ставится на первую позицию - второй вариант
+    # Единица смещается на вторую позицию - третий вариант.
+    # ...
+    # После прохода единицы до конца.
+    # Единица ставится на первую и вторую позиции - ещё вариант
+    # Вторая единица смещается на одну позицию вправо - ещё вариант
+    # ... и т. д. до упора вправо.
+    # Первая единица смещается вправо на одну позицию - ещё вариант
+    # ... и т. д. пока она не упрётся в единицу, достигшую правого края.
+    # Далее, слева ставятся три единицы и так же поочерёдно сдвигаются вправо, образуя новые варианты.
+    # ...
+    # И, последний вариант - все единицы
+
+    def oneTrip(start: int, stop: int, startStr: list, motherList: list):
+        """ Подпрограмма, выдающая ВСЕ варианты для конечного набора единиц, смещая их поочерёдно вправо
+
+        :param start: позиция, в которой стоит единица, которую мы будем двигать вправо
+        :param stop: позиция до которой мы будем двигать единицу (но не занимая эту позицию)
+        :param startStr: исходный список, в котором слева есть единицы, которые мы и должны поочерёдно сместить вправо
+        :param motherList: результирующий список, к которому мы последовательно добавляем получающиеся варианты
+        """
+
+        tempList = startStr.copy()
+        for i in range(start, stop):
+            tempList = tempList.copy()
+            if i+1 == stop:
+                # если единица достигла правого края
+                if start != 0:
+                    # и если слева от той позиции откуда эта единица стартовала ещё есть позиции с единицами
+                    # начинаем двигать её сестру, которая стояла слева от неё
+                    oneTrip(start-1, stop-1, tempList, motherList)
+                return
+            else:
+                # а если единица ещё не достигла правого свободного края
+                # присваиваем её позиции ноль
+                tempList[i] = 0.
+                # а следующей позиции справа единицу, как бы сдвигая эту самую единицу на одну позицию вправо
+                tempList[i+1] = 1.
+                # пристыковываем полученный набор к результирующему списку
+                motherList.append(tempList)
+
+    # список заготовка из нулевых элементов
+    zeroList: list = [x * 0 for x in range(length)]
+
+    # результат, собственно
+    result = []
+    # первый элемент результата - список из нулевых элементов
+    result.append(zeroList.copy())
+
+    for j in range(length):
+        startStr = zeroList.copy()
+        for m in range(j+1):
+            startStr[m] = 1.
+
+        # ^^^^ цикл, выдающий последовательно списки вида [1., 0., ..., 0.], [1., 1., ..., 0.], ..., [1., 1., ..., 1.]
+
+        start = j
+        stop = length
+
+        result.append(startStr)
+        oneTrip(start, stop, startStr, result)
+    return result
 

@@ -255,5 +255,7 @@ class VectorComplex():
 
     def __abs__(self):
         """ Модуль вектора """
+        # if self.x == float("inf") or self.y == float("inf"):
+        #     return float("inf")
         return abs(self.cardanus)
 

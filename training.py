@@ -70,12 +70,12 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
     finish = tools.Finish()
 
     # очередное состояние окружающей среды
-    environmentStatus = RealWorldStageStatusN()
+    environmentStatus: RealWorldStageStatusN
     # подкрепление для предыдущего состояния ОС
     # prevReinforcement = 0.
 
-    # Подкрепление каждого шага
-    reinf = structures.ReinforcementValue(0, 0)
+    # Информация о подкреплении каждого шага для передачи через очередь
+    reinf: structures.ReinforcementValue
 
     startEpoch = 0
     stopEpochNumber = 2
@@ -87,14 +87,19 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             print("Принудительное завершение поднити обучения по эпохе.\n")
             break
 
+        # фиктивное значение начального состояния изделия, необходимое только для того,
+        # чтобы запустился цикл прохода по процессу одной посадки
+        environmentStatus = RealWorldStageStatusN(position=VectorComplex(0, 450))
+
         # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход
-        while not finish.isOneTestFailed(VectorComplex.getInstance(0, 150)):
+        while not finish.isOneTestFailed(environmentStatus.position):
             # процесс одной попытки посадить изделие, т. е. перебор состояний в процессе одной посадки
             if killThisThread.kill:
                 # если была дана команда на завершение нити
                 print("Принудительно завершение поднити обучения внутри испытания.\n")
                 break
+
             # получить предыдущее (начальное) состояние
             while not killThisThread.kill:
                 # ждём очередное состояние окружающей среды
@@ -102,6 +107,10 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
                     environmentStatus = environmentQueue.get()
                     # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
                     break
+            else:
+                # Если в цикле ожидания очередного состояния ОС появился приказ на завершение нити обучения
+                print("Принудительно завершение поднити обучения внутри испытания.\n")
+                break
 
             # Подготовка входного вектора для актора
             inputActor = actorInputTensor(environmentStatus)
@@ -117,6 +126,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             # выбор максимального значения функции ценности
             Qmax = tensor([[1]], dtype=float, requires_grad=True)
             # Отправка команды, согласно максимального значения функции ценности
+            # Пока случайным образом в тестовых целях, чтобы работало.
             random.seed()
             if random.choice([0, 1]):
                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
@@ -125,17 +135,36 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
                 # Нейросеть актора даёт команду
                 controlQueue.put(StageControlCommands(environmentStatus.timeStamp, main=True))
 
+            # # Ждём появления подкрепления в очереди
+            # while reinforcementQueue.empty():
+            #     if killThisThread.kill:
+            #         # если была дана команда на завершение нити
+            #         print("Принудительно завершение поднити обучения внутри испытания.\n")
+            #         break
+            # else:
+            #     reinf = reinforcementQueue.get()
+            #     # Проверка на совпадение отметки времени
+            #     # if environmentStatus.timeStamp
+            #     pass
+
             # Ждём появления подкрепления в очереди
-            while reinforcementQueue.empty():
-                if killThisThread.kill:
-                    # если была дана команда на завершение нити
-                    print("Принудительно завершение поднити обучения внутри испытания.\n")
+            while not killThisThread.kill:
+                if not reinforcementQueue.empty():
+                    reinf = reinforcementQueue.get()
                     break
             else:
-                reinf = reinforcementQueue.get()
-                # Проверка на совпадение отметки времени
-                # if environmentStatus.timeStamp
-                pass
+                # если была дана команда на завершение нити
+                print("Принудительно завершение поднити обучения внутри испытания.\n")
+                break
+
+            # while not reinforcementQueue.empty():
+            #     reinf = reinforcementQueue.get()
+            #     # Проверка на совпадение отметки времени
+            #     # if environmentStatus.timeStamp
+            #     if killThisThread.kill:
+            #         # если была дана команда на завершение нити
+            #         print("Принудительно завершение поднити обучения внутри испытания.\n")
+            #         break
 
             if environmentStatus.timeStamp > 0:
                 # для нулевого состояния окружающей среды корректировку функции ценности не производим
@@ -189,6 +218,7 @@ def criticInputTensor(environment: RealWorldStageStatusN, actorAction: tensor):
     :param actorOutputVariants:
     :return: [[Состояние ОС, Вариант действия 1],[Состояние ОС, Вариант действия 2],[Состояние ОС, Вариант действия 3]]
     """
+
     return tensor([[0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 1., 0., 1., 0., 1., 0.,],
                    [0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 1., 0., 1., 0., 1., 0.,]],
                   dtype=float)
