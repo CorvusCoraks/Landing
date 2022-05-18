@@ -1,6 +1,7 @@
 """ Тренировка нейросети """
 # from physics import Rocket
 import random
+import shelve
 
 import structures
 import tools
@@ -12,6 +13,7 @@ from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, cuda, tensor, float, mul, add, sub
 from torch.nn.functional import mse_loss
 from net import Net
+from shelve import open, Shelf
 # from stage import BigMap
 
 
@@ -21,6 +23,18 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
         - при тренировке через ноутбук, производится установка параметров вызова функции.
     """
     print("Вход в поднить обучения.\n")
+
+    shelveFilename = "shelve"
+    with shelve.open(shelveFilename) as sh:
+        shKeys = sh.keys()
+        if "9_50_v" in shKeys:
+            # Ключ найден, прочесть значение.
+            criticBlank = sh["9_50_v"]
+        else:
+            # Ключ не найден. Создать значение.
+            sh["9_50_v"] = tools.onesAndZerosVariantsF(8, 3)
+            criticBlank = sh["9_50_v"]
+
 
     # используемое для обучения устройство
     calc_device = device("cuda:0" if cuda.is_available() else "cpu")
@@ -89,7 +103,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
 
         # фиктивное значение начального состояния изделия, необходимое только для того,
         # чтобы запустился цикл прохода по процессу одной посадки
-        environmentStatus = RealWorldStageStatusN(position=VectorComplex(0, 450))
+        environmentStatus = RealWorldStageStatusN(position=VectorComplex.getInstance(0, 450))
 
         # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход

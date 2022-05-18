@@ -5,14 +5,26 @@ import sys, traceback, inspect
 
 
 class VectorComplex():
-    """ Вектор. """
-    def __init__(self, tensor_view: tnsr, origin=None):
-        """
+    """ Вектор. Объект данного класса создавать только методами *getInstance* или *getInstanceC* """
 
+    # ключ, необходимый, для контроля, что объекты данного класса создаются только разрешёнными методами
+    # Значение создаётся при инициализации модуля
+    # https://stackoverflow.com/questions/8212053/private-constructor-in-python
+    __create_key = object()
+
+    def __init__(self, create_key: object, tensor_view: tnsr, origin=None):
+        """
+        Объект данного класса создавать только методами *getInstance* или *getInstanceC*
+
+        :param create_key: ключ для контроля того, что объекты данного класса создаются только разрешёнными методами
         :param tensor_view: Тензор вида [[0, 0]], Все параметры входного тензора сохраняются
         :param origin: координаты начала координат системы вектора в родительской системе координат
         """
-        # super(VectorComplex, self).__init__()
+        # Если ключ в вызывающем методе не совпадает с установленным во время инициализации, то инициируется ошибка.
+        # И правильно. Объекты данного класса создаются только разрешёнными методами.
+        assert(create_key == VectorComplex.__create_key), \
+            "VectorComplex objects must be created using getInstanse or getInstanceC method."
+
         # тензорное представление вида [[0, 0]]
         self.__tensor = tensor_view
         # отдельно сохраняем данные тензора в родительском классе, ибо только они будут актуальными
@@ -20,13 +32,14 @@ class VectorComplex():
         # Есть система координат (А), в которой и лежит вектор
         # Сама система координат А, находится в рамках более глобальной системы Б.
         # Ниже указаны координаты начала координат системы А в рамках системы Б
+        # todo этот атрибут, как мне кажется, нигде не используется. Удалить?
         self.__origin: VectorComplex = origin
         # Если это поле равно None, то этот вектор находится в рамках самой глобальной системы координат.
 
     @classmethod
     def getInstance(cls, x=0., y=0., origin=None):
         """ Создать экземпляр класса. По умолчанию - нулевой вектор. """
-        exc_type, exc_value, exc_traceback = sys.exc_info()
+        # exc_type, exc_value, exc_traceback = sys.exc_info()
         # try:
         #     back_frame = inspect.currentframe().f_back.f_code.co_name
         #     if 0.086<=x<=0.088:
@@ -38,14 +51,15 @@ class VectorComplex():
 
         list = [[x, y]]
         tensor = tnsr(list, dtype=float)
-        result = VectorComplex(tensor)
+        # result = VectorComplex(tensor)
+        result = VectorComplex(VectorComplex.__create_key, tensor)
         result.__origin = origin
         return result
 
     @classmethod
     def getInstanceC(cls, complexNumber: complex, origin=None):
         """ Создать экземпляр класса на основе комплексного числа. """
-        result = VectorComplex(tnsr([[complexNumber.real, complexNumber.imag]], dtype=float))
+        result = VectorComplex(VectorComplex.__create_key, tnsr([[complexNumber.real, complexNumber.imag]], dtype=float))
         result.__origin = origin
         return result
 
@@ -116,6 +130,7 @@ class VectorComplex():
     @property
     def origin(self):
         """ Вектор начала координат дочерней системы в рамках родительской """
+        # thisClass = self.__class__
         return VectorComplex.getInstance(self.__origin.x, self.__origin.y)
 
     @origin.setter
@@ -259,3 +274,16 @@ class VectorComplex():
         #     return float("inf")
         return abs(self.cardanus)
 
+# def vectorDecart(x: float, y: float)->VectorComplex:
+#     return vectorDecart.VC.getInstance(x, y)
+#
+# # def vectorComplex(vector: complex)->VectorComplex:
+# #     pass
+#
+# vectorDecart.VC = VectorComplex
+#
+# del VectorComplex
+#
+# print(vectorDecart.VC)
+
+# print(VectorComplex(0, 1))

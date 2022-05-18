@@ -2,7 +2,6 @@
 from point import VectorComplex
 from torch import tensor
 
-
 class Sizes():
     """ Геометрические параметы ступени и её составляющих """
     # Размеры центрального блока, размеры боковых реактивных рулей, размеры аэродинамических рулей
@@ -55,12 +54,16 @@ class Stage():
     topMass = 10000
 
     # Координаты точек с массой относительно центра масс
-    centerMassVector = VectorComplex(tensor([0, 0]))
-    topMassVector = VectorComplex(tensor([0., Sizes.topMassDistance]))
-    downMassVector = VectorComplex(tensor([0., - Sizes.downMassDistance]))
+    # centerMassVector = VectorComplex(tensor([0, 0]))
+    centerMassVector = VectorComplex.getInstance(0, 0)
+    # topMassVector = VectorComplex(tensor([0., Sizes.topMassDistance]))
+    topMassVector = VectorComplex.getInstance(0., Sizes.topMassDistance)
+    # downMassVector = VectorComplex(tensor([0., - Sizes.downMassDistance]))
+    downMassVector = VectorComplex.getInstance(0., - Sizes.downMassDistance)
 
     # плоскость посадочной опоры. Этой плоскостью ступень касается Земли.
-    footVector = VectorComplex(0., -Sizes.massCenterFromLandingPlaneDistance)
+    # footVector = VectorComplex(0., -Sizes.massCenterFromLandingPlaneDistance)
+    footVector = VectorComplex.getInstance(0., -Sizes.massCenterFromLandingPlaneDistance)
 
     # Момент инерции ступени
     InertionMoment = downMass * Sizes.downMassDistance ** 2 + topMass * Sizes.topMassDistance ** 2

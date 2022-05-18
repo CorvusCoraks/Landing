@@ -244,11 +244,88 @@ def mathInt(value: float)->int:
     """
     return int(value + (0.5 if value > 0 else -0.5))
 
-def onesAndZerosVariants(length:int)->list:
-    """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] по length штук
+# def onesAndZerosVariants(length:int)->list:
+#     """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] по length штук
+#
+#     :param length: длинна списка, варианты расположения нулей и единиц в котором мы ищем
+#     :return: список вида [[0, 0, 0], [0, 1, 0], ..., [1, 1, 1]]
+#     """
+#
+#     # Суть работы функции.
+#     # Везде нули - один вариант
+#     # Единица ставится на первую позицию - второй вариант
+#     # Единица смещается на вторую позицию - третий вариант.
+#     # ...
+#     # После прохода единицы до конца.
+#     # Единица ставится на первую и вторую позиции - ещё вариант
+#     # Вторая единица смещается на одну позицию вправо - ещё вариант
+#     # ... и т. д. до упора вправо.
+#     # Первая единица смещается вправо на одну позицию - ещё вариант
+#     # ... и т. д. пока она не упрётся в единицу, достигшую правого края.
+#     # Далее, слева ставятся три единицы и так же поочерёдно сдвигаются вправо, образуя новые варианты.
+#     # ...
+#     # И, последний вариант - все единицы
+#
+#     def oneTrip(start: int, stop: int, startStr: list, motherList: list):
+#         """ Подпрограмма, выдающая ВСЕ варианты для конечного набора единиц, смещая их поочерёдно вправо
+#
+#         :param start: позиция, в которой стоит единица, которую мы будем двигать вправо
+#         :param stop: позиция до которой мы будем двигать единицу (но не занимая эту позицию)
+#         :param startStr: исходный список, в котором слева есть единицы, которые мы и должны поочерёдно сместить вправо
+#         :param motherList: результирующий список, к которому мы последовательно добавляем получающиеся варианты
+#         """
+#
+#         tempList = startStr.copy()
+#         for i in range(start, stop):
+#             tempList = tempList.copy()
+#             if i+1 == stop:
+#                 # если единица достигла правого края
+#                 if start != 0:
+#                     # и если слева от той позиции откуда эта единица стартовала ещё есть позиции с единицами
+#                     # начинаем двигать её сестру, которая стояла слева от неё
+#                     oneTrip(start-1, stop-1, tempList, motherList)
+#                 return
+#             else:
+#                 # а если единица ещё не достигла правого свободного края
+#                 # присваиваем её позиции ноль
+#                 tempList[i] = 0.
+#                 # а следующей позиции справа единицу, как бы сдвигая эту самую единицу на одну позицию вправо
+#                 tempList[i+1] = 1.
+#                 # пристыковываем полученный набор к результирующему списку
+#                 motherList.append(tempList)
+#
+#     # список заготовка из нулевых элементов
+#     zeroList: list = [x * 0 for x in range(length)]
+#
+#     # результат, собственно
+#     result = []
+#     # первый элемент результата - список из нулевых элементов
+#     result.append(zeroList.copy())
+#
+#     for j in range(length):
+#         startStr = zeroList.copy()
+#         for m in range(j+1):
+#             startStr[m] = 1.
+#
+#         # ^^^^ цикл, выдающий последовательно списки вида [1., 0., ..., 0.], [1., 1., ..., 0.], ..., [1., 1., ..., 1.]
+#
+#         start = j
+#         stop = length
+#
+#         result.append(startStr)
+#         oneTrip(start, stop, startStr, result)
+#     return result
 
-    :param length: длинна списка, варианты расположения нулей и единиц в котором мы ищем
-    :return: список вида [[0, 0, 0], [0, 1, 0], ..., [1, 1, 1]]
+def onesAndZerosVariantsF(vectorLength: int, startPosition: int)->list:
+    """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] в векторе длиной *vectorLength*
+
+
+    Варианты расположения нулей и единиц в векторе начинаются с позиции *startPosition* включительно.
+    До позиции *startPositon* в векторе находятся нули.
+
+    :param vectorLength: длинна списка, варианты расположения нулей и единиц в котором мы ищем
+    :param startPosition: позиция, до которой в векторе всегда находятся нули, с неё начинается присутствие нулей и ед.
+    :return: список вида [[0, 0, 0, 0], [0, 0, 1, 0], ..., [0, 1, 1, 1]]
     """
 
     # Суть работы функции.
@@ -266,7 +343,7 @@ def onesAndZerosVariants(length:int)->list:
     # ...
     # И, последний вариант - все единицы
 
-    def oneTrip(start: int, stop: int, startStr: list, motherList: list):
+    def oneTrip(start: int, stop: int, startStr: list, startPoint: int, motherList: list):
         """ Подпрограмма, выдающая ВСЕ варианты для конечного набора единиц, смещая их поочерёдно вправо
 
         :param start: позиция, в которой стоит единица, которую мы будем двигать вправо
@@ -278,41 +355,44 @@ def onesAndZerosVariants(length:int)->list:
         tempList = startStr.copy()
         for i in range(start, stop):
             tempList = tempList.copy()
-            if i+1 == stop:
+            if i + 1 == stop:
                 # если единица достигла правого края
-                if start != 0:
+                if start != startPoint:
                     # и если слева от той позиции откуда эта единица стартовала ещё есть позиции с единицами
                     # начинаем двигать её сестру, которая стояла слева от неё
-                    oneTrip(start-1, stop-1, tempList, motherList)
+                    oneTrip(start - 1, stop - 1, tempList, startPoint, motherList)
                 return
             else:
                 # а если единица ещё не достигла правого свободного края
                 # присваиваем её позиции ноль
                 tempList[i] = 0.
                 # а следующей позиции справа единицу, как бы сдвигая эту самую единицу на одну позицию вправо
-                tempList[i+1] = 1.
+                tempList[i + 1] = 1.
                 # пристыковываем полученный набор к результирующему списку
                 motherList.append(tempList)
 
-    # список заготовка из нулевых элементов
-    zeroList: list = [x * 0 for x in range(length)]
+    # список-заготовка из нулевых элементов
+    zeroList: list = [x * 0 for x in range(vectorLength)]
 
     # результат, собственно
     result = []
     # первый элемент результата - список из нулевых элементов
     result.append(zeroList.copy())
 
-    for j in range(length):
+    for j in range(startPosition, vectorLength):
         startStr = zeroList.copy()
-        for m in range(j+1):
+        for m in range(startPosition, j + 1):
+            # заполняем ведущими единицами
             startStr[m] = 1.
 
         # ^^^^ цикл, выдающий последовательно списки вида [1., 0., ..., 0.], [1., 1., ..., 0.], ..., [1., 1., ..., 1.]
 
         start = j
-        stop = length
+        stop = vectorLength
 
         result.append(startStr)
-        oneTrip(start, stop, startStr, result)
+        oneTrip(start, stop, startStr, startPosition, result)
     return result
+
+# print(onesAndZerosVariantsF(5, 0))
 
