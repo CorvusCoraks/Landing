@@ -1,7 +1,7 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
 
 # from physics import Vector
-from windows import PoligonWindow
+from win import PoligonWindow
 from queue import Queue
 from threading import Thread
 from point import VectorComplex
@@ -12,6 +12,7 @@ from threads import reality_thread, neuronet_thread
 from kill_flags import  KillNeuroNetThread, KillRealWorldThread
 import decart
 from training import start_nb
+from view import WindowsMSView
 
 # Частота считывания/передачи данных с датчиков ступени
 # todo устаревшее, убрать
@@ -63,6 +64,17 @@ stageScale = 0.1
 poligonWindow = PoligonWindow(-1, envFromRealWorldQueue,
                               BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
                               killNeuronetThread, killRealWorldThread)
+
+# view = WindowsMSView()
+# view.set_poligon_state(envFromRealWorldQueue, BigMap.width, BigMap.height)
+# view.set_kill_threads(killRealWorldThread, killNeuronetThread)
+# view.set_stage_parameters(VectorComplex.getInstance(y=Sizes.topMassDistance),
+#                           VectorComplex.getInstance(y=-Sizes.downMassDistance),
+#                           VectorComplex.getInstance(y=Sizes.downMassDistance),
+#                           Sizes.widthCenterBlock, Sizes.heightCenterBlock, Sizes.massCenterFromLandingPlaneDistance)
+# view.create_stage_view()
+# view.create_poligon_view()
+# view.create_info_view()
 
 realWorldThread.join()
 neuroNetThread.join()

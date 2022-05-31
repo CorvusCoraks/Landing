@@ -1,13 +1,16 @@
 """ Модуль класса Точка: объект имеющий две координаты """
 from torch import tensor as tnsr
 from cmath import rect
+from typing import NewType, TypeVar
 import sys, traceback, inspect
 
+# NumberType = NewType("NumberType", complex, int, float)
+NumberType = TypeVar("NumberType", complex, int, float)
 
 class VectorComplex():
     """ Вектор. Объект данного класса создавать только методами *getInstance* или *getInstanceC* """
 
-    # ключ, необходимый, для контроля, что объекты данного класса создаются только разрешёнными методами
+    # ключ, необходимый, для контроля того, что объекты данного класса создаются только разрешёнными методами
     # Значение создаётся при инициализации модуля
     # https://stackoverflow.com/questions/8212053/private-constructor-in-python
     __create_key = object()
@@ -158,30 +161,6 @@ class VectorComplex():
         """ Ленивая копия объекта: копируются только координаты """
         return VectorComplex.getInstance(self.x, self.y)
 
-    # def abs(self):
-
-    # @classmethod
-    # def sub(cls, vector1, vector2):
-    #     """ Вычитание векторов
-    #
-    #     :param vector1:
-    #     :type vector1: VectorComplex
-    #     :param vector2:
-    #     :type vector2: VectorComplex
-    #     """
-    #     return VectorComplex(vector1.tensor - vector2.tensor)
-
-    # @classmethod
-    # def add(cls, vector1, vector2):
-    #     """ Сложение векторов
-    #
-    #     :param vector1:
-    #     :type vector1 VectorComplex
-    #     :param vector2:
-    #     :type vector2: VectorComplex
-    #     """
-    #     return VectorComplex(vector1.tensor + vector2.tensor)
-
     def __add__(self, other):
         """
         Сложение векторов.
@@ -195,23 +174,6 @@ class VectorComplex():
 
         """
         return VectorComplex.getInstanceC(self.cardanus - other.cardanus)
-
-    # def __mul__(self, other):
-    #     """
-    #     Умножение на число.
-    #
-    #     """
-    #     if isinstance(other, complex):
-    #         return VectorComplex.getInstanceC(self.cardanus * other)
-    #
-    #     try:
-    #         # Вектор может умножаться только на число. К int можно привести любой объект, если он число, в т. ч. и float
-    #         test = int(other)
-    #     except TypeError("The 'other' argument is not a number-type"):
-    #         # Бутафорская строка, чтобы что-то было в этом блоке
-    #         other = other
-    #     else:
-    #         return VectorComplex.getInstanceC(self.cardanus * other)
 
     def __mul__(self, other):
         """
@@ -230,16 +192,7 @@ class VectorComplex():
         """
         return self.__mul__(other)
 
-        # try:
-        #     # Вектор может умножаться только на число.
-        #     test = int(other)
-        # except TypeError("The 'other' argument is not a number-type"):
-        #     # Бутафорская строка, чтобы что-то было в этом блоке
-        #     other = other
-        # else:
-        #     return VectorComplex.getInstanceC(self.cardanus * other)
-
-    def __truediv__(self, other):
+    def __truediv__(self, other: NumberType):
         """
         Деление на число.
 
@@ -270,20 +223,4 @@ class VectorComplex():
 
     def __abs__(self):
         """ Модуль вектора """
-        # if self.x == float("inf") or self.y == float("inf"):
-        #     return float("inf")
         return abs(self.cardanus)
-
-# def vectorDecart(x: float, y: float)->VectorComplex:
-#     return vectorDecart.VC.getInstance(x, y)
-#
-# # def vectorComplex(vector: complex)->VectorComplex:
-# #     pass
-#
-# vectorDecart.VC = VectorComplex
-#
-# del VectorComplex
-#
-# print(vectorDecart.VC)
-
-# print(VectorComplex(0, 1))

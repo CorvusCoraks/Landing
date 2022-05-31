@@ -761,3 +761,70 @@ class LineArrowAndText:
         self.__arrowObject.changeArrowDirection(vector)
 
 
+class StageMark:
+    """
+    Метка в виде перекрестия, отображающая положение центра масс ступени при движении по полигону
+    """
+    def __init__(self, point: VectorComplex, canvas: Canvas):
+        # центр масс ступени в СКК
+        self.__point = point
+        self.__canvas = canvas
+        # горизонтальная линия (идентификатор на канве)
+        self.__line1 = None
+        # вертикальная линия (идентификатор на канве)
+        self.__line2 = None
+
+        # длина линии перекрестия
+        self.__lineLength = 10
+
+        # если смещение отметки меньше данной величины, то это смещение не отображается
+        # двойной размер перекрестия
+        self.__trashhold = self.__lineLength
+
+        self.drawMark(self.__point)
+
+    def drawMark(self, point: VectorComplex):
+        """
+        Рисование отвметки центра масс на канве
+
+        :param point: точка центра масс в СКК
+        """
+        # todo перенести в модуль примитивов и преобразовать в соотв класс
+        # горизонтальная линия перекрестия
+        self.__line1 = self.__canvas.create_line([point.x - self.__lineLength/2, point.y,
+                                                  point.x + self.__lineLength/2, point.y])
+        # вертикальная линия перекрестия
+        self.__line2 = self.__canvas.create_line([point.x, point.y - self.__lineLength/2,
+                                                  point.x, point.y + self.__lineLength/2])
+
+    # def isMarkReady(self):
+    #     result = True if self.__line1 is not None and self.__line2 is not None else False
+    #     return result
+
+    def moveMark(self, oldPosition: VectorComplex, newPosition: VectorComplex):
+        """
+        Перемещение перекрестия по канве
+
+        :param oldPosition: старая позиция перекрестия
+        :param newPosition: новая позиция перекрестия
+        :return: True - если отметка была сдвинута по канве
+        :rtype bool:
+        """
+        # todo воспользоваться инструментарием модуля примитивов
+        # проверка на наличие отметки на канве
+        if self.__line1 is None or self.__line2 is None:
+            self.drawMark(oldPosition)
+
+        # перемещение отметки в новое место на канве
+        delta = newPosition - oldPosition
+
+        if abs(delta.cardanus) < self.__trashhold:
+            # Если изменение положения меньше минимального, то движение не отображаем
+            return False
+
+        self.__canvas.move(self.__line1, delta.x, delta.y)
+        self.__canvas.move(self.__line2, delta.x, delta.y)
+
+        return True
+
+

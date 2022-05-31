@@ -3,7 +3,30 @@ from math import fabs
 # from stage import BigMap
 from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands
+from abc import ABC, abstractmethod
 # Разные утилиты
+
+class WindowsMSInterface(ABC):
+    # todo веменное расположение в этом модуле, так как запутанные и конфликтующие импорты
+    @abstractmethod
+    def _draw(self):
+        """ метод для периодической перерисовки объектов на канве """
+        pass
+
+    @abstractmethod
+    def _preparation_static_marks(self):
+        """ Подготовка статичных меток или объектов """
+        pass
+
+    @abstractmethod
+    def _preparation_movable_marks(self):
+        """ Подготовка подвижных (линенейно или вращающихся) меток или объектов """
+        pass
+
+    @abstractmethod
+    def _create_objects_on_canvas(self):
+        """ Создание на канве и подвижных, и неподвижных элементов """
+        pass
 
 # class SectorBorders:
 #     @classmethod
