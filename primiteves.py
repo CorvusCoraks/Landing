@@ -16,6 +16,18 @@ from abc import ABC, abstractmethod
 from cmath import rect, pi
 from math import radians
 
+# class CreateOnCanvasInterface(ABC):
+#
+#     @abstractmethod
+#     def createOnCanvas(self):
+#         pass
+
+class PackInterface(ABC):
+
+    @abstractmethod
+    def pack(self):
+        pass
+
 class AbstractPrimitive(ABC):
     def __init__(self, canvas: Canvas, vectorComplex: tuple, centerPoint: VectorComplex):
         """
@@ -328,6 +340,7 @@ class Text(AbstractOnCanvasMark):
         self.__textAnchor = textAnchor
         self._text = text
         self.__color = tkinterColor
+        # self._objOnCanvasId:
 
     def createOnCanvas(self):
         if self._objOnCanvasId is None:
@@ -354,6 +367,8 @@ class Text(AbstractOnCanvasMark):
     def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
         pass
 
+    # def pack(self):
+    #     self._objOnCanvasId.pack()
 
 class PsevdoArcArrow(AbstractOnCanvasMark):
     """
@@ -564,7 +579,7 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
     def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
         pass
 
-class ArcArrowAndText:
+class ArcArrowAndText():
     """
     Дуговая стрелка углового параметра движения и легенда этого параметра
     """
@@ -623,6 +638,10 @@ class ArcArrowAndText:
         else:
             direction = PsevdoArcArrow.COUNTERCLOCKWISE
         self.__arrowObject.changeArrowDirection(direction)
+
+    # def pack(self):
+    #     # self.__headerObject.
+    #     pass
 
 class LineArrowInCirle(AbstractOnCanvasMark):
     """
@@ -699,7 +718,7 @@ class LineArrowInCirle(AbstractOnCanvasMark):
     def rotate(self, newAxisVector: VectorComplex, oldAxisVector: VectorComplex):
         pass
 
-class LineArrowAndText:
+class LineArrowAndText():
     """
     Стрелка линейного параметра движения и легенда этого параметра
     """
@@ -826,5 +845,3 @@ class StageMark:
         self.__canvas.move(self.__line2, delta.x, delta.y)
 
         return True
-
-

@@ -8,9 +8,11 @@ from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from win_stageview import StageViewWindow
 from primiteves import StageMark
+from tools import WindowsMSInterface
+from structures import RealWorldStageStatusN
 
 
-class PoligonWindow():
+class PoligonWindow(WindowsMSInterface):
     """
     Окно испытательного полигона, на котором рисуется траектория. Главное окно.
 
@@ -18,7 +20,7 @@ class PoligonWindow():
     # Окно с увеличенным изображением ступени рисутется как "дочернее" окно полигона.
     # При закрытии окна полигона, закрывается и окно ступени.
 
-    def __init__(self, frameRate: int, queue: Queue, poligonWidth: float,
+    def __init__(self, frameRate: int, queue: Queue, to_stage_queue: Queue, poligonWidth: float,
                  poligonHeigt: float, poligonScale: float, stageSize: float, stageScale: float,
                  killNeuronetFlag: KillNeuroNetThread, killRealityFlag: KillRealWorldThread):
         """
@@ -50,7 +52,7 @@ class PoligonWindow():
 
         self.__queue = queue
         # Очередь для передачи данных в дочернее окно
-        self.__subQueue = Queue()
+        self.__subQueue =to_stage_queue
 
         self.__killNeuroNetFlag = killNeuronetFlag
         self.__killRealityFlag = killRealityFlag
@@ -64,19 +66,21 @@ class PoligonWindow():
         self.__canvas = Canvas(self.__root, width=self.__poligonWidth / self.__poligonScale, height=self.__poligonHeigt / self.__poligonScale)
         self.__canvas.pack()
 
-        self.__createStaticMarks()
+        self._preparation_static_marks()
+        self._preparation_movable_marks()
         # Отметка на экране ЦМ ступени в СКК
-        self.__stageMark = StageMark(self.__currentPoint, self.__canvas)
+        self.__stageMark: StageMark
+        self._create_objects_on_canvas()
         # Устаналвиваем обработчик закрытия главного окна
         self.__root.protocol("WM_DELETE_WINDOW", self.__onClosing)
-        self.__root.after(0, self.__draw)
+        self.__root.after(0, self._draw)
 
         # Окно увеличенного изображения ступени в процессе посадки
-        self.__stageWindow = StageViewWindow(self.__root, stageSize, stageScale, -1, self.__subQueue)
+        # self.__stageWindow = StageViewWindow(self.__root, stageSize, stageScale, -1, self.__subQueue, Queue())
 
-    def __draw(self):
+    def _draw(self):
         # метод для периодического вызова и отрисовки на канве (точка траектории, данные по высоте, тангажу, крену и пр)
-        transform = None
+        transform: RealWorldStageStatusN = None
         # длительность предыдущего статуса изделия
         previousStatusDuration = 0
         # получение данных из внешних источников self.__anyQueue
@@ -102,7 +106,7 @@ class PoligonWindow():
             )
 
             # прозрачно ретранслируем блок данных в следующее окно
-            self.__subQueue.put(transform)
+            self.__subQueue.put(transform.lazyCopy())
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:
@@ -124,9 +128,15 @@ class PoligonWindow():
 
         # запускаем отрисовку в цикл
         # self.__root.after(self.__frameRate, self.__draw)
-        self.__root.after(CheckPeriod.to_mSec(previousStatusDuration), self.__draw)
+        self.__root.after(CheckPeriod.to_mSec(previousStatusDuration), self._draw)
 
-    def __createStaticMarks(self):
+    def _preparation_static_marks(self):
+        pass
+
+    def _preparation_movable_marks(self):
+        self.__stageMark = StageMark(self.__currentPoint, self.__canvas)
+
+    def _create_objects_on_canvas(self):
         """ метод расставляет необходимые отметки по полигону (точка сброса ступени, точка посадки ступени и пр.) """
         # отметка точки посадки в виде треугольника
         self.__canvas.create_polygon([self.__endPoint.x - 10, self.__endPoint.y,
@@ -143,6 +153,16 @@ class PoligonWindow():
         self.__killRealityFlag.kill = True
         # закрываем главное окно
         self.__root.destroy()
+
+    @property
+    def root(self):
+        return self.__root
+
+    @property
+    def canvas(self):
+        return self.__canvas
+
+
 
 
 # class StageViewWindow():

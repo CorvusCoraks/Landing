@@ -61,20 +61,21 @@ neuroNetThread.start()
 poligonScale = 1
 stageScale = 0.1
 # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
-poligonWindow = PoligonWindow(-1, envFromRealWorldQueue,
-                              BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
-                              killNeuronetThread, killRealWorldThread)
+# poligonWindow = PoligonWindow(-1, envFromRealWorldQueue, Queue(),
+#                               BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
+#                               killNeuronetThread, killRealWorldThread)
 
-# view = WindowsMSView()
-# view.set_poligon_state(envFromRealWorldQueue, BigMap.width, BigMap.height)
-# view.set_kill_threads(killRealWorldThread, killNeuronetThread)
-# view.set_stage_parameters(VectorComplex.getInstance(y=Sizes.topMassDistance),
-#                           VectorComplex.getInstance(y=-Sizes.downMassDistance),
-#                           VectorComplex.getInstance(y=Sizes.downMassDistance),
-#                           Sizes.widthCenterBlock, Sizes.heightCenterBlock, Sizes.massCenterFromLandingPlaneDistance)
-# view.create_stage_view()
-# view.create_poligon_view()
-# view.create_info_view()
+view = WindowsMSView()
+view.set_poligon_state(envFromRealWorldQueue, BigMap.width, BigMap.height)
+view.set_kill_threads(killRealWorldThread, killNeuronetThread)
+view.set_stage_parameters(Sizes.topMassDistance,
+                          Sizes.downMassDistance,
+                          Sizes.downMassDistance,
+                          Sizes.widthCenterBlock, Sizes.heightCenterBlock, Sizes.massCenterFromLandingPlaneDistance)
+
+view.create_poligon_view()
+view.create_stage_view()
+view.create_info_view()
 
 realWorldThread.join()
 neuroNetThread.join()

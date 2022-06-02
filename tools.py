@@ -4,9 +4,14 @@ from math import fabs
 from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands
 from abc import ABC, abstractmethod
+# from queue import Queue
 # Разные утилиты
 
+# class DataQueue(Queue):
+#     pass
+
 class WindowsMSInterface(ABC):
+    """ Интерфейс окна в Windows при использовании Tkinter и Canvas """
     # todo веменное расположение в этом модуле, так как запутанные и конфликтующие импорты
     @abstractmethod
     def _draw(self):
@@ -26,6 +31,14 @@ class WindowsMSInterface(ABC):
     @abstractmethod
     def _create_objects_on_canvas(self):
         """ Создание на канве и подвижных, и неподвижных элементов """
+        pass
+
+    @abstractmethod
+    def root(self):
+        pass
+
+    @abstractmethod
+    def canvas(self):
         pass
 
 # class SectorBorders:
