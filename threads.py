@@ -6,10 +6,10 @@ from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoord
 from physics import Moving
 from queue import Queue
 import cmath
-from tools import Finish
+from tools import Finish, MetaQueue
 from threading import Thread
 from training import start_nb
-from kill_flags import KillNeuroNetThread, KillRealWorldThread
+from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
 from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue
 from stage import Sizes, BigMap
 
@@ -101,7 +101,8 @@ class StageStatus:
             self.timerCounter = StageStatus.currentTimerCounter
 
 
-def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, reinforcementQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
+# def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, reinforcementQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
+def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
     """
     Функция моделирующая поведение ступени в реальной физической среде
     :return:
@@ -136,14 +137,14 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
     # пока в тестовых целях сделано через счётчик i
     # в дальнейшем сделать исключительно через флаги kill
     i = 0
-    while not killReality.kill:
+    while not kill.reality:
         # КОД
         # command = None
         # новое состояние в СКИП
         newStageStatus = Moving.getNewStatus(command)
 
         # Отправляем величину подкрепления в НС
-        reinforcementQueue.put(ReinforcementValue(newStageStatus.timeStamp,
+        queues.get_queue("reinf").put(ReinforcementValue(newStageStatus.timeStamp,
                                                   tools.Reinforcement.getReinforcement(
                                                       newStageStatus, command)
                                                   )
@@ -177,7 +178,10 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
         #                     newStageStatus.velocity.lazyCopy(),
         #                     "Команда №{}".format(i),
         #                     newStageStatus.lazyCopy()))
-        toWindowsQueue.put(newStageStatus.lazyCopy())
+        # queues.get_queue("area").put(newStageStatus.lazyCopy())
+        # queues.get_queue("stage").put(newStageStatus.lazyCopy())
+        # queues.get_queue("info").put(newStageStatus.lazyCopy())
+        queues.put(newStageStatus)
 
         # print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
         # # запоминаем позицию
@@ -192,16 +196,16 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
             # завершение единичного испытания по достижению границ полигона
             # Факт данного события должен передаваться в нить нейросети
             # Либо перенести эту проверку в нить нейросети
-            killReality.kill = True
+            kill.reality = True
         if i == 80:
-            killReality.kill = True
+            kill.reality = True
         i += 1
 
-        toNeuroNetQueue.put(newStageStatus.lazyCopy())
-        while not killReality.kill:
+        # toNeuroNetQueue.put(newStageStatus.lazyCopy())
+        while not kill.reality:
             # ждём команду из нейросети на отправленное состояние
-            if not fromNeuroNetQueue.empty():
-                command = fromNeuroNetQueue.get()
+            if not queues.get_queue("command").empty():
+                command = queues.get_queue("command").get()
                 # команда получена
                 break
 
@@ -210,9 +214,9 @@ def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQu
               format(i, newStageStatus.timeStamp, newStageStatus.position, newStageStatus.velocity,
                      newStageStatus. axeleration, newStageStatus.orientation))
     else:
-        killNeuro.kill = True
+        kill.neuro = True
 
-def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Queue, killThisThread: KillNeuroNetThread):
+def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer):
     """
     Метод, запускаемый в отдельной нитке для обучения нейросети.
 
@@ -223,7 +227,7 @@ def neuronet_thread(controlQueue: Queue, environmentQueue: Queue, reinforcementQ
 
     # запуск дочерней нити, так как в этой цикла не предусматривается, а вот в дочерней будет цикл обучения
     # todo возможно, следует вызывать из модуля main сразу функцию обучения как нить, без этой промежуточной
-    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(controlQueue, environmentQueue, reinforcementQueue, killThisThread,))
+    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(queues, kill,))
     # запуск метода обучения сети
     neuroNetTrainingThread.start()
 

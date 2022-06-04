@@ -1,18 +1,12 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
 
-# from physics import Vector
-from win import PoligonWindow
 from queue import Queue
 from threading import Thread
-from point import VectorComplex
-import cmath
-# from physics import BigMap
 from stage import Sizes, BigMap
 from threads import reality_thread, neuronet_thread
-from kill_flags import  KillNeuroNetThread, KillRealWorldThread
-import decart
-from training import start_nb
-from view import WindowsMSView
+from kill_flags import  KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
+from win import WindowsMSView
+from tools import MetaQueue
 
 # Частота считывания/передачи данных с датчиков ступени
 # todo устаревшее, убрать
@@ -21,24 +15,31 @@ from view import WindowsMSView
 # stage = Rocket()
 # qPoligon = Queue()
 
-# Очередь для передачи величины подкрепления из нити реального мира в нейросеть
-reinfFromRealToNeuroQueue = Queue()
-# Очередь, через которую возвращаются данные о поведении ступени в реальном мире.
-envFromRealWorldQueue = Queue()
-# очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
-controlFromNeuroNetQueue = Queue()
-# очередь, для передачи инфомации в нейросеть
-envToNeuroNetQueue = Queue()
+# # Очередь для передачи величины подкрепления из нити реального мира в нейросеть
+# reinfFromRealToNeuroQueue = Queue()
+# # Очередь, через которую возвращаются данные о поведении ступени в реальном мире.
+# envFromRealWorldQueue = Queue()
+# # очередь для передачи информации из нити нейтросети в основную нить (нить канвы)
+# controlFromNeuroNetQueue = Queue()
+# # очередь, для передачи инфомации в нейросеть
+# envToNeuroNetQueue = Queue()
 
-# envFromRealWorldQueue: Queue
-# Команда на завершение нити реального мира
-killRealWorldThread = KillRealWorldThread(False)
-# команда на завершение нити нейросети
-killNeuronetThread = KillNeuroNetThread(False)
+# объект очередей передачи данных
+queues = MetaQueue.getInstance()
+
+# # envFromRealWorldQueue: Queue
+# # Команда на завершение нити реального мира
+# killRealWorldThread = KillRealWorldThread(False)
+# # команда на завершение нити нейросети
+# killNeuronetThread = KillNeuroNetThread(False)
+
+# контейнер с командами на остановку нитей
+kill = KillCommandsContainer.get_instance()
 
 # Нить модели реального мира
-realWorldThread = Thread(target=reality_thread, name="realWorldThread",
-                         args=(envFromRealWorldQueue, envToNeuroNetQueue, controlFromNeuroNetQueue, reinfFromRealToNeuroQueue, killRealWorldThread, killNeuronetThread,))
+# realWorldThread = Thread(target=reality_thread, name="realWorldThread",
+#                          args=(envFromRealWorldQueue, envToNeuroNetQueue, controlFromNeuroNetQueue, reinfFromRealToNeuroQueue, killRealWorldThread, killNeuronetThread,))
+realWorldThread = Thread(target=reality_thread, name="realWorldThread", args=(queues, kill,))
 realWorldThread.start()
 
 # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.
@@ -48,10 +49,8 @@ realWorldThread.start()
 # Создание отдельной нити для нейросети
 neuroNetThread = Thread(target=neuronet_thread,
                         name="NeuroNetThread",
-                        args=(controlFromNeuroNetQueue,
-                              envToNeuroNetQueue,
-                              reinfFromRealToNeuroQueue,
-                              killNeuronetThread,))
+                        args=(queues,
+                              kill,))
 neuroNetThread.start()
 
 # Размер полигона в метрах!
@@ -66,8 +65,8 @@ stageScale = 0.1
 #                               killNeuronetThread, killRealWorldThread)
 
 view = WindowsMSView()
-view.set_poligon_state(envFromRealWorldQueue, BigMap.width, BigMap.height)
-view.set_kill_threads(killRealWorldThread, killNeuronetThread)
+view.set_poligon_state(queues, BigMap.width, BigMap.height)
+view.set_kill_threads(kill)
 view.set_stage_parameters(Sizes.topMassDistance,
                           Sizes.downMassDistance,
                           Sizes.downMassDistance,

@@ -4,20 +4,21 @@ import random
 import shelve
 
 import structures
-import tools
+from tools import MetaQueue, Finish, onesAndZerosVariantsF
 from point import VectorComplex
 # from physics import BigMap
-from kill_flags import KillNeuroNetThread
-from queue import Queue
+from kill_flags import KillNeuroNetThread, KillCommandsContainer
+# from queue import Queue
 from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, cuda, tensor, float, mul, add, sub
-from torch.nn.functional import mse_loss
+# from torch.nn.functional import mse_loss
 from net import Net
-from shelve import open, Shelf
+# from shelve import open, Shelf
 # from stage import BigMap
+from copy import deepcopy
 
 
-def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Queue, killThisThread: KillNeuroNetThread, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
     """ Входная функция для тренировки
         - при локальной тренировке, вызов функции идёт с параметрами по умолчанию.
         - при тренировке через ноутбук, производится установка параметров вызова функции.
@@ -32,7 +33,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             criticBlank = sh["9_50_v"]
         else:
             # Ключ не найден. Создать значение.
-            sh["9_50_v"] = tools.onesAndZerosVariantsF(8, 3)
+            sh["9_50_v"] = onesAndZerosVariantsF(8, 3)
             criticBlank = sh["9_50_v"]
 
 
@@ -81,7 +82,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
     # Загрузка сохранённых параметров НС
 
     # инициализация класса проверки на выход за пределы тестового полигона
-    finish = tools.Finish()
+    finish = Finish()
 
     # очередное состояние окружающей среды
     environmentStatus: RealWorldStageStatusN
@@ -96,7 +97,7 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
     # Главный цикл (перебор эпох / перебор игр)
     for epoch in range(startEpoch, stopEpochNumber):
         # Одна эпоха - один эксперимент до посадки?
-        if killThisThread.kill:
+        if kill.neuro:
             # если была дана команда на завершение нити
             print("Принудительное завершение поднити обучения по эпохе.\n")
             break
@@ -109,16 +110,16 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
         # один проход - один переход
         while not finish.isOneTestFailed(environmentStatus.position):
             # процесс одной попытки посадить изделие, т. е. перебор состояний в процессе одной посадки
-            if killThisThread.kill:
+            if kill.neuro:
                 # если была дана команда на завершение нити
                 print("Принудительно завершение поднити обучения внутри испытания.\n")
                 break
 
             # получить предыдущее (начальное) состояние
-            while not killThisThread.kill:
+            while not kill.neuro:
                 # ждём очередное состояние окружающей среды
-                if not environmentQueue.empty():
-                    environmentStatus = environmentQueue.get()
+                if not queues.get_queue("neuro").empty():
+                    environmentStatus = queues.get_queue("neuro").get()
                     # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
                     break
             else:
@@ -144,10 +145,10 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             random.seed()
             if random.choice([0, 1]):
                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                controlQueue.put(StageControlCommands(environmentStatus.timeStamp))
+                queues.put(StageControlCommands(environmentStatus.timeStamp))
             else:
                 # Нейросеть актора даёт команду
-                controlQueue.put(StageControlCommands(environmentStatus.timeStamp, main=True))
+                queues.put(StageControlCommands(environmentStatus.timeStamp, main=True))
 
             # # Ждём появления подкрепления в очереди
             # while reinforcementQueue.empty():
@@ -162,9 +163,9 @@ def start_nb(controlQueue: Queue, environmentQueue: Queue, reinforcementQueue: Q
             #     pass
 
             # Ждём появления подкрепления в очереди
-            while not killThisThread.kill:
-                if not reinforcementQueue.empty():
-                    reinf = reinforcementQueue.get()
+            while not kill.neuro:
+                if not queues.get_queue("reinf").empty():
+                    reinf = queues.get_queue("reinf").get()
                     break
             else:
                 # если была дана команда на завершение нити

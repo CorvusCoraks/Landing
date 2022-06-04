@@ -1,3 +1,4 @@
+""" Модуль визуализации состояния изделия в процесси испытания """
 from primiteves import Text, Arrow, ArcArrowAndText, LineArrowAndText, AbstractOnCanvasMark, CenterMassMark
 from tkinter import Canvas, Toplevel, Tk
 from queue import Queue
@@ -7,8 +8,9 @@ from win_firststage import FirstStage2
 from stage import Sizes, BigMap
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from physics import  CheckPeriod
-from tools import WindowsMSInterface
+from win_interface import WindowsMSInterface
 from structures import RealWorldStageStatusN
+from tools import MetaQueue
 
 # OnCanvasStaticObjectDict = Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]
 
@@ -17,18 +19,17 @@ class StageViewWindow(WindowsMSInterface):
     Класс окна вывода увеличенного изображения ступени и числовых характеристик
     """
     # def __init__(self, root: Tk, stageSize: float, stageScale: float, frameRate: int, anyQueue: Queue, to_info_queue: Queue, info_block: Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]):
-    def __init__(self, root: Toplevel, canvas: Canvas, stageSize: float, stageScale: float, frameRate: int, anyQueue: Queue, to_info_queue: Queue):
+    def __init__(self, root: Tk, stageSize: float, stageScale: float, queues: MetaQueue):
         """
-        :param root:
+        :param root: родительский оконный менеджер
         :param stageSize: максимальный характерный размер ступени, метров
         :param stageScale: масштаб изображения ступени на канве
-        :param frameRate: частота "кадров" - частота, с которой окно запрашивает данные из очереди
-        :param anyQueue: очередь для передачи данных одного фрейма движения ступени
+        :param queues: очередь для передачи данных одного фрейма движения ступени
         """
         self.__stageSize = stageSize
         self.__stageScale = stageScale
-        self.__anyQueue = anyQueue
-        self.__to_info_queue = to_info_queue
+        self.__anyQueue = queues.get_queue("stage")
+        self.__to_info_queue = queues.get_queue("info")
 
         # ВременнАя точка предыдущего состояния изделия
         self.__previousStatusTimeStamp = 0

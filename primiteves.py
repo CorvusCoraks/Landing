@@ -22,11 +22,11 @@ from math import radians
 #     def createOnCanvas(self):
 #         pass
 
-class PackInterface(ABC):
-
-    @abstractmethod
-    def pack(self):
-        pass
+# class PackInterface(ABC):
+#
+#     @abstractmethod
+#     def pack(self):
+#         pass
 
 class AbstractPrimitive(ABC):
     def __init__(self, canvas: Canvas, vectorComplex: tuple, centerPoint: VectorComplex):

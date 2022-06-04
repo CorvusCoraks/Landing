@@ -1,4 +1,5 @@
 from point import VectorComplex
+from copy import deepcopy
 
 class StageControlCommands:
     """
@@ -8,6 +9,16 @@ class StageControlCommands:
                  topLeft=False, topRight=False,
                  downLeft=False, downRight=False,
                  main=False):
+        """
+
+        :param timeStamp: отметка времени
+        :param duration: длительность работы двигателя (зарезервировано на будущее)
+        :param topLeft: левый верхний двигатель работает?
+        :param topRight: правый верхний двигатель работает?
+        :param downLeft: левый нижний двигатель работает?
+        :param downRight: правый нижний двигатель работает?
+        :param main: маршевый двигатель работает?
+        """
         self.timeStamp = timeStamp
         # параметр "про запас", если будем делать в будущем длительность работы двигателей отличающейся от интервала
         # снятия показаний.
@@ -24,6 +35,9 @@ class StageControlCommands:
 
         """
         return not (self.topLeft or self.topRight or self.downLeft or self.downRight or self.main)
+
+    # def lazy_copy(self) -> 'StageControlCommands':
+    #     return StageControlCommands(deepcopy(self.timeStamp))
 
 class RealWorldStageStatusN():
     """ Состояние ступени в конкретный момент времени """
@@ -78,7 +92,8 @@ class RealWorldStageStatusN():
         # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
         # self.duration = duration
 
-    def lazyCopy(self):
+    def lazyCopy(self) -> 'RealWorldStageStatusN':
+        # todo метод ликвидировать. везде перевести на deepcopy()
         newObject = RealWorldStageStatusN()
         newObject.position = self.position.lazyCopy()
         newObject.velocity = self.velocity.lazyCopy()

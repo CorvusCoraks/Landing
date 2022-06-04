@@ -2,44 +2,68 @@ from point import VectorComplex
 from math import fabs
 # from stage import BigMap
 from stage import Sizes, BigMap
-from structures import RealWorldStageStatusN, StageControlCommands
+from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from abc import ABC, abstractmethod
-# from queue import Queue
+from queue import Queue
+from typing import Union, TypeVar
+from copy import deepcopy
 # Разные утилиты
 
-# class DataQueue(Queue):
-#     pass
+# Тип: классы объектов данных, которые передаются через очереди
+QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
 
-class WindowsMSInterface(ABC):
-    """ Интерфейс окна в Windows при использовании Tkinter и Canvas """
-    # todo веменное расположение в этом модуле, так как запутанные и конфликтующие импорты
-    @abstractmethod
-    def _draw(self):
-        """ метод для периодической перерисовки объектов на канве """
-        pass
+class MetaQueue:
+    """ Класс содержащий в себе очереди передачи данных. Синглтон. """
+    # Синглтон-объект
+    __this_object: 'MetaQueue' = None
+    # Ключ для реализации создания объекта исключительно через специальный метод класса
+    __create_key = object()
 
-    @abstractmethod
-    def _preparation_static_marks(self):
-        """ Подготовка статичных меток или объектов """
-        pass
+    def __init__(self, create_key: object):
+        assert (create_key == MetaQueue.__create_key), \
+            "MetaQueue object must be created using getInstanse method."
+        # Словарь с очередями
+        self.__queues_dict: dict = {
+            "area": Queue(), # очередь сообщений для испытательного полигона
+            "stage": Queue(), # очередь сообщений для вида изделия
+            "info": Queue(), # очередь сообщений для информационного блока
+            "neuro": Queue(), # очередь сообщений для нейросети
+            "reinf": Queue(), # очередь сообщений с подкреплениями
+            "command": Queue() # очередь сообщений с управляющими воздействиями
+        }
 
-    @abstractmethod
-    def _preparation_movable_marks(self):
-        """ Подготовка подвижных (линенейно или вращающихся) меток или объектов """
-        pass
+    @classmethod
+    def getInstance(cls) -> 'MetaQueue':
+        """ Метод возвращает объект данного типа. Если объект не существует, то создаёт его перед этим. """
+        if MetaQueue.__this_object is None:
+            MetaQueue.__this_object = MetaQueue(MetaQueue.__create_key)
 
-    @abstractmethod
-    def _create_objects_on_canvas(self):
-        """ Создание на канве и подвижных, и неподвижных элементов """
-        pass
+        return MetaQueue.__this_object
 
-    @abstractmethod
-    def root(self):
-        pass
+    def put(self, value: QueueMembers):
+        """ Метод добавки блока данных в соответствующие очереди """
+        # в какую очередь добавлять, определяется по типу добавляемых данных
+        if isinstance(value, RealWorldStageStatusN):
+            self.__queues_dict["area"].put(deepcopy(value))
+            self.__queues_dict["stage"].put(deepcopy(value))
+            self.__queues_dict["info"].put(deepcopy(value))
+            self.__queues_dict["neuro"].put(deepcopy(value))
+        elif isinstance(value, StageControlCommands):
+            self.__queues_dict["command"].put(deepcopy(value))
+        else:
+            self.__queues_dict["reinf"].put(deepcopy(value))
 
-    @abstractmethod
-    def canvas(self):
-        pass
+    def get_queue(self, name: str) -> Queue:
+        """ Получить очередь по её имени. """
+        if name in self.__queues_dict.keys():
+            return self.__queues_dict[name]
+        else:
+            raise ValueError('MetaQueue Object: name="{0}" argument is not valid key of queues dict'.format(name))
+
+
+
+
+
 
 # class SectorBorders:
 #     @classmethod

@@ -1,3 +1,4 @@
+"""" Модуль крупного изображения изделия """
 from point import VectorComplex
 from primiteves import PoligonRectangleA
 from tkinter import Canvas
