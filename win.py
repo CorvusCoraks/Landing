@@ -10,16 +10,8 @@ from tools import MetaQueue
 
 class WindowsMSView(ViewInterface):
     """ ConcreteFactory """
-    #
-    # todo Класс перенести в отдельный модуль
-    #
+
     def __init__(self):
-        # # очередь из окружающей среды в окно полигона
-        # self.__env_to_poligon_queue: Queue = Queue()
-        # # очередь из реального мира в окно изделия
-        # self.__env_to_stage_queue: Queue = Queue()
-        # # очередь из реального мира в блок информации
-        # self.__env_to_info_queue: Queue = Queue()
         pass
 
     def set_poligon_state(self, queues: MetaQueue, poligon_width: float, poligon_height: float):

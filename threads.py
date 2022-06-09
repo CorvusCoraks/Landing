@@ -144,11 +144,18 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
         newStageStatus = Moving.getNewStatus(command)
 
         # Отправляем величину подкрепления в НС
-        queues.get_queue("reinf").put(ReinforcementValue(newStageStatus.timeStamp,
+        # queues.get("reinf").put(ReinforcementValue(newStageStatus.timeStamp,
+        #                                           tools.Reinforcement.getReinforcement(
+        #                                               newStageStatus, command)
+        #                                           )
+        #                        )
+
+        queues.put(ReinforcementValue(newStageStatus.timeStamp,
                                                   tools.Reinforcement.getReinforcement(
                                                       newStageStatus, command)
                                                   )
                                )
+
         # if physics.previousStageStatus is initialStatus:
         #     # Если это - первый проход, то никаких команд из нейросети нет
         #     newStageStatus = Moving.getNewStatus(StageControlCommands(1, duration=0))
@@ -204,8 +211,8 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
         # toNeuroNetQueue.put(newStageStatus.lazyCopy())
         while not kill.reality:
             # ждём команду из нейросети на отправленное состояние
-            if not queues.get_queue("command").empty():
-                command = queues.get_queue("command").get()
+            if not queues.empty("command"):
+                command = queues.get("command")
                 # команда получена
                 break
 

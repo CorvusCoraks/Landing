@@ -49,9 +49,10 @@ class PoligonWindow(WindowsMSInterface):
         # текущая координата ЦМ ступени в СКК
         self.__currentPoint = self.__startPoint
 
-        self.__queue = queues.get_queue("area")
+        # self.__queue = queues.get("area")
+        self.__queues = queues
         # Очередь для передачи данных в дочернее окно
-        self.__subQueue = queues.get_queue("stage")
+        # self.__subQueue = queues.get_queue("stage")
 
         # self.__killNeuroNetFlag = killNeuronetFlag
         # self.__killRealityFlag = killRealityFlag
@@ -84,9 +85,9 @@ class PoligonWindow(WindowsMSInterface):
         # длительность предыдущего статуса изделия
         previousStatusDuration = 0
         # получение данных из внешних источников self.__anyQueue
-        if not self.__queue.empty():
+        if not self.__queues.empty('area'):
             # print(self.__anyQueue.get())
-            transform = self.__queue.get()
+            transform = self.__queues.get('area')
 
             previousStatusDuration = transform.timeStamp - self.__previousStatusTimeStamp
             self.__previousStatusTimeStamp = transform.timeStamp
@@ -106,7 +107,7 @@ class PoligonWindow(WindowsMSInterface):
             )
 
             # прозрачно ретранслируем блок данных в следующее окно
-            self.__subQueue.put(transform.lazyCopy())
+            # self.__subQueue.put(transform.lazyCopy())
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:

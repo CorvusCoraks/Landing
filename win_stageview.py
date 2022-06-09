@@ -28,8 +28,8 @@ class StageViewWindow(WindowsMSInterface):
         """
         self.__stageSize = stageSize
         self.__stageScale = stageScale
-        self.__anyQueue = queues.get_queue("stage")
-        self.__to_info_queue = queues.get_queue("info")
+        self.__anyQueue = queues
+        # self.__to_info_queue = queues.get_queue("info")
 
         # ВременнАя точка предыдущего состояния изделия
         self.__previousStatusTimeStamp = 0
@@ -82,13 +82,13 @@ class StageViewWindow(WindowsMSInterface):
         previousStatusDuration = 0
 
         # получение данных из внешних источников self.__anyQueue
-        if not self.__anyQueue.empty():
-            transform = self.__anyQueue.get()
+        if not self.__anyQueue.empty('stage'):
+            transform = self.__anyQueue.get('stage')
 
             previousStatusDuration = transform.timeStamp - self.__previousStatusTimeStamp
             self.__previousStatusTimeStamp = transform.timeStamp
 
-            self.__to_info_queue.put(transform.lazyCopy)
+            # self.__to_info_queue.put(transform.lazyCopy)
 
         # отрисовка нового положения объектов на основании полученных данных из очереди
         if transform is not None:

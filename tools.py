@@ -5,60 +5,183 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from abc import ABC, abstractmethod
 from queue import Queue
-from typing import Union, TypeVar
+from typing import Union, TypeVar, Dict, Type, Optional
 from copy import deepcopy
+from functools import singledispatch
+# from mu
 # Разные утилиты
 
+T = TypeVar('T')
+
 # Тип: классы объектов данных, которые передаются через очереди
+# QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
+# Un = Type[Union[ReinforcementValue, RealWorldStageStatusN, StageControlCommands]]
+Un = Type[QueueMembers]
+
+class SingleQueue():
+    """ Одиночная очередь. """
+    def __init__(self, name: str, content_type: T):
+        """
+
+        :param name: имя очереди
+        :param content_type: тип элементов, которыми заполняется очередь
+        """
+        # инкапсулированная очередь
+        self.__queue: Queue = Queue()
+        # тип элементов, содежащихся в очереди
+        self.__q_type: type = content_type
+        # имя очереди
+        self.__name: str = name
+
+    def put(self, value: T):
+        """ Поместить объект в очередь """
+        if isinstance(value, self.__q_type):
+            self.__queue.put(value)
+        else:
+            raise ValueError('SingleQueue: argument value = {0} is not valid type.'.format(value))
+
+    def get(self) -> T:
+        """ Извлечь объект из очереди """
+        return self.__queue.get()
+
+    def empty(self) -> bool:
+        """ Если очередь пуста, то True """
+        return self.__queue.empty()
+
+    @property
+    def q_type(self) -> type:
+        """ Возвращает тип элементов, допустимых для данной очереди """
+        return self.__q_type
+
 
 class MetaQueue:
-    """ Класс содержащий в себе очереди передачи данных. Синглтон. """
-    # Синглтон-объект
-    __this_object: 'MetaQueue' = None
-    # Ключ для реализации создания объекта исключительно через специальный метод класса
-    __create_key = object()
+    """ Класс инкапсулирющий ВСЕ очереди передачи данных приложения. Синглтон. """
+    # Переделал класс в соответствие с sOlid.
+    __this_object: Optional['MetaQueue'] = None
+    # словарь очередей
+    __queues_dict: Dict[str, SingleQueue] = {}
+    # ключ синглтона
+    __create_key: object = object()
 
-    def __init__(self, create_key: object):
-        assert (create_key == MetaQueue.__create_key), \
-            "MetaQueue object must be created using getInstanse method."
-        # Словарь с очередями
-        self.__queues_dict: dict = {
-            "area": Queue(), # очередь сообщений для испытательного полигона
-            "stage": Queue(), # очередь сообщений для вида изделия
-            "info": Queue(), # очередь сообщений для информационного блока
-            "neuro": Queue(), # очередь сообщений для нейросети
-            "reinf": Queue(), # очередь сообщений с подкреплениями
-            "command": Queue() # очередь сообщений с управляющими воздействиями
-        }
+    def __init__(self, names: dict, create_key: object):
+        """
+        :param names: словарь с элементами вида {'имя_очереди': тип_элемента_очереди}
+        :param create_key: ключ синглтона
+        """
+        assert (create_key is MetaQueue.__create_key), \
+            "MetaQueue object must be created using get_instanse method."
+
+        for key, value in names.items():
+            # создание словаря очередей
+            MetaQueue.__queues_dict[key] = SingleQueue(key, value)
+
+    # @classmethod
+    # @overload
+    # def get_instance(cls) -> 'MetaQueue':
+    #     ...
+    #
+    # @classmethod
+    # @overload
+    # def get_instance(cls, queues: Dict[str, Un]) -> 'MetaQueue':
+    #     ...
+    #
+    # @classmethod
+    # def get_instance(cls) -> 'MetaQueue':
+    #     """ Возвращает существующий объект данного класса. """
+    #     return MetaQueue.__this_object
 
     @classmethod
-    def getInstance(cls) -> 'MetaQueue':
-        """ Метод возвращает объект данного типа. Если объект не существует, то создаёт его перед этим. """
-        if MetaQueue.__this_object is None:
-            MetaQueue.__this_object = MetaQueue(MetaQueue.__create_key)
+    def get_instance(cls, queues: Dict[str, Un]) -> 'MetaQueue':
+        """ Если объект не существует, то создаёт его.
 
+        :param queues:  словарь с элементами вида {'имя_очереди': тип_элемента_очереди}
+        """
+        if MetaQueue.__this_object is None:
+            MetaQueue.__this_object = MetaQueue(queues, MetaQueue.__create_key)
         return MetaQueue.__this_object
 
-    def put(self, value: QueueMembers):
-        """ Метод добавки блока данных в соответствующие очереди """
-        # в какую очередь добавлять, определяется по типу добавляемых данных
-        if isinstance(value, RealWorldStageStatusN):
-            self.__queues_dict["area"].put(deepcopy(value))
-            self.__queues_dict["stage"].put(deepcopy(value))
-            self.__queues_dict["info"].put(deepcopy(value))
-            self.__queues_dict["neuro"].put(deepcopy(value))
-        elif isinstance(value, StageControlCommands):
-            self.__queues_dict["command"].put(deepcopy(value))
-        else:
-            self.__queues_dict["reinf"].put(deepcopy(value))
+    def put(self, data_block: Un):
+        """
+        Добавить блок данных в очередь.
 
-    def get_queue(self, name: str) -> Queue:
-        """ Получить очередь по её имени. """
-        if name in self.__queues_dict.keys():
-            return self.__queues_dict[name]
+        :param data_block: блок данных
+        """
+        for name, queue in MetaQueue.__queues_dict.items():
+            if isinstance(data_block, queue.q_type):
+                queue.put(data_block)
+
+    def get(self, queue_name: str) -> Un:
+        """ Получить блок данных из очереди.
+
+        :param queue_name: имя очереди
+        :return: блок данных, полученный из очереди
+        """
+        if queue_name in MetaQueue.__queues_dict.keys():
+            return MetaQueue.__queues_dict[queue_name].get()
         else:
-            raise ValueError('MetaQueue Object: name="{0}" argument is not valid key of queues dict'.format(name))
+            raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
+
+    def empty(self, queue_name: str) -> bool:
+        """ Очередь пуста?
+
+        :param queue_name: имя очереди
+        :return: очередь пуста? True или False
+        """
+        if queue_name in MetaQueue.__queues_dict.keys():
+            return MetaQueue.__queues_dict[queue_name].empty()
+        else:
+            raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
+
+
+# class MetaQueue:
+#     """ Класс содержащий в себе очереди передачи данных. Синглтон. """
+#     # Синглтон-объект
+#     __this_object: 'MetaQueue' = None
+#     # Ключ для реализации создания объекта исключительно через специальный метод класса
+#     __create_key = object()
+#
+#     def __init__(self, create_key: object):
+#         assert (create_key == MetaQueue.__create_key), \
+#             "MetaQueue object must be created using getInstanse method."
+#         # Словарь с очередями
+#         self.__queues_dict: dict = {
+#             "area": Queue(), # очередь сообщений с состоянием изделия для испытательного полигона
+#             "stage": Queue(), # очередь сообщений с состоянием изделия для вида изделия
+#             "info": Queue(), # очередь сообщений с состоянием изделия для информационного блока
+#             "neuro": Queue(), # очередь сообщений с состоянием изделия для нейросети
+#             "reinf": Queue(), # очередь сообщений с подкреплениями для нейросети
+#             "command": Queue() # очередь сообщений с управляющими воздействиями для нити реальности
+#         }
+#
+#     @classmethod
+#     def getInstance(cls) -> 'MetaQueue':
+#         """ Метод возвращает объект данного типа. Если объект не существует, то создаёт его перед этим. """
+#         if MetaQueue.__this_object is None:
+#             MetaQueue.__this_object = MetaQueue(MetaQueue.__create_key)
+#
+#         return MetaQueue.__this_object
+#
+#     def put(self, value: QueueMembers):
+#         """ Метод добавки блока данных в соответствующие очереди """
+#         # в какую очередь добавлять, определяется по типу добавляемых данных
+#         if isinstance(value, RealWorldStageStatusN):
+#             self.__queues_dict["area"].put(deepcopy(value))
+#             self.__queues_dict["stage"].put(deepcopy(value))
+#             self.__queues_dict["info"].put(deepcopy(value))
+#             self.__queues_dict["neuro"].put(deepcopy(value))
+#         elif isinstance(value, StageControlCommands):
+#             self.__queues_dict["command"].put(deepcopy(value))
+#         else:
+#             self.__queues_dict["reinf"].put(deepcopy(value))
+#
+#     def get_queue(self, name: str) -> QueueMembers:
+#         """ Получить очередь по её имени. """
+#         # Проверка на существование такого ключа, такой очереди в словаре очередей
+#         if name in self.__queues_dict.keys():
+#             return self.__queues_dict[name]
+#         else:
+#             raise ValueError('MetaQueue Object: name="{0}" argument is not valid key of queues dict'.format(name))
 
 
 

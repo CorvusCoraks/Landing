@@ -4,7 +4,7 @@ import random
 import shelve
 
 import structures
-from tools import MetaQueue, Finish, onesAndZerosVariantsF
+from tools import Finish, onesAndZerosVariantsF, MetaQueue
 from point import VectorComplex
 # from physics import BigMap
 from kill_flags import KillNeuroNetThread, KillCommandsContainer
@@ -118,8 +118,8 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
             # получить предыдущее (начальное) состояние
             while not kill.neuro:
                 # ждём очередное состояние окружающей среды
-                if not queues.get_queue("neuro").empty():
-                    environmentStatus = queues.get_queue("neuro").get()
+                if not queues.empty("neuro"):
+                    environmentStatus = queues.get("neuro")
                     # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
                     break
             else:
@@ -164,8 +164,8 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
 
             # Ждём появления подкрепления в очереди
             while not kill.neuro:
-                if not queues.get_queue("reinf").empty():
-                    reinf = queues.get_queue("reinf").get()
+                if not queues.empty("reinf"):
+                    reinf = queues.get("reinf")
                     break
             else:
                 # если была дана команда на завершение нити
