@@ -10,7 +10,7 @@ from tools import Finish, MetaQueue
 from threading import Thread
 from training import start_nb
 from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
-from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue
+from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue, CloneInterface, CloneFactory
 from stage import Sizes, BigMap
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
@@ -66,39 +66,39 @@ from stage import Sizes, BigMap
 #         self.__value = value
 
 
-class StageStatus:
-    """
-    Параметры ступени в конкретный момент времени в СКИП. Для передачи данных из нити физического моделирования.
-    """
-    # todo Возможно, класс не нужен
-    # максимально возможное значение ежесекундного счётчика
-    # Должно быть БОЛЬШЕ раза в два-три чем размер батча нейросети, чтобы в батче не оказалось одинаковых временных
-    # меток
-    maxCounterValue: int = 1023
-    # максимальное существующее значение счётчика, которое должно быть меньше или равно максимально возможного
-    currentTimerCounter: int = 1023
-
-    def __init__(self, axisVector2d: VectorComplex, positionVector2d: VectorComplex, text: str):
-        """
-
-        :param axisVector2d: осевой вектор
-        :param positionVector2d: позиция центра масс в СКИП
-        :param text: строка дополнительной информации
-        """
-        self.axisVector2d = axisVector2d
-        self.positionVector2d = positionVector2d
-        self.text = text
-        self.timerCounter: int
-        # timerCounter - счётчик ++1, чтобы не путаться с очерёдностью данных.
-        # первое значение счётчика после инициализации первого элемента очереди из 1023 превратится в 0
-        # по достижению максимального значения, следующим шагом счётчик обнуляется
-        # т. е. счётчик идёт от нуля до максимальной величины, обнуляется и цикл повторяется
-        if StageStatus.currentTimerCounter == StageStatus.maxCounterValue:
-            self.timerCounter = StageStatus.currentTimerCounter = 0
-        else:
-
-            StageStatus.currentTimerCounter += 1
-            self.timerCounter = StageStatus.currentTimerCounter
+# class StageStatus:
+#     """
+#     Параметры ступени в конкретный момент времени в СКИП. Для передачи данных из нити физического моделирования.
+#     """
+#     # todo Возможно, класс не нужен
+#     # максимально возможное значение ежесекундного счётчика
+#     # Должно быть БОЛЬШЕ раза в два-три чем размер батча нейросети, чтобы в батче не оказалось одинаковых временных
+#     # меток
+#     maxCounterValue: int = 1023
+#     # максимальное существующее значение счётчика, которое должно быть меньше или равно максимально возможного
+#     currentTimerCounter: int = 1023
+#
+#     def __init__(self, axisVector2d: VectorComplex, positionVector2d: VectorComplex, text: str):
+#         """
+#
+#         :param axisVector2d: осевой вектор
+#         :param positionVector2d: позиция центра масс в СКИП
+#         :param text: строка дополнительной информации
+#         """
+#         self.axisVector2d = axisVector2d
+#         self.positionVector2d = positionVector2d
+#         self.text = text
+#         self.timerCounter: int
+#         # timerCounter - счётчик ++1, чтобы не путаться с очерёдностью данных.
+#         # первое значение счётчика после инициализации первого элемента очереди из 1023 превратится в 0
+#         # по достижению максимального значения, следующим шагом счётчик обнуляется
+#         # т. е. счётчик идёт от нуля до максимальной величины, обнуляется и цикл повторяется
+#         if StageStatus.currentTimerCounter == StageStatus.maxCounterValue:
+#             self.timerCounter = StageStatus.currentTimerCounter = 0
+#         else:
+#
+#             StageStatus.currentTimerCounter += 1
+#             self.timerCounter = StageStatus.currentTimerCounter
 
 
 # def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, reinforcementQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
@@ -117,13 +117,13 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
     finishControl = Finish()
 
     initialStatus = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-                         orientation=VectorComplex.getInstance(0., 1.),
-                         velocity=VectorComplex.getInstance(0., -5.), angularVelocity= -cmath.pi / 36)
-    initialStatus.timeStamp = 0
+                                          orientation=VectorComplex.getInstance(0., 1.),
+                                          velocity=VectorComplex.getInstance(0., -5.), angular_velocity=-cmath.pi / 36)
+    initialStatus.time_stamp = 0
     # initialStatus.duration = physics.CheckPeriod.setDuration(initialStatus.position)
 
     physics.previousStageStatus = initialStatus
-    # physics.previousStageStatus.timeStamp = 0.
+    # physics.previousStageStatus.time_stamp = 0.
 
     # physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
     #                                                    orientation=VectorComplex.getInstance(0., 1.))
@@ -144,16 +144,16 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
         newStageStatus = Moving.getNewStatus(command)
 
         # Отправляем величину подкрепления в НС
-        # queues.get("reinf").put(ReinforcementValue(newStageStatus.timeStamp,
+        # queues.get("reinf").put(ReinforcementValue(newStageStatus.time_stamp,
         #                                           tools.Reinforcement.getReinforcement(
         #                                               newStageStatus, command)
         #                                           )
         #                        )
 
-        queues.put(ReinforcementValue(newStageStatus.timeStamp,
-                                                  tools.Reinforcement.get_reinforcement(
+        queues.put(ReinforcementValue(newStageStatus.time_stamp,
+                                      tools.Reinforcement.get_reinforcement(
                                                       newStageStatus, command)
-                                                  )
+                                      )
                                )
 
         # if physics.previousStageStatus is initialStatus:
@@ -167,8 +167,8 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
 
         # physics.previousStageStatus = newStageStatus
         # print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
-        #       format(i, newStageStatus.timeStamp, newStageStatus.position, newStageStatus.velocity,
-        #              newStageStatus. axeleration, newStageStatus.orientation))
+        #       format(i, newStageStatus.time_stamp, newStageStatus.position, newStageStatus.velocity,
+        #              newStageStatus. acceleration, newStageStatus.orientation))
 
         # добавить в выходную очередь очередную порцию информации о состоянии ступени
 
@@ -218,8 +218,8 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
 
         physics.previousStageStatus = newStageStatus
         print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
-              format(i, newStageStatus.timeStamp, newStageStatus.position, newStageStatus.velocity,
-                     newStageStatus. axeleration, newStageStatus.orientation))
+              format(i, newStageStatus.time_stamp, newStageStatus.position, newStageStatus.velocity,
+                     newStageStatus. acceleration, newStageStatus.orientation))
     else:
         kill.neuro = True
 

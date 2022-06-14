@@ -89,8 +89,8 @@ class PoligonWindow(WindowsMSInterface):
             # print(self.__anyQueue.get())
             transform = self.__queues.get('area')
 
-            previousStatusDuration = transform.timeStamp - self.__previousStatusTimeStamp
-            self.__previousStatusTimeStamp = transform.timeStamp
+            previousStatusDuration = transform.time_stamp - self.__previousStatusTimeStamp
+            self.__previousStatusTimeStamp = transform.time_stamp
 
             # преобразование из СКИП в СКК
             # inCanvasCoordSystem = RealWorldStageStatus()

@@ -1,32 +1,50 @@
 from point import VectorComplex
+from abc import ABC, abstractmethod
 from copy import deepcopy
 
-class StageControlCommands:
+
+class CloneInterface(ABC):
+    @abstractmethod
+    def clone(self):
+        """ Клонирование объекта (реализация паттерна Прототип). """
+        pass
+
+
+class CloneFactory:
+    """ Фабрика клонирования объектов блоков данных для очередей. """
+    def __init__(self, prototype: CloneInterface):
+        self.__prototype: CloneInterface = prototype
+
+    def clone(self):
+        return self.__prototype.clone()
+
+
+class StageControlCommands(CloneInterface):
     """
     Команда на работу двигателей в определённый момент времени на определённый срок
     """
-    def __init__(self, timeStamp: int, duration=0,
-                 topLeft=False, topRight=False,
-                 downLeft=False, downRight=False,
+    def __init__(self, time_stamp: int, duration=0,
+                 top_left=False, top_right=False,
+                 down_left=False, down_right=False,
                  main=False):
         """
 
-        :param timeStamp: отметка времени
+        :param time_stamp: отметка времени
         :param duration: длительность работы двигателя (зарезервировано на будущее)
-        :param topLeft: левый верхний двигатель работает?
-        :param topRight: правый верхний двигатель работает?
-        :param downLeft: левый нижний двигатель работает?
-        :param downRight: правый нижний двигатель работает?
+        :param top_left: левый верхний двигатель работает?
+        :param top_right: правый верхний двигатель работает?
+        :param down_left: левый нижний двигатель работает?
+        :param down_right: правый нижний двигатель работает?
         :param main: маршевый двигатель работает?
         """
-        self.timeStamp = timeStamp
+        self.time_stamp = time_stamp
         # параметр "про запас", если будем делать в будущем длительность работы двигателей отличающейся от интервала
         # снятия показаний.
         self.duration: int = duration
-        self.topLeft = topLeft
-        self.topRight = topRight
-        self.downLeft = downLeft
-        self.downRight = downRight
+        self.top_left = top_left
+        self.top_right = top_right
+        self.down_left = down_left
+        self.down_right = down_right
         self.main = main
 
     def allOff(self)->bool:
@@ -34,20 +52,24 @@ class StageControlCommands:
         Все двигатели выключены?
 
         """
-        return not (self.topLeft or self.topRight or self.downLeft or self.downRight or self.main)
+        return not (self.top_left or self.top_right or self.down_left or self.down_right or self.main)
 
     # def lazy_copy(self) -> 'StageControlCommands':
-    #     return StageControlCommands(deepcopy(self.timeStamp))
+    #     return StageControlCommands(deepcopy(self.time_stamp))
 
-class RealWorldStageStatusN():
+    def clone(self):
+        return deepcopy(self)
+
+
+class RealWorldStageStatusN(CloneInterface):
     """ Состояние ступени в конкретный момент времени """
     def __init__(self, position=None,
                  velocity=None,
-                 axeleration=None,
+                 acceleration=None,
                  orientation=None,
-                 angularVelocity=0.,
-                 angularAxeleration=0.,
-                 timeStamp=0,
+                 angular_velocity=0.,
+                 angular_acceleration=0.,
+                 time_stamp=0,
                  duration=0):
         """
 
@@ -55,16 +77,16 @@ class RealWorldStageStatusN():
         :type position: VectorComplex
         :param velocity: вектор линейной скорости
         :type velocity: VectorComplex
-        :param axeleration: вектор линейного ускорения
-        :type axeleration: VectorComplex
+        :param acceleration: вектор линейного ускорения
+        :type acceleration: VectorComplex
         :param orientation: ориентация (положительно - против часовой стрелки), рад
         :type orientation: VectorComplex
-        :param angularVelocity: угловая скорость (положительно - против часовой стрелки)
-        :type angularVelocity: float
-        :param angularAxeleration: угловое ускорение (положительно - против часовой стрелки)
-        :type angularAxeleration: float
-        :param timeStamp: метка времени в миллисекундах
-        :type timeStamp: int
+        :param angular_velocity: угловая скорость (положительно - против часовой стрелки)
+        :type angular_velocity: float
+        :param angular_acceleration: угловое ускорение (положительно - против часовой стрелки)
+        :type angular_acceleration: float
+        :param time_stamp: метка времени в миллисекундах
+        :type time_stamp: int
         :param duration: длительность действия данного состояния, миллисекунд. Для использования в модуле отображения.
         :type duration: int
         """
@@ -74,8 +96,8 @@ class RealWorldStageStatusN():
         # self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
         self.velocity = velocity or VectorComplex.getInstance()
         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-        # self.axeleration = axeleration if axeleration is not None else VectorComplex.getInstance()
-        self.axeleration = axeleration or VectorComplex.getInstance()
+        # self.acceleration = acceleration if acceleration is not None else VectorComplex.getInstance()
+        self.acceleration = acceleration or VectorComplex.getInstance()
         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
         # if orientation is None:
         #     self.orientation = VectorComplex.getInstance(0., 0.)
@@ -83,38 +105,45 @@ class RealWorldStageStatusN():
         #     self.orientation = orientation
         # self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
         self.orientation = orientation or VectorComplex.getInstance()
-        self.angularVelocity = angularVelocity
+        self.angular_velocity = angular_velocity
         # Аналогично, зачем мне предыдущее угловое ускорение?
-        self.angularAxeleration = angularAxeleration
+        self.angular_acceleration = angular_acceleration
         # предыдущее значение времени, необходимо для расчёта времменнОго интервала между двумя отсчётами
-        self.timeStamp: int = timeStamp
+        self.time_stamp: int = time_stamp
         # Длительность действия этих параметров
         # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
         # self.duration = duration
 
-    def lazyCopy(self) -> 'RealWorldStageStatusN':
-        # todo метод ликвидировать. везде перевести на deepcopy()
-        newObject = RealWorldStageStatusN()
-        newObject.position = self.position.lazyCopy()
-        newObject.velocity = self.velocity.lazyCopy()
-        newObject.axeleration = self.axeleration.lazyCopy()
-        newObject.orientation = self.orientation.lazyCopy()
-        newObject.angularVelocity = self.angularVelocity
-        newObject.angularAxeleration = self.angularAxeleration
-        newObject.timeStamp = self.timeStamp
-        # newObject.duration = self.duration
-        return newObject
+    # def lazyCopy(self) -> 'RealWorldStageStatusN':
+    #     # todo метод ликвидировать. везде перевести на deepcopy()
+    #     newObject = RealWorldStageStatusN()
+    #     newObject.position = self.position.lazyCopy()
+    #     newObject.velocity = self.velocity.lazyCopy()
+    #     newObject.acceleration = self.acceleration.lazyCopy()
+    #     newObject.orientation = self.orientation.lazyCopy()
+    #     newObject.angular_velocity = self.angular_velocity
+    #     newObject.angular_acceleration = self.angular_acceleration
+    #     newObject.time_stamp = self.time_stamp
+    #     # newObject.duration = self.duration
+    #     return newObject
 
-class ReinforcementValue:
+    def clone(self):
+        return deepcopy(self)
+
+
+class ReinforcementValue(CloneInterface):
     """
     Класс величины подкрепления для передачи через очередь между нитями
     """
-    def __init__(self, timestamp: int, reinforcement: float):
-        self.timestamp = timestamp
+    def __init__(self, time_stamp: int, reinforcement: float):
+        self.time_stamp = time_stamp
         self.reinforcement = reinforcement
 
-    def getReinforcement(self):
-        return self.timestamp, self.reinforcement
+    def get_reinforcement(self):
+        return self.time_stamp, self.reinforcement
+
+    def clone(self):
+        return deepcopy(self)
 
     # @property
     # def reinforcement(self):

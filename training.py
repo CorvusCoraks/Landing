@@ -145,10 +145,10 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
             random.seed()
             if random.choice([0, 1]):
                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                queues.put(StageControlCommands(environmentStatus.timeStamp))
+                queues.put(StageControlCommands(environmentStatus.time_stamp))
             else:
                 # Нейросеть актора даёт команду
-                queues.put(StageControlCommands(environmentStatus.timeStamp, main=True))
+                queues.put(StageControlCommands(environmentStatus.time_stamp, main=True))
 
             # # Ждём появления подкрепления в очереди
             # while reinforcementQueue.empty():
@@ -159,7 +159,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
             # else:
             #     reinf = reinforcementQueue.get()
             #     # Проверка на совпадение отметки времени
-            #     # if environmentStatus.timeStamp
+            #     # if environmentStatus.time_stamp
             #     pass
 
             # Ждём появления подкрепления в очереди
@@ -175,13 +175,13 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
             # while not reinforcementQueue.empty():
             #     reinf = reinforcementQueue.get()
             #     # Проверка на совпадение отметки времени
-            #     # if environmentStatus.timeStamp
+            #     # if environmentStatus.time_stamp
             #     if killThisThread.kill:
             #         # если была дана команда на завершение нити
             #         print("Принудительно завершение поднити обучения внутри испытания.\n")
             #         break
 
-            if environmentStatus.timeStamp > 0:
+            if environmentStatus.time_stamp > 0:
                 # для нулевого состояния окружающей среды корректировку функции ценности не производим
                 # Ошибка критика
                 # criticLoss = previousQmax + 0.001*(reinf + 0.01*Qmax - previousQmax)
@@ -212,7 +212,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
 #     """
 #     startState = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
 #                                   orientation=VectorComplex.getInstance(0., 1.))
-#     startState.timeStamp = 0
+#     startState.time_stamp = 0
 #
 #     return startState
 

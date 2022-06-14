@@ -333,7 +333,7 @@ class Moving():
         # угловое ускорение
         angularAxeleration = 0.
         # угловая скорость, рад/сек
-        angularVelocity = previousStageStatus.angularVelocity + angularAxeleration * secDuration
+        angularVelocity = previousStageStatus.angular_velocity + angularAxeleration * secDuration
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
         # поворот на угол, рад.
@@ -355,10 +355,10 @@ class Moving():
         # # новая ориентация
         # orientation = VectorComplex.getInstanceC(cardanus)
 
-        newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, axeleration=lineAxeleration,
-                                           angularVelocity=angularVelocity, angularAxeleration=angularAxeleration,
-                                           orientation=orientation)
-        newPosition.timeStamp = previousStageStatus.timeStamp + duration
+        newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, acceleration=lineAxeleration,
+                                            angular_velocity=angularVelocity, angular_acceleration=angularAxeleration,
+                                            orientation=orientation)
+        newPosition.time_stamp = previousStageStatus.time_stamp + duration
         # newPosition.secDuration = CheckPeriod.setDuration(linePosition)
 
         return newPosition

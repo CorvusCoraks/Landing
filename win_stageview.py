@@ -85,8 +85,8 @@ class StageViewWindow(WindowsMSInterface):
         if not self.__anyQueue.empty('stage'):
             transform = self.__anyQueue.get('stage')
 
-            previousStatusDuration = transform.timeStamp - self.__previousStatusTimeStamp
-            self.__previousStatusTimeStamp = transform.timeStamp
+            previousStatusDuration = transform.time_stamp - self.__previousStatusTimeStamp
+            self.__previousStatusTimeStamp = transform.time_stamp
 
             # self.__to_info_queue.put(transform.lazyCopy)
 
@@ -112,16 +112,16 @@ class StageViewWindow(WindowsMSInterface):
         # self.__lineVelocityInfo.setInfo(abs(transform.velocity), velocityVectorCCS)
         self.__canvasLinkedMarks["line_velocity"].setInfo(abs(transform.velocity), velocityVectorCCS)
         # переводим свободный вектор ускорения в СКК
-        axelerationVectorCCS = complexChangeSystemCoordinatesUniversal(transform.axeleration,
+        axelerationVectorCCS = complexChangeSystemCoordinatesUniversal(transform.acceleration,
                                                                        VectorComplex.getInstance(0., 0.), 0., True)
-        # self.__lineAxelerationInfo.setInfo(abs(transform.axeleration), axelerationVectorCCS)
-        self.__canvasLinkedMarks["line_accel"].setInfo(abs(transform.axeleration), axelerationVectorCCS)
+        # self.__lineAxelerationInfo.setInfo(abs(transform.acceleration), axelerationVectorCCS)
+        self.__canvasLinkedMarks["line_accel"].setInfo(abs(transform.acceleration), axelerationVectorCCS)
 
-        # self.__angleVelocity.setInfo(transform.angularVelocity)
-        self.__canvasLinkedMarks["angle_velocity"].setInfo(transform.angularVelocity)
+        # self.__angleVelocity.setInfo(transform.angular_velocity)
+        self.__canvasLinkedMarks["angle_velocity"].setInfo(transform.angular_velocity)
 
-        # self.__angleAxeleration.setInfo(transform.angularAxeleration)
-        self.__canvasLinkedMarks["angle_accel"].setInfo(transform.angularAxeleration)
+        # self.__angleAxeleration.setInfo(transform.angular_acceleration)
+        self.__canvasLinkedMarks["angle_accel"].setInfo(transform.angular_acceleration)
 
     def __change_movable_marks(self, transform: RealWorldStageStatusN):
         """ Обновление подвижных отметок в соответствии с актуальной информацией. """

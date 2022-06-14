@@ -2,7 +2,7 @@ from point import VectorComplex
 from math import fabs
 # from stage import BigMap
 from stage import Sizes, BigMap
-from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
+from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue, CloneFactory, CloneInterface
 from abc import ABC, abstractmethod
 from queue import Queue
 from typing import Union, TypeVar, Dict, Type, Optional, NewType
@@ -88,23 +88,45 @@ class MetaQueue:
     # def put(data_block: QueueMembers):
     def put(self, data_block: QueueMembers):
         """
-        Добавить блок данных в очередь.
+        Добавить блок данных во ВСЕ очереди, которые готовы принять блок данных данного типа.
 
         :param data_block: блок данных
         """
-        sended = False
+        # был ли блок данных отправлен в какую-либо очередь?
+        was_sent: bool = False
+        # инициация прототипа
+        clone_factory: CloneFactory = CloneFactory(data_block)
 
         # Перебираем очереди, чтобы отправить блок данных
         for name, queue in self.__queues_dict.items():
             if isinstance(data_block, queue.q_type):
-                # Pycharm почему-то считает, что data_block имеет тип type
-                queue.put(data_block)
-                sended = True
+                # Если data_block имеет тип, соответствующий данной очереди,
+                # то отправляем data_block в эту очередь.
+                # Pycharm почему-то считает, что data_block имеет тип type.
+                queue.put(clone_factory.clone())
+                was_sent = True
 
-        if not sended:
+        if not was_sent:
             # Если для блока данных не нашлось очереди, значит мы не ждём данных этого типа.
             raise TypeError('Data block type ({0}) is not valid. Expected: {1}'
                             .format(type(data_block), self.__types))
+
+    def put_by_queue_name(self, queue_name: str, data_block: QueueMembers):
+        """ Запись блока данных в конкретную очередь, определяемую именем этой очереди.
+
+        :param queue_name: имя очереди
+        :param data_block: блок данных, предназначенный для отправления в очередь.
+        """
+        # Инициация прототипа
+        clone_factory: CloneFactory = CloneFactory(data_block)
+
+        if queue_name in self.__queues_dict.keys():
+            # Имя очереди присутствует среди имён очередей
+            # Отправляем блок данных в эту очередь.
+            self.__queues_dict[queue_name].put(clone_factory.clone())
+        else:
+            raise ValueError('MetaQueue: queue_name="{0}" argument is not valid key of queues dict'.format(queue_name))
+
 
     def get(self, queue_name: str) -> QueueMembers:
         """ Получить блок данных из очереди.
@@ -115,7 +137,7 @@ class MetaQueue:
         if queue_name in self.__queues_dict.keys():
             return self.__queues_dict[queue_name].get()
         else:
-            raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
+            raise ValueError('MetaQueue: queue_name="{0}" argument is not valid key of queues dict'.format(queue_name))
 
     def empty(self, queue_name: str) -> bool:
         """ Очередь пуста?
@@ -277,10 +299,10 @@ class Reinforcement:
             # если достигли позиции ещё ближе, чем была самая близкая, то фиксируем данный радиус-вектор
             cls.min_vector = stage_status.position
             # собираем множитель, в зависимости от включённости двигателей
-            mult += 1.25 if jets.topLeft else 0
-            mult += 1.25 if jets.topRight else 0
-            mult += 1.25 if jets.downLeft else 0
-            mult += 1.25 if jets.downRight else 0
+            mult += 1.25 if jets.top_left else 0
+            mult += 1.25 if jets.top_right else 0
+            mult += 1.25 if jets.down_left else 0
+            mult += 1.25 if jets.down_right else 0
             mult += 5.0 if jets.main else 0
             # все одновременно работающие рулевые двигатели имеют "цену" одного работающего маршевого двигателя
             # считаем, с учётом работавших двигателей, понижая подкрепление
@@ -352,10 +374,10 @@ class Finish:
         # Последовательная проверка по всем параметрам на успешность попадания в их диапазоны.
         if within(accuracy_dict["dy"], state.position.y) and within(accuracy_dict["dx"], state.position.x):
             if within(accuracy_dict["dVy"], state.velocity.y) and within(accuracy_dict["dVx"], state.velocity.x):
-                if within(accuracy_dict["dAy"], state.axeleration.y) and within(accuracy_dict["dAx"], state.axeleration.x):
+                if within(accuracy_dict["dAy"], state.acceleration.y) and within(accuracy_dict["dAx"], state.acceleration.x):
                     if within(accuracy_dict["dPhi"], state.orientation):
-                        if within(accuracy_dict["dW"], state.angularVelocity):
-                            if within(accuracy_dict["dE"], state.angularAxeleration):
+                        if within(accuracy_dict["dW"], state.angular_velocity):
+                            if within(accuracy_dict["dE"], state.angular_acceleration):
                                 return True
         return False
 
