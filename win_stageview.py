@@ -142,7 +142,7 @@ class StageViewWindow(WindowsMSInterface):
         # текстовые метки не вращаем
 
         # Вращаем стрелки индикаторов
-        # self.__velocityArrow.rotate(transform.stageStatus.velocity, self.__velocityArrow)
+        # self.__velocityArrow.rotate(transform.stage_status.velocity, self.__velocityArrow)
 
         self.__orientation = stageViewOrientation
 

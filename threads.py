@@ -151,7 +151,7 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
         #                        )
 
         queues.put(ReinforcementValue(newStageStatus.timeStamp,
-                                                  tools.Reinforcement.getReinforcement(
+                                                  tools.Reinforcement.get_reinforcement(
                                                       newStageStatus, command)
                                                   )
                                )
@@ -199,7 +199,7 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
         # newStatus = RealWorldStageStatus()
 
         # КОД
-        if finishControl.isOneTestFailed(newStageStatus.position):
+        if finishControl.is_one_test_failed(newStageStatus.position):
             # завершение единичного испытания по достижению границ полигона
             # Факт данного события должен передаваться в нить нейросети
             # Либо перенести эту проверку в нить нейросети

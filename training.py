@@ -4,7 +4,7 @@ import random
 import shelve
 
 import structures
-from tools import Finish, onesAndZerosVariantsF, MetaQueue
+from tools import Finish, ones_and_zeros_variants_f, MetaQueue
 from point import VectorComplex
 # from physics import BigMap
 from kill_flags import KillNeuroNetThread, KillCommandsContainer
@@ -33,7 +33,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
             criticBlank = sh["9_50_v"]
         else:
             # Ключ не найден. Создать значение.
-            sh["9_50_v"] = onesAndZerosVariantsF(8, 3)
+            sh["9_50_v"] = ones_and_zeros_variants_f(8, 3)
             criticBlank = sh["9_50_v"]
 
 
@@ -108,7 +108,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
 
         # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход
-        while not finish.isOneTestFailed(environmentStatus.position):
+        while not finish.is_one_test_failed(environmentStatus.position):
             # процесс одной попытки посадить изделие, т. е. перебор состояний в процессе одной посадки
             if kill.neuro:
                 # если была дана команда на завершение нити

@@ -6,9 +6,9 @@ from stage import Sizes, BigMap
 from threads import reality_thread, neuronet_thread
 from kill_flags import  KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
 from win import WindowsMSView
-from tools import MetaQueue, Un
+from tools import MetaQueue, QueueMembers
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
-from typing import Dict
+from typing import Dict, Any, Type
 
 if __name__ == "__main__":
     # Частота считывания/передачи данных с датчиков ступени
@@ -27,10 +27,18 @@ if __name__ == "__main__":
     # # очередь, для передачи инфомации в нейросеть
     # envToNeuroNetQueue = Queue()
 
-    # объект очередей передачи данных
-    # queues = MetaQueue.getInstance()
-    temp = {'area': RealWorldStageStatusN, 'stage': RealWorldStageStatusN, 'info': RealWorldStageStatusN,
+    # Очередь данных в вид испытательного полигона (из нити реальности)
+    # Очередь данных в вид изделия (из нити реальности)
+    # Очередь данных в вид информации о процессе (из нити реальности)
+    # Очерердь данных в нейросеть (из нити реальности)
+    # Очередь данных с подкреплениями (из нити реальности)
+    # Очередь данных с управляющими командами (из нейросети)
+    # note забавно, если не указать тип dict (или Dict[str, Any]) данной переменной,
+    # то при передаче данных в MetaQueue.get_instance(temp)
+    # будет ошибка несоответствия типа
+    temp: Dict[str, Any] = {'area': RealWorldStageStatusN, 'stage': RealWorldStageStatusN, 'info': RealWorldStageStatusN,
             'neuro': RealWorldStageStatusN, 'reinf': ReinforcementValue, 'command': StageControlCommands}
+    # объект очередей передачи данных
     queues = MetaQueue.get_instance(temp)
 
     # # envFromRealWorldQueue: Queue

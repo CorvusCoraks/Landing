@@ -5,43 +5,36 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from abc import ABC, abstractmethod
 from queue import Queue
-from typing import Union, TypeVar, Dict, Type, Optional
-from copy import deepcopy
-from functools import singledispatch
-# from mu
-# Разные утилиты
+from typing import Union, TypeVar, Dict, Type, Optional, NewType
 
-T = TypeVar('T')
-
-# Тип: классы объектов данных, которые передаются через очереди
-# QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
+# Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
-# Un = Type[Union[ReinforcementValue, RealWorldStageStatusN, StageControlCommands]]
-Un = Type[QueueMembers]
 
 class SingleQueue():
-    """ Одиночная очередь. """
-    def __init__(self, name: str, content_type: T):
+    """ Одиночная очередь. Очередь может содеражть только объекты ОДНОГО типа. """
+    def __init__(self, name: str, content_type: QueueMembers):
         """
 
         :param name: имя очереди
         :param content_type: тип элементов, которыми заполняется очередь
         """
         # инкапсулированная очередь
-        self.__queue: Queue = Queue()
+        self.__queue: Queue[QueueMembers] = Queue()
         # тип элементов, содежащихся в очереди
         self.__q_type: type = content_type
         # имя очереди
         self.__name: str = name
 
-    def put(self, value: T):
+    def put(self, value: QueueMembers):
         """ Поместить объект в очередь """
+        # if isinstance(value, type(self.__q_type)):
         if isinstance(value, self.__q_type):
             self.__queue.put(value)
         else:
-            raise ValueError('SingleQueue: argument value = {0} is not valid type.'.format(value))
+            raise ValueError('SingleQueue: argument value = {0} is not valid type. Expected: {1}'
+                             .format(value, self.__q_type))
 
-    def get(self) -> T:
+    def get(self) -> QueueMembers:
         """ Извлечь объект из очереди """
         return self.__queue.get()
 
@@ -63,62 +56,64 @@ class MetaQueue:
     __queues_dict: Dict[str, SingleQueue] = {}
     # ключ синглтона
     __create_key: object = object()
+    # Множество допустимых типов
+    __types: set = {}
 
     def __init__(self, names: dict, create_key: object):
         """
         :param names: словарь с элементами вида {'имя_очереди': тип_элемента_очереди}
         :param create_key: ключ синглтона
         """
-        assert (create_key is MetaQueue.__create_key), \
+        assert (create_key is self.__create_key), \
             "MetaQueue object must be created using get_instanse method."
 
         for key, value in names.items():
             # создание словаря очередей
-            MetaQueue.__queues_dict[key] = SingleQueue(key, value)
+            self.__queues_dict[key] = SingleQueue(key, value)
 
-    # @classmethod
-    # @overload
-    # def get_instance(cls) -> 'MetaQueue':
-    #     ...
-    #
-    # @classmethod
-    # @overload
-    # def get_instance(cls, queues: Dict[str, Un]) -> 'MetaQueue':
-    #     ...
-    #
-    # @classmethod
-    # def get_instance(cls) -> 'MetaQueue':
-    #     """ Возвращает существующий объект данного класса. """
-    #     return MetaQueue.__this_object
+        self.__types = set(names.values())
 
     @classmethod
-    def get_instance(cls, queues: Dict[str, Un]) -> 'MetaQueue':
+    def get_instance(cls, queues: Dict[str, QueueMembers]) -> 'MetaQueue':
         """ Если объект не существует, то создаёт его.
 
         :param queues:  словарь с элементами вида {'имя_очереди': тип_элемента_очереди}
         """
-        if MetaQueue.__this_object is None:
-            MetaQueue.__this_object = MetaQueue(queues, MetaQueue.__create_key)
-        return MetaQueue.__this_object
+        if cls.__this_object is None:
+            cls.__this_object = MetaQueue(queues, cls.__create_key)
+        return cls.__this_object
 
-    def put(self, data_block: Un):
+
+    # @staticmethod
+    # def put(data_block: QueueMembers):
+    def put(self, data_block: QueueMembers):
         """
         Добавить блок данных в очередь.
 
         :param data_block: блок данных
         """
-        for name, queue in MetaQueue.__queues_dict.items():
-            if isinstance(data_block, queue.q_type):
-                queue.put(data_block)
+        sended = False
 
-    def get(self, queue_name: str) -> Un:
+        # Перебираем очереди, чтобы отправить блок данных
+        for name, queue in self.__queues_dict.items():
+            if isinstance(data_block, queue.q_type):
+                # Pycharm почему-то считает, что data_block имеет тип type
+                queue.put(data_block)
+                sended = True
+
+        if not sended:
+            # Если для блока данных не нашлось очереди, значит мы не ждём данных этого типа.
+            raise TypeError('Data block type ({0}) is not valid. Expected: {1}'
+                            .format(type(data_block), self.__types))
+
+    def get(self, queue_name: str) -> QueueMembers:
         """ Получить блок данных из очереди.
 
         :param queue_name: имя очереди
         :return: блок данных, полученный из очереди
         """
-        if queue_name in MetaQueue.__queues_dict.keys():
-            return MetaQueue.__queues_dict[queue_name].get()
+        if queue_name in self.__queues_dict.keys():
+            return self.__queues_dict[queue_name].get()
         else:
             raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
 
@@ -128,10 +123,10 @@ class MetaQueue:
         :param queue_name: имя очереди
         :return: очередь пуста? True или False
         """
-        if queue_name in MetaQueue.__queues_dict.keys():
-            return MetaQueue.__queues_dict[queue_name].empty()
-        else:
-            raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
+        if queue_name in self.__queues_dict.keys():
+            return self.__queues_dict[queue_name].empty()
+
+        raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
 
 
 # class MetaQueue:
@@ -205,7 +200,7 @@ class MetaQueue:
 #     def getReinforcementBorders(cls):
 #         return ()
 
-class Reinforcement():
+class Reinforcement:
     """
     Класс подкрепления.
 
@@ -248,7 +243,7 @@ class Reinforcement():
     # successLandingBase = 0.3
     # processBase = 1 - successLandingBase
     # минимальный вектор положения центра масс изделия, достигнутый в одном испытании
-    minVector = VectorComplex.getInstance(float("inf"), float("inf"))
+    min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
 
     accuracy = 0
 
@@ -256,63 +251,63 @@ class Reinforcement():
         pass
 
     @classmethod
-    def getReinforcement(cls, stageStatus: RealWorldStageStatusN, jets: StageControlCommands):
+    def get_reinforcement(cls, stage_status: RealWorldStageStatusN, jets: StageControlCommands):
         """
         Подкрепление
 
-        :param stageStatus: состояние ступени
+        :param stage_status: состояние ступени
         :param jets: информация о работавших двигателях
         :return:
         """
-        successReinforcement = 0.
-        landingReinforcement = 0.
-        if Finish.isOneTestFailed(stageStatus.position):
-            cls.minVector = VectorComplex.getInstance(float("inf"), float("inf"))
+        success_reinforcement = 0.
+        landing_reinforcement = 0.
+        if Finish.is_one_test_failed(stage_status.position):
+            cls.min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
             return 0
 
         # подкрепление за удачную посадку
-        if Finish.isOneTestSuccess(stageStatus, cls.accuracy):
-            # cls.minVector = VectorComplex.getInstance(float("inf"), float("inf"))
-            successReinforcement = 100
+        if Finish.is_one_test_success(stage_status, cls.accuracy):
+            # cls.min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
+            success_reinforcement = 100
 
         # подкрепление в процесс посадки
         # корректирующий подкрепление множитель
         mult = 0
-        if abs(stageStatus.position) < abs(cls.minVector):
+        if abs(stage_status.position) < abs(cls.min_vector):
             # если достигли позиции ещё ближе, чем была самая близкая, то фиксируем данный радиус-вектор
-            cls.minVector = stageStatus.position
+            cls.min_vector = stage_status.position
             # собираем множитель, в зависимости от включённости двигателей
-            mult =+ 1.25 if jets.topLeft else 0
-            mult =+ 1.25 if jets.topRight else 0
-            mult =+ 1.25 if jets.downLeft else 0
-            mult =+ 1.25 if jets.downRight else 0
-            mult =+ 5.0 if jets.main else 0
+            mult += 1.25 if jets.topLeft else 0
+            mult += 1.25 if jets.topRight else 0
+            mult += 1.25 if jets.downLeft else 0
+            mult += 1.25 if jets.downRight else 0
+            mult += 5.0 if jets.main else 0
             # все одновременно работающие рулевые двигатели имеют "цену" одного работающего маршевого двигателя
             # считаем, с учётом работавших двигателей, понижая подкрепление
-            landingReinforcement = 1 if mult == 0 else 10 / mult
+            landing_reinforcement = 1 if mult == 0 else 10 / mult
 
-            if Finish.isOneTestSuccess(stageStatus, cls.accuracy):
-                cls.minVector = VectorComplex.getInstance(float("inf"), float("inf"))
+            if Finish.is_one_test_success(stage_status, cls.accuracy):
+                cls.min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
 
-        return successReinforcement + landingReinforcement
+        return success_reinforcement + landing_reinforcement
 
 
-class Finish():
+class Finish:
     """
     Класс завершения единичного испытания
-    """
 
+    """
     # Допустимое отклонение при выявлении факта посадки (метров)
     __yEpsilon = 0.01
     # Высота выключения двигателей (по высоте центра масс)
-    __legRelativeY = Sizes.massCenterFromLandingPlaneDistance
+    __leg_relative_y = Sizes.massCenterFromLandingPlaneDistance
 
     # Необходим для того, чтобы единичное испытание не длилось чрезмерное неразумное время
     def __init__(self):
         pass
 
     @classmethod
-    def isOneTestFailed(cls, coord: VectorComplex):
+    def is_one_test_failed(cls, coord: VectorComplex):
         """ Проверка на неблагополучное завершение очередной тренировки
 
         :param coord: центр масс ракеты в СКИП
@@ -321,10 +316,10 @@ class Finish():
         # либо выходом за пределы зоны испытаний
         # Метод необходим исключительно для того, чтобы одно испытание не длилось вечно
         #
-        # poligonLegY = coord.y + self.__legRelativeY
+        # poligonLegY = coord.y + self.__leg_relative_y
         if fabs(coord.x) * 2 > BigMap.width \
             or coord.y > BigMap.height \
-            or coord.y < cls.__legRelativeY - cls.__yEpsilon:
+            or coord.y < cls.__leg_relative_y - cls.__yEpsilon:
             # Если ступень вылетела за пределы испытательного полигона:
             # - ступень вылетела за левую/правую границу полигона
             # - вылетела за верхнюю границу полигона
@@ -334,7 +329,7 @@ class Finish():
         return False
 
     @classmethod
-    def isOneTestSuccess(cls , state: RealWorldStageStatusN, accuracy: int, close=True)->bool:
+    def is_one_test_success(cls, state: RealWorldStageStatusN, accuracy: int, close=True)->bool:
         """
         Посадка завершена успешно. Уррраааа!
 
@@ -352,20 +347,20 @@ class Finish():
             else:
                 return False
 
-        accuracyDict = Finish.landingScope(accuracy, close)
+        accuracy_dict = Finish.landing_scope(accuracy, close)
 
         # Последовательная проверка по всем параметрам на успешность попадания в их диапазоны.
-        if within(accuracyDict["dy"], state.position.y) and within(accuracyDict["dx"], state.position.x):
-            if within(accuracyDict["dVy"], state.velocity.y) and within(accuracyDict["dVx"], state.velocity.x):
-                if within(accuracyDict["dAy"], state.axeleration.y) and within(accuracyDict["dAx"], state.axeleration.x):
-                    if within(accuracyDict["dPhi"], state.orientation):
-                        if within(accuracyDict["dW"], state.angularVelocity):
-                            if within(accuracyDict["dE"], state.angularAxeleration):
+        if within(accuracy_dict["dy"], state.position.y) and within(accuracy_dict["dx"], state.position.x):
+            if within(accuracy_dict["dVy"], state.velocity.y) and within(accuracy_dict["dVx"], state.velocity.x):
+                if within(accuracy_dict["dAy"], state.axeleration.y) and within(accuracy_dict["dAx"], state.axeleration.x):
+                    if within(accuracy_dict["dPhi"], state.orientation):
+                        if within(accuracy_dict["dW"], state.angularVelocity):
+                            if within(accuracy_dict["dE"], state.angularAxeleration):
                                 return True
         return False
 
     @classmethod
-    def landingScope(cls, step: int, close=True)->dict:
+    def landing_scope(cls, step: int, close=True)->dict:
         """
         Диапазоны параметров, в которые должно попасть изделие при штатной посадке
 
@@ -374,7 +369,7 @@ class Finish():
         :type close: bool
         :return:
         """
-        def soFar(x: int)->tuple:
+        def so_far(x: int)->tuple:
             """ Линейная функция падающая от (9: 100) до (0; 1)
 
             :return: min - (-1, +1)
@@ -383,7 +378,7 @@ class Finish():
             return -value, +value
 
 
-        def soClose(x: int)->tuple:
+        def so_close(x: int)->tuple:
             """ Линейная функция, падающая от (9; 1) до (0; 0.01)
 
              :return: min - (-0.01, +0.01)
@@ -391,17 +386,17 @@ class Finish():
             value = ((1 - 0.01) / 9) * x + 0.01
             return -value, +value
 
-        result = soClose(step) if close else soFar(step)
+        result = so_close(step) if close else so_far(step)
         # Точность по X в максимуме будет (-5, +5), в минимуме - (-50000. +50000)
-        resultX = (result[0] * 500, result[1] * 500)
+        result_x = (result[0] * 500, result[1] * 500)
         # Кооректировка к точности в максимуме будет +0,01, в минимуме +45000
-        resultY = result[1] if close else result[1] * 50 * step
+        result_y = result[1] if close else result[1] * 50 * step
 
         return {
                 # допустимый диапазон положения по оси Y
-                "dy": {"min": cls.__legRelativeY, "max": cls.__legRelativeY + resultY},
+                "dy": {"min": cls.__leg_relative_y, "max": cls.__leg_relative_y + result_y},
                 # допустимый диапазон положения по оси Х
-                "dx": {"min": resultX[0], "max": resultX[1]},
+                "dx": {"min": result_x[0], "max": result_x[1]},
                 # допустимый диапазон линейной скорости по оси Y
                 "dVy": {"min": result[0], "max": result[1]},
                 # допустимый диапазон линейной скорости по оси X
@@ -418,7 +413,7 @@ class Finish():
                 "dE": {"min": result[0], "max": result[1]}
                 }
 
-def mathInt(value: float)->int:
+def math_int(value: float)->int:
     """
     Округление до целого по правилу математики.
 
@@ -499,15 +494,15 @@ def mathInt(value: float)->int:
 #         oneTrip(start, stop, startStr, result)
 #     return result
 
-def onesAndZerosVariantsF(vectorLength: int, startPosition: int)->list:
+def ones_and_zeros_variants_f(vector_length: int, start_position: int)->list:
     """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] в векторе длиной *vectorLength*
 
 
-    Варианты расположения нулей и единиц в векторе начинаются с позиции *startPosition* включительно.
+    Варианты расположения нулей и единиц в векторе начинаются с позиции *start_position* включительно.
     До позиции *startPositon* в векторе находятся нули.
 
-    :param vectorLength: длинна списка, варианты расположения нулей и единиц в котором мы ищем
-    :param startPosition: позиция, до которой в векторе всегда находятся нули, с неё начинается присутствие нулей и ед.
+    :param vector_length: длинна списка, варианты расположения нулей и единиц в котором мы ищем
+    :param start_position: позиция, до которой в векторе всегда находятся нули, с неё начинается присутствие нулей и ед.
     :return: список вида [[0, 0, 0, 0], [0, 0, 1, 0], ..., [0, 1, 1, 1]]
     """
 
@@ -526,55 +521,55 @@ def onesAndZerosVariantsF(vectorLength: int, startPosition: int)->list:
     # ...
     # И, последний вариант - все единицы
 
-    def oneTrip(start: int, stop: int, startStr: list, startPoint: int, motherList: list):
+    def one_trip(start: int, stop: int, start_str: list, start_point: int, mother_list: list):
         """ Подпрограмма, выдающая ВСЕ варианты для конечного набора единиц, смещая их поочерёдно вправо
 
         :param start: позиция, в которой стоит единица, которую мы будем двигать вправо
         :param stop: позиция до которой мы будем двигать единицу (но не занимая эту позицию)
-        :param startStr: исходный список, в котором слева есть единицы, которые мы и должны поочерёдно сместить вправо
-        :param motherList: результирующий список, к которому мы последовательно добавляем получающиеся варианты
+        :param start_str: исходный список, в котором слева есть единицы, которые мы и должны поочерёдно сместить вправо
+        :param mother_list: результирующий список, к которому мы последовательно добавляем получающиеся варианты
         """
 
-        tempList = startStr.copy()
+        temp_list = start_str.copy()
         for i in range(start, stop):
-            tempList = tempList.copy()
+            temp_list = temp_list.copy()
             if i + 1 == stop:
                 # если единица достигла правого края
-                if start != startPoint:
+                if start != start_point:
                     # и если слева от той позиции откуда эта единица стартовала ещё есть позиции с единицами
                     # начинаем двигать её сестру, которая стояла слева от неё
-                    oneTrip(start - 1, stop - 1, tempList, startPoint, motherList)
+                    one_trip(start - 1, stop - 1, temp_list, start_point, mother_list)
                 return
             else:
                 # а если единица ещё не достигла правого свободного края
                 # присваиваем её позиции ноль
-                tempList[i] = 0.
+                temp_list[i] = 0.
                 # а следующей позиции справа единицу, как бы сдвигая эту самую единицу на одну позицию вправо
-                tempList[i + 1] = 1.
+                temp_list[i + 1] = 1.
                 # пристыковываем полученный набор к результирующему списку
-                motherList.append(tempList)
+                mother_list.append(temp_list)
 
     # список-заготовка из нулевых элементов
-    zeroList: list = [x * 0 for x in range(vectorLength)]
+    zero_list: list = [x * 0 for x in range(vector_length)]
 
     # результат, собственно
-    result = []
+    result: list = []
     # первый элемент результата - список из нулевых элементов
-    result.append(zeroList.copy())
+    result.append(zero_list.copy())
 
-    for j in range(startPosition, vectorLength):
-        startStr = zeroList.copy()
-        for m in range(startPosition, j + 1):
+    for j in range(start_position, vector_length):
+        start_str = zero_list.copy()
+        for m in range(start_position, j + 1):
             # заполняем ведущими единицами
-            startStr[m] = 1.
+            start_str[m] = 1.
 
         # ^^^^ цикл, выдающий последовательно списки вида [1., 0., ..., 0.], [1., 1., ..., 0.], ..., [1., 1., ..., 1.]
 
         start = j
-        stop = vectorLength
+        stop = vector_length
 
-        result.append(startStr)
-        oneTrip(start, stop, startStr, startPosition, result)
+        result.append(start_str)
+        one_trip(start, stop, start_str, start_position, result)
     return result
 
 # print(onesAndZerosVariantsF(5, 0))

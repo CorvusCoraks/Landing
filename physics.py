@@ -5,7 +5,7 @@ from point import VectorComplex
 import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
 from structures import StageControlCommands, RealWorldStageStatusN
-from tools import mathInt
+from tools import math_int
 # from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
@@ -144,7 +144,7 @@ class CheckPeriod:
     @classmethod
     def to_mSec(cls, value: int)->int:
         """ Преобразование значения интервала в миллисекунды """
-        return mathInt(CheckPeriod.to_Sec(value) * 1000)
+        return math_int(CheckPeriod.to_Sec(value) * 1000)
 
 
 class Action():
