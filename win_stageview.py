@@ -56,14 +56,14 @@ class StageViewWindow(WindowsMSInterface):
         # отметки привязанные к изображению ступени
         self.__stageLinkedMarks: List[AbstractOnCanvasMark] = []
         # Координаты точки предварительной сборки (левый верхний угол прямоугольника ступени) в СКК
-        assemblingPoint = VectorComplex.getInstance(0., 0.)
+        assemblingPoint = VectorComplex.get_instance(0., 0.)
         # Координаты центра масс в СКК
-        # massCenterInCanvas: VectorComplex = assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
+        # massCenterInCanvas: VectorComplex = assemblingPoint + VectorComplex.get_instance(Sizes.widthCenterBlock / 2 / self.__stageScale,
         #                                                Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
 
-        self.__mass_center_on_canvas: VectorComplex = assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__stageScale,
-                                                       Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
-        self.__orientation = VectorComplex.getInstance(0., -1.)
+        self.__mass_center_on_canvas: VectorComplex = assemblingPoint + VectorComplex.get_instance(Sizes.widthCenterBlock / 2 / self.__stageScale,
+                                                                                                   Sizes.heightCenterBlock * 2 / 3 / self.__stageScale)
+        self.__orientation = VectorComplex.get_instance(0., -1.)
 
         self._preparation_static_marks()
         self._preparation_movable_marks()
@@ -88,7 +88,7 @@ class StageViewWindow(WindowsMSInterface):
             previousStatusDuration = transform.time_stamp - self.__previousStatusTimeStamp
             self.__previousStatusTimeStamp = transform.time_stamp
 
-            # self.__to_info_queue.put(transform.lazyCopy)
+            # self.__to_info_queue.put(transform.lazy_copy)
 
         # отрисовка нового положения объектов на основании полученных данных из очереди
         if transform is not None:
@@ -104,16 +104,16 @@ class StageViewWindow(WindowsMSInterface):
         """ Обновление неподвижных отметок в соответствии с актуальной информацией """
         # переводим свободный вектор расстояния в СКК
         distanceVectorCCS = complexChangeSystemCoordinatesUniversal(transform.position,
-                                                                    VectorComplex.getInstance(0., 0.), 0., True)
+                                                                    VectorComplex.get_instance(0., 0.), 0., True)
         self.__canvasLinkedMarks["distance"].setInfo(abs(transform.position), distanceVectorCCS)
         # переводим свободный вектор скорости в СКК
         velocityVectorCCS = complexChangeSystemCoordinatesUniversal(transform.velocity,
-                                                                    VectorComplex.getInstance(0., 0.), 0., True)
+                                                                    VectorComplex.get_instance(0., 0.), 0., True)
         # self.__lineVelocityInfo.setInfo(abs(transform.velocity), velocityVectorCCS)
         self.__canvasLinkedMarks["line_velocity"].setInfo(abs(transform.velocity), velocityVectorCCS)
         # переводим свободный вектор ускорения в СКК
         axelerationVectorCCS = complexChangeSystemCoordinatesUniversal(transform.acceleration,
-                                                                       VectorComplex.getInstance(0., 0.), 0., True)
+                                                                       VectorComplex.get_instance(0., 0.), 0., True)
         # self.__lineAxelerationInfo.setInfo(abs(transform.acceleration), axelerationVectorCCS)
         self.__canvasLinkedMarks["line_accel"].setInfo(abs(transform.acceleration), axelerationVectorCCS)
 
@@ -132,7 +132,7 @@ class StageViewWindow(WindowsMSInterface):
         # Вектор ориентации это - свободный вектор. От нуля любой СК.
         stageViewOrientation, _ = pointsListToNewCoordinateSystem(
             [transform.orientation, transform.orientation],
-            VectorComplex.getInstance(0., 0.),
+            VectorComplex.get_instance(0., 0.),
             0., True
         )
 
@@ -152,11 +152,11 @@ class StageViewWindow(WindowsMSInterface):
     def _preparation_movable_marks(self):
         # стрелка ориентации, ставится в центре тяжести изображения ступени
         self.__arrow = Arrow(self.__canvas, self.__mass_center_on_canvas,
-                             VectorComplex.getInstance(self.__mass_center_on_canvas.x,
-                                                       self.__mass_center_on_canvas.y + self.__orientation.y * 60.),
+                             VectorComplex.get_instance(self.__mass_center_on_canvas.x,
+                                                        self.__mass_center_on_canvas.y + self.__orientation.y * 60.),
                              5, "blue", self.__mass_center_on_canvas)
         self.__stageLinkedMarks.append(self.__arrow)
-        # self.__testArrow = Arrow(self.__canvas, VectorComplex.getInstance(10, 10), VectorComplex.getInstance(10, 60), 5,
+        # self.__testArrow = Arrow(self.__canvas, VectorComplex.get_instance(10, 10), VectorComplex.get_instance(10, 60), 5,
         #                          "blue")
 
         # отметка центра масс
@@ -189,7 +189,7 @@ class StageViewWindow(WindowsMSInterface):
         for value in self.__canvasLinkedMarks.values():
             value.createOnCanvas()
 
-        self.__canvasLinkedMarks["line_velocity"].direction = VectorComplex.getInstance(1., 0.)
+        self.__canvasLinkedMarks["line_velocity"].direction = VectorComplex.get_instance(1., 0.)
 
 class InfoView():
     """ Блок информации о процессе. """
@@ -199,20 +199,20 @@ class InfoView():
     @classmethod
     def get_info_block(cls, canvas: Canvas) -> Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]:
         """ Получить блок информации о процессе """
-        arcAndTextTest = ArcArrowAndText(canvas, VectorComplex.getInstance(300, 300), "Header", 120.,
+        arcAndTextTest = ArcArrowAndText(canvas, VectorComplex.get_instance(300, 300), "Header", 120.,
                                                 "Legend", "green")
 
-        lineVelocityInfo = LineArrowAndText(canvas, VectorComplex.getInstance(450, 200), "Velocity", 120.,
+        lineVelocityInfo = LineArrowAndText(canvas, VectorComplex.get_instance(450, 200), "Velocity", 120.,
                                                    "{0:7.2f} m/s", "green")
-        lineAxelerationInfo = LineArrowAndText(canvas, VectorComplex.getInstance(550, 200), "Axeleration",
-                                                      120., "{0:7.2f} m/s^2", "green")
-        angleVelocity = ArcArrowAndText(canvas, VectorComplex.getInstance(450, 300), "Velocity", 120.,
+        lineAxelerationInfo = LineArrowAndText(canvas, VectorComplex.get_instance(550, 200), "Axeleration",
+                                               120., "{0:7.2f} m/s^2", "green")
+        angleVelocity = ArcArrowAndText(canvas, VectorComplex.get_instance(450, 300), "Velocity", 120.,
                                                "{0:7.2f} r/s", "green")
-        angleAxeleration = ArcArrowAndText(canvas, VectorComplex.getInstance(550, 300), "Axeleration",
-                                                  120., "00,00 r/s^2", "green")
-        stageDistance = LineArrowAndText(canvas, VectorComplex.getInstance(450, 350), "Distance", 120.,
+        angleAxeleration = ArcArrowAndText(canvas, VectorComplex.get_instance(550, 300), "Axeleration",
+                                           120., "00,00 r/s^2", "green")
+        stageDistance = LineArrowAndText(canvas, VectorComplex.get_instance(450, 350), "Distance", 120.,
                                                 "{0:7.2f} m", "green")
-        stageAltitude = LineArrowAndText(canvas, VectorComplex.getInstance(550, 350), "Altitude", 120.,
+        stageAltitude = LineArrowAndText(canvas, VectorComplex.get_instance(550, 350), "Altitude", 120.,
                                                 "0000,00 m", "green")
 
         return {"test": arcAndTextTest, "line_velocity": lineVelocityInfo, "line_accel": lineAxelerationInfo, "angle_velocity": angleVelocity,

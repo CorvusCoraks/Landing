@@ -112,13 +112,13 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
     # Блок имитационных данных для отображения
     # начальное состояние ступени в СКИП
     # previousStatusTest = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
-    #                                                orientation=VectorComplex.getInstance(0., 1.))
+    #                                                orientation=VectorComplex.get_instance(0., 1.))
 
     finishControl = Finish()
 
     initialStatus = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-                                          orientation=VectorComplex.getInstance(0., 1.),
-                                          velocity=VectorComplex.getInstance(0., -5.), angular_velocity=-cmath.pi / 36)
+                                          orientation=VectorComplex.get_instance(0., 1.),
+                                          velocity=VectorComplex.get_instance(0., -5.), angular_velocity=-cmath.pi / 36)
     initialStatus.time_stamp = 0
     # initialStatus.duration = physics.CheckPeriod.setDuration(initialStatus.position)
 
@@ -126,7 +126,7 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
     # physics.previousStageStatus.time_stamp = 0.
 
     # physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
-    #                                                    orientation=VectorComplex.getInstance(0., 1.))
+    #                                                    orientation=VectorComplex.get_instance(0., 1.))
 
     # -cmath.pi / 36
 
@@ -176,18 +176,18 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
         # Т. е. Объект в очереди теперь не подвержен случайному изменению из вне очереди.
         # Иными словами, если захочется изменить объект в очереди, теперь придётся сначала извлечь его из очереди,
         # для того, чтобы получить к нему доступ.
-        # queue.put(Transform(newStatus.position.lazyCopy(),
-        #                     newStatus.orientation.lazyCopy(),
+        # queue.put(Transform(newStatus.position.lazy_copy(),
+        #                     newStatus.orientation.lazy_copy(),
         #                     "Команда №{}".format(i)))
         # todo Возможно, в дальнейшем нужно отказаться от класса Transform в пользу RealWorldStageStatus
-        # queue.put(Transform(newStageStatus.position.lazyCopy(),
-        #                     newStageStatus.orientation.lazyCopy(),
-        #                     newStageStatus.velocity.lazyCopy(),
+        # queue.put(Transform(newStageStatus.position.lazy_copy(),
+        #                     newStageStatus.orientation.lazy_copy(),
+        #                     newStageStatus.velocity.lazy_copy(),
         #                     "Команда №{}".format(i),
-        #                     newStageStatus.lazyCopy()))
-        # queues.get_queue("area").put(newStageStatus.lazyCopy())
-        # queues.get_queue("stage").put(newStageStatus.lazyCopy())
-        # queues.get_queue("info").put(newStageStatus.lazyCopy())
+        #                     newStageStatus.lazy_copy()))
+        # queues.get_queue("area").put(newStageStatus.lazy_copy())
+        # queues.get_queue("stage").put(newStageStatus.lazy_copy())
+        # queues.get_queue("info").put(newStageStatus.lazy_copy())
         queues.put(newStageStatus)
 
         # print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
@@ -208,7 +208,7 @@ def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
             kill.reality = True
         i += 1
 
-        # toNeuroNetQueue.put(newStageStatus.lazyCopy())
+        # toNeuroNetQueue.put(newStageStatus.lazy_copy())
         while not kill.reality:
             # ждём команду из нейросети на отправленное состояние
             if not queues.empty("command"):

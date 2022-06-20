@@ -107,7 +107,7 @@ class PoligonWindow(WindowsMSInterface):
             )
 
             # прозрачно ретранслируем блок данных в следующее окно
-            # self.__subQueue.put(transform.lazyCopy())
+            # self.__subQueue.put(transform.lazy_copy())
 
         # отрисовка нового положения объектов на основании полученных данных из self.__anyQueue
         if transform is not None:

@@ -45,14 +45,14 @@ class FirstStage2():
         #
         # центр масс (центр вращения) в системе координат канвы
         # self.__massCenter \
-        #     = VectorComplex.getInstance(Sizes.widthCenterBlock / 2 / self.__scale, Sizes.heightCenterBlock * 2/3 / self.__scale)
-        self.__massCenter = massCenterInCanvas.lazyCopy()
+        #     = VectorComplex.get_instance(Sizes.widthCenterBlock / 2 / self.__scale, Sizes.heightCenterBlock * 2/3 / self.__scale)
+        self.__massCenter = massCenterInCanvas.lazy_copy()
         #
         # Так как при создании ступень стоит вертикально, данный вектор (вектор продольной оси) направлен по оси Y
         # в системе отсчёта канвы
         # self.__directionVector = Point(0., 1.)
         # todo возможно (0, -1)?
-        self.__directionVector = VectorComplex.getInstance(0., -1.)
+        self.__directionVector = VectorComplex.get_instance(0., -1.)
 
         # Все примитивы изначально рисуются в привязке к началу координат канвы, с целью упрощения задания координат
         # ключевых точек.
@@ -62,8 +62,8 @@ class FirstStage2():
         self.__allPrimitives = []
 
         # # отметка центра масс
-        # self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.getInstance(self.__massCenter.x - 2, self.__massCenter.y - 2),
-        #                                                   VectorComplex.getInstance(self.__massCenter.x + 2, self.__massCenter.y + 2),
+        # self.__massCenterMark = CenterMassMark(self.__canvas, VectorComplex.get_instance(self.__massCenter.x - 2, self.__massCenter.y - 2),
+        #                                                   VectorComplex.get_instance(self.__massCenter.x + 2, self.__massCenter.y + 2),
         #                                        self.__massCenter,
         #                                                   fill="green")
         # self.__allPrimitives.append(self.__massCenterMark)
@@ -72,65 +72,65 @@ class FirstStage2():
         # Верхний левый угол ступени находится в начале координат канвы. В этом положении ступень находится до конца
         # сборки всех примитивов
         self.__tank = PoligonRectangleA(self.__canvas).\
-            create2points(assemblingPoint + VectorComplex.getInstance(0., 0.),
-                          assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, Sizes.heightCenterBlock / self.__scale),
+            create2points(assemblingPoint + VectorComplex.get_instance(0., 0.),
+                          assemblingPoint + VectorComplex.get_instance(Sizes.widthCenterBlock / self.__scale, Sizes.heightCenterBlock / self.__scale),
                           self.__massCenter)
         self.__allPrimitives.append(self.__tank)
 
         # верхний левый маневровый двигатель
         # создание в нулевой позиции
         self.__topLeftJet = PoligonRectangleA(self.__canvas).\
-            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
-                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.get_instance(0, 0),
+                          assemblingPoint + VectorComplex.get_instance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__topLeftJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(- Sizes.widthJet / self.__scale, 0))
+        self.__topLeftJet.preliminaryMove(assemblingPoint + VectorComplex.get_instance(- Sizes.widthJet / self.__scale, 0))
         self.__allPrimitives.append(self.__topLeftJet)
 
         # верхний правый маневровый двигатель
         # создание в нулевой позиции
         self.__topRightJet = PoligonRectangleA(self.__canvas).\
-            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
-                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.get_instance(0, 0),
+                          assemblingPoint + VectorComplex.get_instance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__topRightJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, 0))
+        self.__topRightJet.preliminaryMove(assemblingPoint + VectorComplex.get_instance(Sizes.widthCenterBlock / self.__scale, 0))
         self.__allPrimitives.append(self.__topRightJet)
 
         # нижний левый маневровый двигатель
         # создание в нулевой позиции
         self.__downLeftJet = PoligonRectangleA(self.__canvas).\
-            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
-                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.get_instance(0, 0),
+                          assemblingPoint + VectorComplex.get_instance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__downLeftJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(- Sizes.widthJet / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
+        self.__downLeftJet.preliminaryMove(assemblingPoint + VectorComplex.get_instance(- Sizes.widthJet / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
         self.__allPrimitives.append(self.__downLeftJet)
 
         # нижний правый маневровый двигатель
         # создание в нулевой позиции
         self.__downRightJet = PoligonRectangleA(self.__canvas).\
-            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
-                          assemblingPoint + VectorComplex.getInstance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.get_instance(0, 0),
+                          assemblingPoint + VectorComplex.get_instance(Sizes.widthJet / self.__scale, Sizes.heightJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__downRightJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance(Sizes.widthCenterBlock / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
+        self.__downRightJet.preliminaryMove(assemblingPoint + VectorComplex.get_instance(Sizes.widthCenterBlock / self.__scale, (Sizes.heightCenterBlock - Sizes.heightJet) / self.__scale))
         self.__allPrimitives.append(self.__downRightJet)
 
         # маршевый двигатель
         # создание в нулевой позиции
         self.__mainJet = PoligonRectangleA(self.__canvas).\
-            create2points(assemblingPoint + VectorComplex.getInstance(0, 0),
-                          assemblingPoint + VectorComplex.getInstance(Sizes.widthMainJet / self.__scale, Sizes.heightMainJet / self.__scale),
+            create2points(assemblingPoint + VectorComplex.get_instance(0, 0),
+                          assemblingPoint + VectorComplex.get_instance(Sizes.widthMainJet / self.__scale, Sizes.heightMainJet / self.__scale),
                           self.__massCenter)
         # смещение примитива в монтажную позицию
-        self.__mainJet.preliminaryMove(assemblingPoint + VectorComplex.getInstance((Sizes.widthCenterBlock-Sizes.widthMainJet)/2 / self.__scale, Sizes.heightCenterBlock / self.__scale))
+        self.__mainJet.preliminaryMove(assemblingPoint + VectorComplex.get_instance((Sizes.widthCenterBlock - Sizes.widthMainJet) / 2 / self.__scale, Sizes.heightCenterBlock / self.__scale))
         self.__allPrimitives.append(self.__mainJet)
 
         # смещение собранного изображения ступени в нужную позицию на канве
-        prelimenaryMoveVector = VectorComplex.getInstance(50., 50.)
+        prelimenaryMoveVector = VectorComplex.get_instance(50., 50.)
         # создаём копию объекта "координаты центра масс"
-        massCenter = massCenterInCanvas.lazyCopy()
+        massCenter = massCenterInCanvas.lazy_copy()
         # смещаем центр масс
         massCenter += prelimenaryMoveVector
         for primitive in self.__allPrimitives:

@@ -46,7 +46,7 @@ from tools import math_int
 previousStageStatus = RealWorldStageStatusN()
 
 # Ускорение свободного падения в СКИП и СКЦМ
-GravitationalAcceleration = VectorComplex.getInstance(0., -9.8067)
+GravitationalAcceleration = VectorComplex.get_instance(0., -9.8067)
 
 class CheckPeriod:
     """
@@ -195,29 +195,29 @@ class Action():
         # Силы действия двигателей указываются в СКС.
         # Сила левого нижнего рулевого РД
         # self.FdownLeft: VectorComplex = fdownleft
-        self.FdownLeft = VectorComplex.getInstance() if fdownleft is None else fdownleft
+        self.FdownLeft = VectorComplex.get_instance() if fdownleft is None else fdownleft
         # Сила правого нижнего рулевого РД
         # self.FdownRight: VectorComplex = fdownright
-        self.FdownRight = VectorComplex.getInstance() if fdownright is None else fdownright
+        self.FdownRight = VectorComplex.get_instance() if fdownright is None else fdownright
         # Сила маршевого РД
         # self.FdownUp: VectorComplex = fdownup
-        self.FdownUp = VectorComplex.getInstance() if fdownup is None else fdownup
+        self.FdownUp = VectorComplex.get_instance() if fdownup is None else fdownup
         # Сила левого верхнего РД
         # self.FtopLeft: VectorComplex = ftopleft
-        self.FtopLeft = VectorComplex.getInstance() if ftopleft is None else ftopleft
+        self.FtopLeft = VectorComplex.get_instance() if ftopleft is None else ftopleft
         # Сила правого верхнего РД
         # self.FtopRight: VectorComplex = ftopright
-        self.FtopRight = VectorComplex.getInstance() if ftopright is None else ftopright
+        self.FtopRight = VectorComplex.get_instance() if ftopright is None else ftopright
         # Силы тяжести указываются в СКЦМ
         # Силя тяжести нижней массы
         # self.Gdown: VectorComplex = gdown
-        self.Gdown = VectorComplex.getInstance() if gdown is None else gdown
+        self.Gdown = VectorComplex.get_instance() if gdown is None else gdown
         # Сила тяжести центральной массы
         # self.Gcenter: VectorComplex = gcenter
-        self.Gcenter = VectorComplex.getInstance() if gcenter is None else gcenter
+        self.Gcenter = VectorComplex.get_instance() if gcenter is None else gcenter
         # Силя тяжести верхней массы
         # self.Gtop: VectorComplex = gtop
-        self.Gtop = VectorComplex.getInstance() if gtop is None else gtop
+        self.Gtop = VectorComplex.get_instance() if gtop is None else gtop
         # Угол отклонения от вертикали. Фактически, это - угол, на который надо повернуть ось абцисс СКЦМ,
         # чтобы получить ось абцисс СКС
         # todo вынести отсюда, так как не относится к силам
@@ -257,7 +257,7 @@ class Moving():
         # Складываем силы двигателей, получая суперпозицию в СКС
         f = forces.FdownLeft + forces.FdownRight + forces.FdownUp + forces.FtopLeft + forces.FtopRight
         # Переводим суперпозицию сил двигателей в СКЦМ
-        f = complexChangeSystemCoordinatesUniversal(f, VectorComplex.getInstance(0., 0.), -forces.psi)
+        f = complexChangeSystemCoordinatesUniversal(f, VectorComplex.get_instance(0., 0.), -forces.psi)
         # Складываем силы тяжести в их суперпозицию в СКЦМ
         # g = forces.Gdown + forces.Gcenter + forces.Gtop
         g = (stage.Stage.topMass + stage.Stage.centerMass + stage.Stage.downMass) * GravitationalAcceleration
@@ -298,7 +298,7 @@ class Moving():
         :rtype: VectorComplex
         """
         # todo сделать private или вообще убрать?
-        # result = VectorComplex.getInstanceC(S0.cardanus + V0.cardanus*t + Axeleration.getA().cardanus*t**2)
+        # result = VectorComplex.get_instance_c(S0.cardanus + V0.cardanus*t + Axeleration.getA().cardanus*t**2)
         result = V0 * t + Moving.getA(forces) * t ** 2
         return result
 
@@ -316,16 +316,16 @@ class Moving():
     @classmethod
     def getNewStatus(cls, controlCommands: StageControlCommands):
         """ Возвращает новое состояние ступени """
-        if controlCommands.allOff():
+        if controlCommands.all_off():
             # Если все двигатели выключены, все силы от двигателей сделать нулевыми
             pass
 
         duration = CheckPeriod.setDuration(previousStageStatus.position)
         secDuration = CheckPeriod.to_Sec(duration)
 
-        lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.getInstance(0.,stage.Engine.mainEngineForce)))
+        lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.get_instance(0., stage.Engine.mainEngineForce)))
         # lineAxeleration = Moving.getA(Action())
-        # lineAxeleration = VectorComplex.getInstance(-3., 0.)
+        # lineAxeleration = VectorComplex.get_instance(-3., 0.)
         lineVelocity = previousStageStatus.velocity + lineAxeleration * secDuration
         linePosition = previousStageStatus.position + lineVelocity * secDuration
 
@@ -345,7 +345,7 @@ class Moving():
         # приводим к единичному вектору
         cardanus = cardanus / abs(cardanus)
         # новая ориентация
-        orientation = VectorComplex.getInstanceC(cardanus)
+        orientation = VectorComplex.get_instance_c(cardanus)
 
         # # новая ориентация
         # # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
@@ -353,7 +353,7 @@ class Moving():
         # # приводим к единичному вектору
         # cardanus = cardanus / abs(cardanus)
         # # новая ориентация
-        # orientation = VectorComplex.getInstanceC(cardanus)
+        # orientation = VectorComplex.get_instance_c(cardanus)
 
         newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, acceleration=lineAxeleration,
                                             angular_velocity=angularVelocity, angular_acceleration=angularAxeleration,

@@ -151,77 +151,6 @@ class MetaQueue:
         raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
 
 
-# class MetaQueue:
-#     """ Класс содержащий в себе очереди передачи данных. Синглтон. """
-#     # Синглтон-объект
-#     __this_object: 'MetaQueue' = None
-#     # Ключ для реализации создания объекта исключительно через специальный метод класса
-#     __create_key = object()
-#
-#     def __init__(self, create_key: object):
-#         assert (create_key == MetaQueue.__create_key), \
-#             "MetaQueue object must be created using getInstanse method."
-#         # Словарь с очередями
-#         self.__queues_dict: dict = {
-#             "area": Queue(), # очередь сообщений с состоянием изделия для испытательного полигона
-#             "stage": Queue(), # очередь сообщений с состоянием изделия для вида изделия
-#             "info": Queue(), # очередь сообщений с состоянием изделия для информационного блока
-#             "neuro": Queue(), # очередь сообщений с состоянием изделия для нейросети
-#             "reinf": Queue(), # очередь сообщений с подкреплениями для нейросети
-#             "command": Queue() # очередь сообщений с управляющими воздействиями для нити реальности
-#         }
-#
-#     @classmethod
-#     def getInstance(cls) -> 'MetaQueue':
-#         """ Метод возвращает объект данного типа. Если объект не существует, то создаёт его перед этим. """
-#         if MetaQueue.__this_object is None:
-#             MetaQueue.__this_object = MetaQueue(MetaQueue.__create_key)
-#
-#         return MetaQueue.__this_object
-#
-#     def put(self, value: QueueMembers):
-#         """ Метод добавки блока данных в соответствующие очереди """
-#         # в какую очередь добавлять, определяется по типу добавляемых данных
-#         if isinstance(value, RealWorldStageStatusN):
-#             self.__queues_dict["area"].put(deepcopy(value))
-#             self.__queues_dict["stage"].put(deepcopy(value))
-#             self.__queues_dict["info"].put(deepcopy(value))
-#             self.__queues_dict["neuro"].put(deepcopy(value))
-#         elif isinstance(value, StageControlCommands):
-#             self.__queues_dict["command"].put(deepcopy(value))
-#         else:
-#             self.__queues_dict["reinf"].put(deepcopy(value))
-#
-#     def get_queue(self, name: str) -> QueueMembers:
-#         """ Получить очередь по её имени. """
-#         # Проверка на существование такого ключа, такой очереди в словаре очередей
-#         if name in self.__queues_dict.keys():
-#             return self.__queues_dict[name]
-#         else:
-#             raise ValueError('MetaQueue Object: name="{0}" argument is not valid key of queues dict'.format(name))
-
-
-
-
-
-
-# class SectorBorders:
-#     @classmethod
-#     def getCircleBorders(cls):
-#         return (1, 10, 100, 10000, 100000)
-#
-#     @classmethod
-#     def getAltitudeBorders(cls):
-#         return (1, 5, 50, 5000, 50000)
-#
-#     @classmethod
-#     def getPeriodBorders(cls):
-#         return (1, 10, 100, 1000, 10000, 60000)
-#
-#     @classmethod
-#     def getReinforcementBorders(cls):
-#         return ()
-
 class Reinforcement:
     """
     Класс подкрепления.
@@ -265,7 +194,7 @@ class Reinforcement:
     # successLandingBase = 0.3
     # processBase = 1 - successLandingBase
     # минимальный вектор положения центра масс изделия, достигнутый в одном испытании
-    min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
+    min_vector = VectorComplex.get_instance(float("inf"), float("inf"))
 
     accuracy = 0
 
@@ -284,12 +213,11 @@ class Reinforcement:
         success_reinforcement = 0.
         landing_reinforcement = 0.
         if Finish.is_one_test_failed(stage_status.position):
-            cls.min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
+            cls.min_vector = VectorComplex.get_instance(float("inf"), float("inf"))
             return 0
 
         # подкрепление за удачную посадку
         if Finish.is_one_test_success(stage_status, cls.accuracy):
-            # cls.min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
             success_reinforcement = 100
 
         # подкрепление в процесс посадки
@@ -309,7 +237,7 @@ class Reinforcement:
             landing_reinforcement = 1 if mult == 0 else 10 / mult
 
             if Finish.is_one_test_success(stage_status, cls.accuracy):
-                cls.min_vector = VectorComplex.getInstance(float("inf"), float("inf"))
+                cls.min_vector = VectorComplex.get_instance(float("inf"), float("inf"))
 
         return success_reinforcement + landing_reinforcement
 
@@ -444,77 +372,6 @@ def math_int(value: float)->int:
     """
     return int(value + (0.5 if value > 0 else -0.5))
 
-# def onesAndZerosVariants(length:int)->list:
-#     """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] по length штук
-#
-#     :param length: длинна списка, варианты расположения нулей и единиц в котором мы ищем
-#     :return: список вида [[0, 0, 0], [0, 1, 0], ..., [1, 1, 1]]
-#     """
-#
-#     # Суть работы функции.
-#     # Везде нули - один вариант
-#     # Единица ставится на первую позицию - второй вариант
-#     # Единица смещается на вторую позицию - третий вариант.
-#     # ...
-#     # После прохода единицы до конца.
-#     # Единица ставится на первую и вторую позиции - ещё вариант
-#     # Вторая единица смещается на одну позицию вправо - ещё вариант
-#     # ... и т. д. до упора вправо.
-#     # Первая единица смещается вправо на одну позицию - ещё вариант
-#     # ... и т. д. пока она не упрётся в единицу, достигшую правого края.
-#     # Далее, слева ставятся три единицы и так же поочерёдно сдвигаются вправо, образуя новые варианты.
-#     # ...
-#     # И, последний вариант - все единицы
-#
-#     def oneTrip(start: int, stop: int, startStr: list, motherList: list):
-#         """ Подпрограмма, выдающая ВСЕ варианты для конечного набора единиц, смещая их поочерёдно вправо
-#
-#         :param start: позиция, в которой стоит единица, которую мы будем двигать вправо
-#         :param stop: позиция до которой мы будем двигать единицу (но не занимая эту позицию)
-#         :param startStr: исходный список, в котором слева есть единицы, которые мы и должны поочерёдно сместить вправо
-#         :param motherList: результирующий список, к которому мы последовательно добавляем получающиеся варианты
-#         """
-#
-#         tempList = startStr.copy()
-#         for i in range(start, stop):
-#             tempList = tempList.copy()
-#             if i+1 == stop:
-#                 # если единица достигла правого края
-#                 if start != 0:
-#                     # и если слева от той позиции откуда эта единица стартовала ещё есть позиции с единицами
-#                     # начинаем двигать её сестру, которая стояла слева от неё
-#                     oneTrip(start-1, stop-1, tempList, motherList)
-#                 return
-#             else:
-#                 # а если единица ещё не достигла правого свободного края
-#                 # присваиваем её позиции ноль
-#                 tempList[i] = 0.
-#                 # а следующей позиции справа единицу, как бы сдвигая эту самую единицу на одну позицию вправо
-#                 tempList[i+1] = 1.
-#                 # пристыковываем полученный набор к результирующему списку
-#                 motherList.append(tempList)
-#
-#     # список заготовка из нулевых элементов
-#     zeroList: list = [x * 0 for x in range(length)]
-#
-#     # результат, собственно
-#     result = []
-#     # первый элемент результата - список из нулевых элементов
-#     result.append(zeroList.copy())
-#
-#     for j in range(length):
-#         startStr = zeroList.copy()
-#         for m in range(j+1):
-#             startStr[m] = 1.
-#
-#         # ^^^^ цикл, выдающий последовательно списки вида [1., 0., ..., 0.], [1., 1., ..., 0.], ..., [1., 1., ..., 1.]
-#
-#         start = j
-#         stop = length
-#
-#         result.append(startStr)
-#         oneTrip(start, stop, startStr, result)
-#     return result
 
 def ones_and_zeros_variants_f(vector_length: int, start_position: int)->list:
     """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] в векторе длиной *vectorLength*

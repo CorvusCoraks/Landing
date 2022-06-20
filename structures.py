@@ -11,11 +11,13 @@ class CloneInterface(ABC):
 
 
 class CloneFactory:
-    """ Фабрика клонирования объектов блоков данных для очередей. """
+    """ Фабрика клонирования объектов блоков данных для очередей (реализация паттерна Прототип). """
     def __init__(self, prototype: CloneInterface):
+        # Инициация фабрики прототипом.
         self.__prototype: CloneInterface = prototype
 
     def clone(self):
+        """ Клонировать блок данных. """
         return self.__prototype.clone()
 
 
@@ -47,7 +49,7 @@ class StageControlCommands(CloneInterface):
         self.down_right = down_right
         self.main = main
 
-    def allOff(self)->bool:
+    def all_off(self)->bool:
         """
         Все двигатели выключены?
 
@@ -91,20 +93,20 @@ class RealWorldStageStatusN(CloneInterface):
         :type duration: int
         """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-        # self.position = position if position is not None else VectorComplex.getInstance()
-        self.position = position or VectorComplex.getInstance()
-        # self.velocity = velocity if velocity is not None else VectorComplex.getInstance()
-        self.velocity = velocity or VectorComplex.getInstance()
+        # self.position = position if position is not None else VectorComplex.get_instance()
+        self.position = position or VectorComplex.get_instance()
+        # self.velocity = velocity if velocity is not None else VectorComplex.get_instance()
+        self.velocity = velocity or VectorComplex.get_instance()
         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-        # self.acceleration = acceleration if acceleration is not None else VectorComplex.getInstance()
-        self.acceleration = acceleration or VectorComplex.getInstance()
+        # self.acceleration = acceleration if acceleration is not None else VectorComplex.get_instance()
+        self.acceleration = acceleration or VectorComplex.get_instance()
         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
         # if orientation is None:
-        #     self.orientation = VectorComplex.getInstance(0., 0.)
+        #     self.orientation = VectorComplex.get_instance(0., 0.)
         # else:
         #     self.orientation = orientation
-        # self.orientation = orientation if orientation is not None else VectorComplex.getInstance()
-        self.orientation = orientation or VectorComplex.getInstance()
+        # self.orientation = orientation if orientation is not None else VectorComplex.get_instance()
+        self.orientation = orientation or VectorComplex.get_instance()
         self.angular_velocity = angular_velocity
         # Аналогично, зачем мне предыдущее угловое ускорение?
         self.angular_acceleration = angular_acceleration
@@ -114,13 +116,13 @@ class RealWorldStageStatusN(CloneInterface):
         # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
         # self.duration = duration
 
-    # def lazyCopy(self) -> 'RealWorldStageStatusN':
+    # def lazy_copy(self) -> 'RealWorldStageStatusN':
     #     # todo метод ликвидировать. везде перевести на deepcopy()
     #     newObject = RealWorldStageStatusN()
-    #     newObject.position = self.position.lazyCopy()
-    #     newObject.velocity = self.velocity.lazyCopy()
-    #     newObject.acceleration = self.acceleration.lazyCopy()
-    #     newObject.orientation = self.orientation.lazyCopy()
+    #     newObject.position = self.position.lazy_copy()
+    #     newObject.velocity = self.velocity.lazy_copy()
+    #     newObject.acceleration = self.acceleration.lazy_copy()
+    #     newObject.orientation = self.orientation.lazy_copy()
     #     newObject.angular_velocity = self.angular_velocity
     #     newObject.angular_acceleration = self.angular_acceleration
     #     newObject.time_stamp = self.time_stamp

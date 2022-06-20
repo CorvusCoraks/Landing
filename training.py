@@ -104,7 +104,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
 
         # фиктивное значение начального состояния изделия, необходимое только для того,
         # чтобы запустился цикл прохода по процессу одной посадки
-        environmentStatus = RealWorldStageStatusN(position=VectorComplex.getInstance(0, 450))
+        environmentStatus = RealWorldStageStatusN(position=VectorComplex.get_instance(0, 450))
 
         # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход
@@ -211,7 +211,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, savePath='.\\', act
 #     :rtype RealWorldStageStatus:
 #     """
 #     startState = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-#                                   orientation=VectorComplex.getInstance(0., 1.))
+#                                   orientation=VectorComplex.get_instance(0., 1.))
 #     startState.time_stamp = 0
 #
 #     return startState

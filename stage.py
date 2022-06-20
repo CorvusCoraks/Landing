@@ -55,15 +55,15 @@ class Stage():
 
     # Координаты точек с массой относительно центра масс
     # centerMassVector = VectorComplex(tensor([0, 0]))
-    centerMassVector = VectorComplex.getInstance(0, 0)
+    centerMassVector = VectorComplex.get_instance(0, 0)
     # topMassVector = VectorComplex(tensor([0., Sizes.topMassDistance]))
-    topMassVector = VectorComplex.getInstance(0., Sizes.topMassDistance)
+    topMassVector = VectorComplex.get_instance(0., Sizes.topMassDistance)
     # downMassVector = VectorComplex(tensor([0., - Sizes.downMassDistance]))
-    downMassVector = VectorComplex.getInstance(0., - Sizes.downMassDistance)
+    downMassVector = VectorComplex.get_instance(0., - Sizes.downMassDistance)
 
     # плоскость посадочной опоры. Этой плоскостью ступень касается Земли.
     # footVector = VectorComplex(0., -Sizes.massCenterFromLandingPlaneDistance)
-    footVector = VectorComplex.getInstance(0., -Sizes.massCenterFromLandingPlaneDistance)
+    footVector = VectorComplex.get_instance(0., -Sizes.massCenterFromLandingPlaneDistance)
 
     # Момент инерции ступени
     InertionMoment = downMass * Sizes.downMassDistance ** 2 + topMass * Sizes.topMassDistance ** 2
@@ -101,15 +101,15 @@ class BigMap:
     height = 500
     # Координаты начала координат СКИП в системе координат канвы (СКК) в масштабе 1:1
     # todo логически не верно, это же карта полигона. Убрать.
-    testPoligonOriginInCCS = VectorComplex.getInstance(width / 2, height * 0.95)
+    testPoligonOriginInCCS = VectorComplex.get_instance(width / 2, height * 0.95)
     # Координаты начала координат СКК в СКИП в масштабе 1:1
-    canvasOriginInPoligonCoordinates = VectorComplex.getInstance(- width / 2, height * 0.95)
+    canvasOriginInPoligonCoordinates = VectorComplex.get_instance(- width / 2, height * 0.95)
     # Координаты точки приземления в СКИП
-    landingPointInPoligonCoordinates = VectorComplex.getInstance()
+    landingPointInPoligonCoordinates = VectorComplex.get_instance()
     # Координаты стартовой точки в СКИП
-    startPointInPoligonCoordinates = VectorComplex.getInstance(0., height * 0.9)
+    startPointInPoligonCoordinates = VectorComplex.get_instance(0., height * 0.9)
     # Координаты центра тяжести ступени (координаты начала координат СКС в СКИП в масштабе 1:1)
     # Движущаяся система координат.
-    stageViewOriginInPoligonCoordinates = VectorComplex.getInstance()
+    stageViewOriginInPoligonCoordinates = VectorComplex.get_instance()
 
 

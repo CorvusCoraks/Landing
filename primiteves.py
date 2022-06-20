@@ -96,21 +96,21 @@ class AbstractPrimitive(ABC):
         points = []
         # Преобразовать координаты точек в объекты типа VectorComplex в СК канвы
         for i in range(len(self._points)):
-            points.append(VectorComplex.getInstance(current[i * 2], current[i * 2 + 1]))
+            points.append(VectorComplex.get_instance(current[i * 2], current[i * 2 + 1]))
         # Пересчитать координаты точек объектов из системы канвы в систему центра тяжести
         # (координатные оси сонаправлены)
         points = pointsListToNewCoordinateSystem(points, self._center)
         # Расчитать новые точки через поворот вокруг центра тяжести
         # Угол поворота из старого положения
-        alpha_complex = VectorComplex.getInstanceC(newAxisVector.cardanus / oldAxisVector.cardanus)
+        alpha_complex = VectorComplex.get_instance_c(newAxisVector.cardanus / oldAxisVector.cardanus)
         # print("Угол поворота: {}, {}".format(phi, alpha_complex.cardanus))
         # новые координаты точек объекта в системе координат относительно точки поворота
         new_points = []
         for value in points:
-            newPoint = VectorComplex.getInstanceC(value.cardanus * alpha_complex.cardanus)
+            newPoint = VectorComplex.get_instance_c(value.cardanus * alpha_complex.cardanus)
             new_points.append(newPoint)
         # Новые точки пересчитать обратно в систему координат канвы
-        new_points = pointsListToNewCoordinateSystem(new_points, VectorComplex.getInstance(- self._center.x, - self._center.y))
+        new_points = pointsListToNewCoordinateSystem(new_points, VectorComplex.get_instance(- self._center.x, - self._center.y))
         # Обновить координаты точек в объекте (будет произведена автоматическое визуальное изменение)
         canvas_points = []
         for value in new_points:
@@ -131,7 +131,7 @@ class PoligonRectangleA(AbstractPrimitive):
         """
         Создание объекта вызовом конструктора НЕ ПРОИЗВОДИТЬ!
         """
-        centerPoint = VectorComplex.getInstance()
+        centerPoint = VectorComplex.get_instance()
         super().__init__(canvas, tuple(), centerPoint)
         pass
 
@@ -144,8 +144,8 @@ class PoligonRectangleA(AbstractPrimitive):
         :param center: центр вращения примитива
         :return:
         """
-        self._points = [topleft, VectorComplex.getInstance(downright.x, topleft.y),
-                         downright, VectorComplex.getInstance(topleft.x, downright.y)]
+        self._points = [topleft, VectorComplex.get_instance(downright.x, topleft.y),
+                        downright, VectorComplex.get_instance(topleft.x, downright.y)]
         self._center = center
         return self
 
@@ -160,7 +160,7 @@ class PoligonRectangleA(AbstractPrimitive):
             # delta = vector2d
             self._canvas.move(self._objOnCanvasId, vector2d.x, vector2d.y)
             # пересчитываем положение центра вращения через смещение
-            # self.__center = VectorComplex.getInstanceC(self.__center.cardanus + vector2d.cardanus)
+            # self.__center = VectorComplex.get_instance_c(self.__center.cardanus + vector2d.cardanus)
             self._center = self._center + vector2d
 
     # def preliminaryMove(self, vector2d: VectorComplex, isCenterMassMove=False):
@@ -245,8 +245,8 @@ class CenterMassMark(AbstractOnCanvasMark):
         :param fill: цвет заливки отметки
         """
         super().__init__(canvas,
-                         (massCenter + VectorComplex.getInstance(-5, -5),
-                          massCenter + VectorComplex.getInstance(5, 5)),
+                         (massCenter + VectorComplex.get_instance(-5, -5),
+                          massCenter + VectorComplex.get_instance(5, 5)),
                          massCenter)
         self.__fill = fill
 
@@ -289,7 +289,7 @@ class Arrow(AbstractOnCanvasMark):
         :param pinPoint: ось вращения
         :type pinPoint: VectorComplex
         """
-        self.__pinPoint = pinPoint if pinPoint is not None else VectorComplex.getInstance()
+        self.__pinPoint = pinPoint if pinPoint is not None else VectorComplex.get_instance()
         super().__init__(canvas, (start, finish), self.__pinPoint)
 
         self.__width = width
@@ -314,8 +314,8 @@ class Arrow(AbstractOnCanvasMark):
         :return: начальная и конечная точка
         """
         arrowPoints = self._canvas.coords([self._objOnCanvasId])
-        return (VectorComplex.getInstance(arrowPoints[0], arrowPoints[1]),
-                VectorComplex.getInstance(arrowPoints[2], arrowPoints[3]))
+        return (VectorComplex.get_instance(arrowPoints[0], arrowPoints[1]),
+                VectorComplex.get_instance(arrowPoints[2], arrowPoints[3]))
 
     @arrow.setter
     def arrow(self, *args: VectorComplex):
@@ -435,10 +435,10 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
         # - сместить полученный вектор, вдоль вектора из п. 1 к его концу
         # 3. Минимизировать длину вектора из п. 2.
         # 4. Готово.
-        vector = VectorComplex.getInstance(self.__circleRadius, 0.)
+        vector = VectorComplex.get_instance(self.__circleRadius, 0.)
         # Так как система координат канвы - левая, то поворот по против часовой стрелки является отрицательным
-        finishVector = VectorComplex.getInstanceC(vector.cardanus * rect(1., radians(- self.__startAngle - self.__finishAngle)))
-        ortogonalVector = VectorComplex.getInstanceC(finishVector.cardanus * rect(1., - pi / 2))
+        finishVector = VectorComplex.get_instance_c(vector.cardanus * rect(1., radians(- self.__startAngle - self.__finishAngle)))
+        ortogonalVector = VectorComplex.get_instance_c(finishVector.cardanus * rect(1., - pi / 2))
         ortogonalVector = ortogonalVector / abs(ortogonalVector.cardanus)
         arcTangentStart = finishVector
         arcTangentFinish = ortogonalVector + finishVector
@@ -454,8 +454,8 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
         # 1. Расчитать координаты вертикального радиус-вектора (к центральной точке дуги.
         # 2. Расчитать начало линии будущей стрелке (возможно единичный вектор?)
         # 3. Возвратить координаты начала и конца вектора срединной стрелки.
-        finishPoint = VectorComplex.getInstance(0., - self.__circleRadius)
-        startPoint = VectorComplex.getInstance(0., - self.__circleRadius + 1)
+        finishPoint = VectorComplex.get_instance(0., - self.__circleRadius)
+        startPoint = VectorComplex.get_instance(0., - self.__circleRadius + 1)
         return startPoint, finishPoint
 
     def changeArrowDirection(self, direction=None):
@@ -600,8 +600,8 @@ class ArcArrowAndText():
         self.__format = format
         self.__color = tkinterColor
 
-        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -50), self.__header, N, self.__color)
-        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -20), self.__format, N, self.__color)
+        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.get_instance(0, -50), self.__header, N, self.__color)
+        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.get_instance(0, -20), self.__format, N, self.__color)
         self.__arrowObject = PsevdoArcArrow(self.__canvas, self.__coords, self.__color)
 
     def createOnCanvas(self):
@@ -664,7 +664,7 @@ class LineArrowInCirle(AbstractOnCanvasMark):
         # длина стрелки
         self.__arrowLength = 30
         # направление стрелки в СКК
-        self.__arrowDirection = VectorComplex.getInstance(0., -1)
+        self.__arrowDirection = VectorComplex.get_instance(0., -1)
 
         # вычисляем точки стрелки (положение по умолчанию)
         self._points = [*self.__calcArrowPoints()]
@@ -695,7 +695,7 @@ class LineArrowInCirle(AbstractOnCanvasMark):
 
         :param direction: новое направление стрелки в СКК
         """
-        # direction = VectorComplex.getInstance() if direction is None else direction
+        # direction = VectorComplex.get_instance() if direction is None else direction
 
         # приводим к единичному вектору с проверкой на нулевой вектор, а то может быть ошибка деления на ноль
         self.__arrowDirection = direction / abs(direction) if abs(direction) != 0 else self.__arrowDirection
@@ -739,8 +739,8 @@ class LineArrowAndText():
         self.__format = format
         self.__color = tkinterColor
 
-        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, -30), self.__header, N, self.__color)
-        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.getInstance(0, 10), self.__format, N, self.__color)
+        self.__headerObject = Text(self.__canvas, self.__coords + VectorComplex.get_instance(0, -30), self.__header, N, self.__color)
+        self.__legendObject = Text(self.__canvas, self.__coords + VectorComplex.get_instance(0, 10), self.__format, N, self.__color)
         self.__arrowObject = LineArrowInCirle(self.__canvas, self.__coords,self.__color)
 
     def createOnCanvas(self):
