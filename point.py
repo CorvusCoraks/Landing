@@ -3,8 +3,8 @@ from torch import tensor as torch_tensor
 from cmath import rect
 from typing import Union, Tuple
 from torch import float as torch_float
-# NumberType = TypeVar("NumberType", complex, int, float)
-# или ?
+
+# Тип, означающий число
 NumberType = Union[complex, int, float]
 
 
@@ -42,7 +42,11 @@ class VectorComplex:
 
     @classmethod
     def get_instance(cls, x=0., y=0., origin=None) -> 'VectorComplex':
-        """ Создать экземпляр класса. По умолчанию - нулевой вектор. """
+        """ Создать экземпляр класса. По умолчанию - нулевой вектор.
+
+        :param x: абцисса конечной точки вектора.
+        :param y: ордината конечной точки вектора.
+        """
 
         lst = [[x, y]]
         tensor = torch_tensor(lst, dtype=torch_float)
@@ -52,7 +56,10 @@ class VectorComplex:
 
     @classmethod
     def get_instance_c(cls, complex_number: complex, origin=None) -> 'VectorComplex':
-        """ Создать экземпляр класса на основе комплексного числа. """
+        """ Создать экземпляр класса на основе комплексного числа.
+
+        :param complex_number: комплексное число, представляющее компоненты вектора (real - x, img - y)
+        """
         result = VectorComplex(VectorComplex.__create_key, torch_tensor([[complex_number.real, complex_number.imag]],
                                                                         dtype=torch_float))
         result.__origin = origin
@@ -65,12 +72,16 @@ class VectorComplex:
         return self.__tensor[0][0].item(), self.__tensor[0][1].item()
 
     def __set_pair(self, x: float, y: float):
-        """ Установить/Изменить компоненты вектора """
+        """ Установить/Изменить компоненты вектора
+
+        :param x: абцисса конечной точки вектора.
+        :param y: ордината конечной точки вектора.
+        """
         self.__tensor[0][0] = x
         self.__tensor[0][1] = y
 
     @property
-    def tensor(self):
+    def tensor(self) -> torch_tensor:
         """ Тензорный вид вектора """
         # self.__tensor[0][0] = self.__x
         # self.__tensor[0][1] = self.__y
@@ -78,35 +89,40 @@ class VectorComplex:
         return torch_tensor([[self.__tensor[0][0].item(), self.__tensor[0][1].item()]], dtype=self.__tensor.dtype)
 
     @tensor.setter
-    def tensor(self, tnsr: tensor):
+    def tensor(self, tnsr: torch_tensor):
         self.__tensor = tnsr
         # self.__setPoint()
 
     @property
-    def decart(self):
+    def decart(self) -> Tuple[float, float]:
         """
+        Получить координаты конца вектора.
+
         :return: декартовы координаты точки
         """
         return self.__get_pair()
 
     @decart.setter
-    def decart(self, point: list):
-        # if len(coord) != 2:
-        #     raise Exception("List length mismatch")
+    def decart(self, point: Tuple[float, float]):
+        """ Установить координаты конца вектора. """
+        if len(point) != 2:
+            raise Exception("Argument 'point' length ({0}) mismatch".format(len(point)))
         self.__set_pair(point[0], point[1])
 
     @property
-    def x(self):
+    def x(self) -> float:
+        """ Абцисса конца вектора. """
         x, _ = self.__get_pair()
         return x
 
     @property
-    def y(self):
+    def y(self) -> float:
+        """ Ордината конца вектора. """
         _, y = self.__get_pair()
         return y
 
     @property
-    def cardanus(self):
+    def cardanus(self) -> complex:
         """
         :return: координаты точки в виде комплексного числа
         """

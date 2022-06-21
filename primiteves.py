@@ -19,7 +19,7 @@ from math import radians
 # class CreateOnCanvasInterface(ABC):
 #
 #     @abstractmethod
-#     def createOnCanvas(self):
+#     def create_on_canvas(self):
 #         pass
 
 # class PackInterface(ABC):
@@ -27,6 +27,7 @@ from math import radians
 #     @abstractmethod
 #     def pack(self):
 #         pass
+
 
 class AbstractPrimitive(ABC):
     def __init__(self, canvas: Canvas, vectorComplex: tuple, centerPoint: VectorComplex):
@@ -119,7 +120,7 @@ class AbstractPrimitive(ABC):
         self._canvas.coords(self._objOnCanvasId, canvas_points)
 
     @abstractmethod
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         """
         Создать примитив на канве
         """
@@ -181,7 +182,7 @@ class PoligonRectangleA(AbstractPrimitive):
     #     if isCenterMassMove:
     #         self._center = self._center.cardanus + vector2d.cardanus
 
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         """
         Создать примитив на канве
         """
@@ -230,7 +231,7 @@ class AbstractOnCanvasMark(AbstractPrimitive):
     #     pass
 
     @abstractmethod
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         pass
 
 
@@ -254,7 +255,7 @@ class CenterMassMark(AbstractOnCanvasMark):
     #     # для данного примитива метод не испльзуется.
     #     pass
 
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         """
         Создать примитив на канве
         """
@@ -300,7 +301,7 @@ class Arrow(AbstractOnCanvasMark):
     #     # Для этого примитива функция не используется
     #     pass
 
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         """
         Создать примитив на канве
         """
@@ -342,7 +343,7 @@ class Text(AbstractOnCanvasMark):
         self.__color = tkinterColor
         # self._objOnCanvasId:
 
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         if self._objOnCanvasId is None:
             self._objOnCanvasId = self._canvas.create_text(self._points[0].x, self._points[0].y, text=self._text,
                                                            anchor=self.__textAnchor, fill=self.__color)
@@ -466,7 +467,7 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
         for value in self.__listObjectsId.values():
             if value == self.__doNotExist:
                 raise RuntimeError("One of elements of arc arrow does not exist on canvas. "
-                                   "Use this method after createOnCanvas method.")
+                                   "Use this method after create_on_canvas method.")
         if direction is None:
             if self.__arrowDirection == PsevdoArcArrow.ZERO:
                 # нельзя изменить направление на "противоположное", так как у нулевой величины нет "противоположного"
@@ -518,7 +519,7 @@ class PsevdoArcArrow(AbstractOnCanvasMark):
                     self._canvas.itemconfig(self.__listObjectsId["rightArrow"], state="hidden")
                     self.__arrowDirection = PsevdoArcArrow.COUNTERCLOCKWISE
 
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         """
         Создать примитивы на канве
         """
@@ -605,9 +606,9 @@ class ArcArrowAndText():
         self.__arrowObject = PsevdoArcArrow(self.__canvas, self.__coords, self.__color)
 
     def createOnCanvas(self):
-        self.__headerObject.createOnCanvas()
-        self.__legendObject.createOnCanvas()
-        self.__arrowObject.createOnCanvas()
+        self.__headerObject.create_on_canvas()
+        self.__legendObject.create_on_canvas()
+        self.__arrowObject.create_on_canvas()
 
     @property
     def text(self):
@@ -704,7 +705,7 @@ class LineArrowInCirle(AbstractOnCanvasMark):
 
         self._canvas.coords(self._objOnCanvasId, *self.__pointsToList())
 
-    def createOnCanvas(self):
+    def create_on_canvas(self):
         if self._objOnCanvasId == self.__doNotExist:
             self._objOnCanvasId = self._canvas.create_line(*self.__pointsToList(),
                                                                  width=self.__width, fill=self.__color, arrow=LAST)
@@ -744,9 +745,9 @@ class LineArrowAndText():
         self.__arrowObject = LineArrowInCirle(self.__canvas, self.__coords,self.__color)
 
     def createOnCanvas(self):
-        self.__headerObject.createOnCanvas()
-        self.__legendObject.createOnCanvas()
-        self.__arrowObject.createOnCanvas()
+        self.__headerObject.create_on_canvas()
+        self.__legendObject.create_on_canvas()
+        self.__arrowObject.create_on_canvas()
 
     @property
     def text(self):

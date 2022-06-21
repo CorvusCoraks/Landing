@@ -69,13 +69,13 @@ if __name__ == "__main__":
 
     # Размер полигона в метрах!
     # Мостшаб изображения
-    # poligonScale = 4 / 1000  # при ширине полигона 300000 м., ширина окна - 1200 точек
+    # poligon_scale = 4 / 1000  # при ширине полигона 300000 м., ширина окна - 1200 точек
     # количество метров на одну точку
     poligonScale = 1
     stageScale = 0.1
     # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
     # poligonWindow = PoligonWindow(-1, envFromRealWorldQueue, Queue(),
-    #                               BigMap.width, BigMap.height, poligonScale, Sizes.overallDimension, stageScale,
+    #                               BigMap.width, BigMap.height, poligon_scale, Sizes.overallDimension, stage_scale,
     #                               killNeuronetThread, killRealWorldThread)
 
     view = WindowsMSView()

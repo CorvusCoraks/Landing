@@ -149,7 +149,7 @@ def complexChangeSystemCoordinatesUniversal(vectorInOldCoordinates: VectorComple
 
         if isDiffType:
             # если при мереходе меняется тип системы координат, то меняем знак у ординаты смещённого начала координат
-            result.decart = [result.x, - result.y]
+            result.decart = (result.x, - result.y)
 
         return result
 
