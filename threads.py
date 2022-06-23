@@ -12,6 +12,7 @@ from training import start_nb
 from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
 from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue, CloneInterface, CloneFactory
 from stage import Sizes, BigMap
+from typing import Optional
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -101,129 +102,69 @@ from stage import Sizes, BigMap
 #             self.timerCounter = StageStatus.currentTimerCounter
 
 
-# def reality_thread(toWindowsQueue: Queue, toNeuroNetQueue: Queue, fromNeuroNetQueue: Queue, reinforcementQueue: Queue, killReality: KillRealWorldThread, killNeuro: KillNeuroNetThread):
-def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
-    """
-    Функция моделирующая поведение ступени в реальной физической среде
-    :return:
-    """
-    print("Вход в нить окружающей среды.")
-    # print(testStageStatus)
-    # Блок имитационных данных для отображения
-    # начальное состояние ступени в СКИП
-    # previousStatusTest = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
-    #                                                orientation=VectorComplex.get_instance(0., 1.))
+# def reality_thread(queues: MetaQueue, kill: KillCommandsContainer):
+#     """
+#     Функция моделирующая поведение ступени в реальной физической среде
+#     :return:
+#     """
+#     print("Вход в нить окружающей среды.")
+#     finishControl = Finish()
+#
+#     # начальное состояние ступени в СКИП
+#     initialStatus = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+#                                           orientation=VectorComplex.get_instance(0., 1.),
+#                                           velocity=VectorComplex.get_instance(0., -5.), angular_velocity=-cmath.pi / 36)
+#     initialStatus.time_stamp = 0
+#
+#     physics.previousStageStatus = initialStatus
+#
+#     # Бутафорская команда для первого прохода
+#     command = StageControlCommands(0)
+#
+#     # пока в тестовых целях сделано через счётчик i
+#     # в дальнейшем сделать исключительно через флаги kill
+#     i = 0
+#     while not kill.reality:
+#         # КОД
+#         # новое состояние в СКИП
+#         newStageStatus = Moving.getNewStatus(command)
+#
+#         # Отправляем величину подкрепления в НС
+#         queues.put(ReinforcementValue(newStageStatus.time_stamp,
+#                                       tools.Reinforcement.get_reinforcement(
+#                                                       newStageStatus, command)
+#                                       )
+#                                )
+#         # добавить в выходную очередь очередную порцию информации о состоянии ступени
+#         queues.put(newStageStatus)
+#
+#         # КОД
+#         if finishControl.is_one_test_failed(newStageStatus.position):
+#             # завершение единичного испытания по достижению границ полигона
+#             # Факт данного события должен передаваться в нить нейросети
+#             # Либо перенести эту проверку в нить нейросети
+#             kill.reality = True
+#         if i == 80:
+#             kill.reality = True
+#         i += 1
+#
+#         while not kill.reality:
+#             # ждём команду из нейросети на отправленное состояние
+#             if not queues.empty("command"):
+#                 command = queues.get("command")
+#                 # команда получена
+#                 break
+#
+#         physics.previousStageStatus = newStageStatus
+#         print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
+#               format(i, newStageStatus.time_stamp, newStageStatus.position, newStageStatus.velocity,
+#                      newStageStatus. acceleration, newStageStatus.orientation))
+#     else:
+#         kill.neuro = True
+#
+#     print("Завершение нити реальности.")
 
-    finishControl = Finish()
-
-    initialStatus = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-                                          orientation=VectorComplex.get_instance(0., 1.),
-                                          velocity=VectorComplex.get_instance(0., -5.), angular_velocity=-cmath.pi / 36)
-    initialStatus.time_stamp = 0
-    # initialStatus.duration = physics.CheckPeriod.setDuration(initialStatus.position)
-
-    physics.previousStageStatus = initialStatus
-    # physics.previousStageStatus.time_stamp = 0.
-
-    # physics.previousStageStatus = RealWorldStageStatus(position=BigMap.startPointInPoligonCoordinates,
-    #                                                    orientation=VectorComplex.get_instance(0., 1.))
-
-    # -cmath.pi / 36
-
-    # Бутафорская команда для первого прохода
-    command = StageControlCommands(0)
-
-    # newStatus = RealWorldStageStatus()
-    # пока в тестовых целях сделано через счётчик i
-    # в дальнейшем сделать исключительно через флаги kill
-    i = 0
-    while not kill.reality:
-        # КОД
-        # command = None
-        # новое состояние в СКИП
-        newStageStatus = Moving.getNewStatus(command)
-
-        # Отправляем величину подкрепления в НС
-        # queues.get("reinf").put(ReinforcementValue(newStageStatus.time_stamp,
-        #                                           tools.Reinforcement.getReinforcement(
-        #                                               newStageStatus, command)
-        #                                           )
-        #                        )
-
-        queues.put(ReinforcementValue(newStageStatus.time_stamp,
-                                      tools.Reinforcement.get_reinforcement(
-                                                      newStageStatus, command)
-                                      )
-                               )
-
-        # if physics.previousStageStatus is initialStatus:
-        #     # Если это - первый проход, то никаких команд из нейросети нет
-        #     newStageStatus = Moving.getNewStatus(StageControlCommands(1, duration=0))
-        # else:
-        #     # при последующих проходах поступают команды из нейросети
-        #     newStageStatus = Moving.getNewStatus(command)
-        # newStageStatus = Moving.getNewStatus() if physics.previousStageStatus is initialStatus else Moving.
-        # tempPosition = newStageStatus.position
-
-        # physics.previousStageStatus = newStageStatus
-        # print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
-        #       format(i, newStageStatus.time_stamp, newStageStatus.position, newStageStatus.velocity,
-        #              newStageStatus. acceleration, newStageStatus.orientation))
-
-        # добавить в выходную очередь очередную порцию информации о состоянии ступени
-
-        # Для отправки в очередь создаём объект с независимыми новыми чистыми атрибутами.
-        # Т. е. Объект в очереди теперь не подвержен случайному изменению из вне очереди.
-        # Иными словами, если захочется изменить объект в очереди, теперь придётся сначала извлечь его из очереди,
-        # для того, чтобы получить к нему доступ.
-        # queue.put(Transform(newStatus.position.lazy_copy(),
-        #                     newStatus.orientation.lazy_copy(),
-        #                     "Команда №{}".format(i)))
-        # todo Возможно, в дальнейшем нужно отказаться от класса Transform в пользу RealWorldStageStatus
-        # queue.put(Transform(newStageStatus.position.lazy_copy(),
-        #                     newStageStatus.orientation.lazy_copy(),
-        #                     newStageStatus.velocity.lazy_copy(),
-        #                     "Команда №{}".format(i),
-        #                     newStageStatus.lazy_copy()))
-        # queues.get_queue("area").put(newStageStatus.lazy_copy())
-        # queues.get_queue("stage").put(newStageStatus.lazy_copy())
-        # queues.get_queue("info").put(newStageStatus.lazy_copy())
-        queues.put(newStageStatus)
-
-        # print("{0} Put. Posititon: {1}, Orientation: {2}".format(i, newStatus.position, newStatus.orientation))
-        # # запоминаем позицию
-        # previousStatusTest.position = newStatus.position
-        # # запоминаем ориентацию, для использования в следующей итерации
-        # previousStatusTest.orientation = newStatus.orientation
-
-        # newStatus = RealWorldStageStatus()
-
-        # КОД
-        if finishControl.is_one_test_failed(newStageStatus.position):
-            # завершение единичного испытания по достижению границ полигона
-            # Факт данного события должен передаваться в нить нейросети
-            # Либо перенести эту проверку в нить нейросети
-            kill.reality = True
-        if i == 80:
-            kill.reality = True
-        i += 1
-
-        # toNeuroNetQueue.put(newStageStatus.lazy_copy())
-        while not kill.reality:
-            # ждём команду из нейросети на отправленное состояние
-            if not queues.empty("command"):
-                command = queues.get("command")
-                # команда получена
-                break
-
-        physics.previousStageStatus = newStageStatus
-        print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
-              format(i, newStageStatus.time_stamp, newStageStatus.position, newStageStatus.velocity,
-                     newStageStatus. acceleration, newStageStatus.orientation))
-    else:
-        kill.neuro = True
-
-def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer):
+def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_status: RealWorldStageStatusN):
     """
     Метод, запускаемый в отдельной нитке для обучения нейросети.
 
@@ -234,13 +175,96 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer):
 
     # запуск дочерней нити, так как в этой цикла не предусматривается, а вот в дочерней будет цикл обучения
     # todo возможно, следует вызывать из модуля main сразу функцию обучения как нить, без этой промежуточной
-    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(queues, kill,))
+    neuroNetTrainingThread = Thread(target=start_nb, name="neuroNetTraningThread", args=(queues, kill, initial_status))
     # запуск метода обучения сети
     neuroNetTrainingThread.start()
 
     neuroNetTrainingThread.join()
 
     print("Завершение нити нейросети.\n")
+
+
+def reality_thread_2(queues: MetaQueue, kill: KillCommandsContainer, max_tests: int, initial_status: RealWorldStageStatusN):
+    """
+    Функция моделирующая поведение ступени в реальной физической среде
+
+    :param queues: Контейнер очередей передачи данных.
+    :param kill: Контейнер команд на завершение нитей.
+    :param max_tests: Количество запланированных испытательных посадок.
+    """
+    print("Вход в нить окружающей среды.")
+
+    finishControl = Finish()
+
+    # провести указанное число испытательных посадок
+    for i in range(max_tests):
+        # начальное состояние ступени в СКИП
+        # initialStatus = initial_status
+        # initialStatus.time_stamp = 0
+
+        # physics.previousStageStatus = initialStatus
+        # physics.previousStageStatus = initial_status
+        # предыдущее состояние изделия
+        previous_stage_status: RealWorldStageStatusN = initial_status
+        # Информация о начальном положении изделия отправляется в нити
+        queues.put(initial_status)
+        # Команда управления на двигатели. В начальном состоянии двигатели не включаются
+        # command: StageControlCommands = StageControlCommands(0)
+
+        while not kill.reality:
+            # ждём команду для двигателей из нейросети на отправленное начальное состояние
+            if not queues.empty("command"):
+                command = queues.get("command")
+                # команда, ведущая к новому состоянию, получена
+                break
+        else:
+            break
+
+        # цикл последовательной генерации состояний в процессе одной тестовой посадки
+        # цикл прерывается, только если во время посадки случилась удача / неудача
+        # или поступила команда на заврешение работы программы
+        while not finishControl.is_one_test_failed(previous_stage_status.position) and not kill.reality:
+            # if physics.previousStageStatus.time_stamp == 0:
+            #     newStageStatus = physics.previousStageStatus
+            #     reinforcement = ReinforcementValue(newStageStatus.time_stamp, 0)
+            # else:
+            # новое состояние в СКИП
+            newStageStatus = Moving.getNewStatus(command, previous_stage_status)
+            # Подкрепление действий системы управления, которые привели к новому состоянию
+            reinforcement = ReinforcementValue(newStageStatus.time_stamp,
+                                               tools.Reinforcement.get_reinforcement(newStageStatus, command)
+                                               )
+
+            # Отправляем величину подкрепления в НС
+            queues.put(reinforcement)
+            # добавить в выходную очередь очередную порцию информации о состоянии ступени
+            queues.put(newStageStatus)
+
+            # если удачная посадка
+            if finishControl.is_one_test_success(newStageStatus, tools.Reinforcement.accuracy):
+                # переходим к следующему испытанию
+                break
+
+            while not kill.reality:
+                # ждём команду из нейросети на отправленное состояние и подкрепление
+                if not queues.empty("command"):
+                    command = queues.get("command")
+                    # команда, ведущая к новому состоянию, получена
+                    break
+            else:
+                break
+
+            # physics.previousStageStatus = newStageStatus
+            previous_stage_status = newStageStatus
+            print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
+                  format(i, newStageStatus.time_stamp, newStageStatus.position, newStageStatus.velocity,
+                         newStageStatus.acceleration, newStageStatus.orientation))
+
+        # прекращаем испытания, завершение программы
+        if kill.reality:
+            break
+
+    print("Завершение нити реальности.")
 
 
 

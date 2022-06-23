@@ -1,6 +1,10 @@
 from point import VectorComplex
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from typing import Union
+
+
+QueueContent = Union['StageControlCommands', 'RealWorldStageStatusN', 'ReinforcementValue']
 
 
 class CloneInterface(ABC):

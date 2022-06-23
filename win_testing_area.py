@@ -9,6 +9,7 @@ from primiteves import StageMark
 from win_interface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
+from time import sleep
 
 
 class PoligonWindow(WindowsMSInterface):
@@ -54,6 +55,13 @@ class PoligonWindow(WindowsMSInterface):
         # self.__killNeuroNetFlag = killNeuronetFlag
         # self.__killRealityFlag = killRealityFlag
         self.__kill = kill
+
+        # Получение начального положения изделия в СКИП (первое сообщение в очереди им и является)
+        # todo устанавливать отметку старта именно по этим данным
+        while self.__queues.empty('area'):
+            sleep(0.01)
+        else:
+            state_0 = self.__queues.get('area')
 
         # ВременнАя точка предыдущего состояния изделия
         self.__previous_status_time_stamp = 0

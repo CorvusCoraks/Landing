@@ -6,6 +6,7 @@ import stage, cmath
 from decart import complexChangeSystemCoordinatesUniversal
 from structures import StageControlCommands, RealWorldStageStatusN
 from tools import math_int
+from typing import Optional
 # from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
@@ -43,7 +44,7 @@ from tools import math_int
 # frequency = 1.
 
 # Предыдущее состояние модели
-previousStageStatus = RealWorldStageStatusN()
+# previousStageStatus: RealWorldStageStatusN = RealWorldStageStatusN()
 
 # Ускорение свободного падения в СКИП и СКЦМ
 GravitationalAcceleration = VectorComplex.get_instance(0., -9.8067)
@@ -314,26 +315,27 @@ class Moving():
         return result
 
     @classmethod
-    def getNewStatus(cls, controlCommands: StageControlCommands):
+    def getNewStatus(cls, controlCommands: StageControlCommands, previous_status: RealWorldStageStatusN):
         """ Возвращает новое состояние ступени """
         if controlCommands.all_off():
             # Если все двигатели выключены, все силы от двигателей сделать нулевыми
             pass
 
-        duration = CheckPeriod.setDuration(previousStageStatus.position)
+        # duration = CheckPeriod.setDuration(previousStageStatus.position)
+        duration = CheckPeriod.setDuration(previous_status.position)
         secDuration = CheckPeriod.to_Sec(duration)
 
         lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.get_instance(0., stage.Engine.mainEngineForce)))
         # lineAxeleration = Moving.getA(Action())
         # lineAxeleration = VectorComplex.get_instance(-3., 0.)
-        lineVelocity = previousStageStatus.velocity + lineAxeleration * secDuration
-        linePosition = previousStageStatus.position + lineVelocity * secDuration
+        lineVelocity = previous_status.velocity + lineAxeleration * secDuration
+        linePosition = previous_status.position + lineVelocity * secDuration
 
         # новая ориентация
         # угловое ускорение
         angularAxeleration = 0.
         # угловая скорость, рад/сек
-        angularVelocity = previousStageStatus.angular_velocity + angularAxeleration * secDuration
+        angularVelocity = previous_status.angular_velocity + angularAxeleration * secDuration
         # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
         # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
         # поворот на угол, рад.
@@ -341,7 +343,7 @@ class Moving():
         # переводим угол из радианов в форму комплексного числа
         complexAngle = cmath.rect(1., angle)
         # поворот вектора ориентации через перемножение комплексных чисел
-        cardanus = previousStageStatus.orientation.cardanus * complexAngle
+        cardanus = previous_status.orientation.cardanus * complexAngle
         # приводим к единичному вектору
         cardanus = cardanus / abs(cardanus)
         # новая ориентация
@@ -358,7 +360,7 @@ class Moving():
         newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, acceleration=lineAxeleration,
                                             angular_velocity=angularVelocity, angular_acceleration=angularAxeleration,
                                             orientation=orientation)
-        newPosition.time_stamp = previousStageStatus.time_stamp + duration
+        newPosition.time_stamp = previous_status.time_stamp + duration
         # newPosition.secDuration = CheckPeriod.setDuration(linePosition)
 
         return newPosition
