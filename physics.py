@@ -1,13 +1,10 @@
 """ Модуль расчёта движения ступени согласно физическим законам реального мира """
-from torch import Tensor
-import torch
 from point import VectorComplex
-import stage, cmath
+import stage
+import cmath
 from decart import complexChangeSystemCoordinatesUniversal
 from structures import StageControlCommands, RealWorldStageStatusN
 from tools import math_int
-from typing import Optional
-# from tools import RealWorldStageStatus
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
 # массой m1 (центр дна ракеты), m2 (средняя точка, центр масс), m3 (верх ступени)
@@ -36,85 +33,70 @@ from typing import Optional
 # 3. На основании скорости в текущей точке и скорости в предыдущей точки, считается ускорение.
 # 4. Аналогично п. 2 и п. 3 считаются угловые скорости и ускорения.
 
-# Частота считывания/передачи данных с датчиков ступени
-# раз в секунду / Герц, если 1000, то это секунда
-# Вполне возможно будет переменной: чем ниже скорость, тем меньше частота
-# В числителе Герцы, а на итоге - секунды
-# frequency = 1000 / 1000
-# frequency = 1.
-
-# Предыдущее состояние модели
-# previousStageStatus: RealWorldStageStatusN = RealWorldStageStatusN()
-
 # Ускорение свободного падения в СКИП и СКЦМ
 GravitationalAcceleration = VectorComplex.get_instance(0., -9.8067)
+
 
 class CheckPeriod:
     """
     Интервал считывания показаний датчиков в зависимости от дальности до точки приземления и высоты изделия
     """
     # длительность (счётчик) нахождения в верхнем диапазоне после перехода с нижнего
-    borderCounter: int = 0
+    border_counter: int = 0
     # текущий интервал между считываниями показаний
     # большое начальное значение обеспечит при первоначальном запуске программы
     # автоматический "виртуальный" переход вниз из "виртуального" верхнего диапазона в реальный
     # к сожалению только float, потому в процессе работы, контролируемо переведём её в int
-    currentFrequancy = float("inf")
+    current_frequancy = float("inf")
 
     # Множитель преобразования в секунды
     __multiplier: float = 0.001
 
     @classmethod
-    def __border(cls, defaultFrequency: int, borderMax=10) -> int:
+    def __border(cls, default_frequency: int, border_max=10) -> int:
         """
         Метод определяет, пересечение границ между диапазонами и устойчивость нахождения в диапазоне
 
-        :param defaultFrequency: длительность интервала между считываниями показаний по умолчанию
-        :param borderMax: порог нахождения в диапазоне, после которого считается, что нахождение в нём устойчиво
+        :param default_frequency: длительность интервала между считываниями показаний по умолчанию
+        :param border_max: порог нахождения в диапазоне, после которого считается, что нахождение в нём устойчиво
         :return: подтверждённая длительность между интервалами считывания
         """
-        if CheckPeriod.currentFrequancy >= defaultFrequency:
+        if CheckPeriod.current_frequancy >= default_frequency:
             # если в этот диапазон произошёл переход сверху (по высоте/дистанции)
             # или мы уже были в этом дапазоне в один из прошлых разов
             # или же уже стабильно сидим в этом диапазоне после перехода сверху
             # отмечаем этот факт
-            CheckPeriod.borderCounter = 0
+            CheckPeriod.border_counter = 0
             # фиксируем новую периодичность считывания и, автоматически, превращаем левую величину из float в int
-            CheckPeriod.currentFrequancy = defaultFrequency
+            CheckPeriod.current_frequancy = default_frequency
             # переходим на новую периодичность считывания
-            return defaultFrequency
+            return default_frequency
         else:
             # Если в этот диапазоне оказались после посещения нижнего
-            if CheckPeriod.borderCounter > borderMax:
+            if CheckPeriod.border_counter > border_max:
                 # Если достигли постоянства нахождения в данном диапазоне после перехода снизу,
                 # переходим на его периодичность считывания данных
-                CheckPeriod.borderCounter = 0
+                CheckPeriod.border_counter = 0
                 # фиксируем новую периодичность считывания и, автоматически, превращаем левую величину из float в int
-                CheckPeriod.currentFrequancy = defaultFrequency
-                return defaultFrequency
+                CheckPeriod.current_frequancy = default_frequency
+                return default_frequency
             # отмечаем длительность нахождения в верхнем диапазоне после нижнего
-            CheckPeriod.borderCounter += 1
+            CheckPeriod.border_counter += 1
             # но сохраняем периодичность по нижнему диапазону высоты/дистанции)
-            # CheckPeriod.currentFrequancy = int(CheckPeriod.currentFrequancy)
-            if CheckPeriod.currentFrequancy is float:
+            # CheckPeriod.current_frequancy = int(CheckPeriod.current_frequancy)
+            if CheckPeriod.current_frequancy is float:
                 # для успокоения интерпретатора, превращаем выходную величину из float в int
-                CheckPeriod.currentFrequancy = int(CheckPeriod.currentFrequancy)
-            return CheckPeriod.currentFrequancy
+                CheckPeriod.current_frequancy = int(CheckPeriod.current_frequancy)
+            return CheckPeriod.current_frequancy
 
     @classmethod
-    def setDuration(cls, distance: VectorComplex):
+    def set_duration(cls, distance: VectorComplex) -> int:
         """
         Периодичность считывания показаний датчиков. Вызывать только при установке нового состояния изделия.
 
         :param distance: вектор расстояния от точки приземления до центра масс изделия
         :return: периодичность считывания показаний датчиков, миллисекунды
-        :rtype int:
         """
-
-        # # todo убрать, при переходе к более-менее реальным процессам
-        # # временная отладочная установка, чтобы метод отдавал 1 сек.
-        # CheckPeriod.currentFrequancy = 1000
-        # return 1000
 
         # дальность до точки приземления, метров
         module = abs(distance) + stage.Sizes.massCenterFromLandingPlaneDistance
@@ -136,45 +118,22 @@ class CheckPeriod:
             return CheckPeriod.__border(60000)
 
     @classmethod
-    def to_Sec(cls, value: int)->float:
+    def to_sec(cls, value: int) -> float:
         """
         Преобразование значения интервала в секунды
         """
         return value * CheckPeriod.__multiplier
 
     @classmethod
-    def to_mSec(cls, value: int)->int:
+    def to_mu_sec(cls, value: int) -> int:
         """ Преобразование значения интервала в миллисекунды """
-        return math_int(CheckPeriod.to_Sec(value) * 1000)
+        return math_int(CheckPeriod.to_sec(value) * 1000)
 
 
-class Action():
+class Action:
     """
     Класс всех сил действующих на ступень. Необходим для компактной их передачи в методах.
     """
-    # def __init__(self):
-    #     # Силы действия двигателей указываются в СКС.
-    #     # Сила левого нижнего рулевого РД
-    #     self.FdownLeft: VectorComplex
-    #     # Сила правого нижнего рулевого РД
-    #     self.FdownRight: VectorComplex
-    #     # Сила маршевого РД
-    #     self.FdownUp: VectorComplex
-    #     # Сила левого верхнего РД
-    #     self.FtopLeft: VectorComplex
-    #     # Сила правого верхнего РД
-    #     self.FtopRight: VectorComplex
-    #     # Силы тяжести указываются в СКЦМ
-    #     # Силя тяжести нижней массы
-    #     self.Gdown: VectorComplex
-    #     # Сила тяжести центральной массы
-    #     self.Gcenter: VectorComplex
-    #     # Силя тяжести верхней массы
-    #     self.Gtop: VectorComplex
-    #     # Угол отклонения от вертикали. Фактически, это - угол, на который надо повернуть ось абцисс СКЦМ,
-    #     # чтобы получить ось абцисс СКС
-    #     self.psi: float
-
     def __init__(self, fdownleft=None, fdownright=None,
                  fdownup=None,
                  ftopleft=None, ftopright=None,
@@ -195,61 +154,36 @@ class Action():
         """
         # Силы действия двигателей указываются в СКС.
         # Сила левого нижнего рулевого РД
-        # self.FdownLeft: VectorComplex = fdownleft
-        self.FdownLeft = VectorComplex.get_instance() if fdownleft is None else fdownleft
+        self.FdownLeft: VectorComplex = VectorComplex.get_instance() if fdownleft is None else fdownleft
         # Сила правого нижнего рулевого РД
-        # self.FdownRight: VectorComplex = fdownright
-        self.FdownRight = VectorComplex.get_instance() if fdownright is None else fdownright
+        self.FdownRight: VectorComplex = VectorComplex.get_instance() if fdownright is None else fdownright
         # Сила маршевого РД
-        # self.FdownUp: VectorComplex = fdownup
-        self.FdownUp = VectorComplex.get_instance() if fdownup is None else fdownup
+        self.FdownUp: VectorComplex = VectorComplex.get_instance() if fdownup is None else fdownup
         # Сила левого верхнего РД
-        # self.FtopLeft: VectorComplex = ftopleft
-        self.FtopLeft = VectorComplex.get_instance() if ftopleft is None else ftopleft
+        self.FtopLeft: VectorComplex = VectorComplex.get_instance() if ftopleft is None else ftopleft
         # Сила правого верхнего РД
-        # self.FtopRight: VectorComplex = ftopright
-        self.FtopRight = VectorComplex.get_instance() if ftopright is None else ftopright
+        self.FtopRight: VectorComplex = VectorComplex.get_instance() if ftopright is None else ftopright
         # Силы тяжести указываются в СКЦМ
         # Силя тяжести нижней массы
-        # self.Gdown: VectorComplex = gdown
-        self.Gdown = VectorComplex.get_instance() if gdown is None else gdown
+        self.Gdown: VectorComplex = VectorComplex.get_instance() if gdown is None else gdown
         # Сила тяжести центральной массы
-        # self.Gcenter: VectorComplex = gcenter
-        self.Gcenter = VectorComplex.get_instance() if gcenter is None else gcenter
-        # Силя тяжести верхней массы
-        # self.Gtop: VectorComplex = gtop
-        self.Gtop = VectorComplex.get_instance() if gtop is None else gtop
+        self.Gcenter: VectorComplex = VectorComplex.get_instance() if gcenter is None else gcenter
+        # Силa тяжести верхней массы
+        self.Gtop: VectorComplex = VectorComplex.get_instance() if gtop is None else gtop
         # Угол отклонения от вертикали. Фактически, это - угол, на который надо повернуть ось абцисс СКЦМ,
         # чтобы получить ось абцисс СКС
         # todo вынести отсюда, так как не относится к силам
         self.psi: float = psi
 
-    # def setAction(self, FdownLeft: VectorComplex, FdownRight: VectorComplex, FdownUp: VectorComplex,
-    #               Gdown: VectorComplex, Gcenter: VectorComplex, Gtop: VectorComplex,
-    #               FtopLeft: VectorComplex, FtopRight: VectorComplex,
-    #               psi: float):
-    #
-    #     self.FdownLeft = FdownLeft
-    #     self.FdownRight = FdownRight
-    #     self.FdownUp = FdownUp
-    #     self.FtopLeft = FtopLeft
-    #     self.FtopRight = FtopRight
-    #     self.Gdown = Gdown
-    #     self.Gcenter = Gcenter
-    #     self.Gtop = Gtop
-    #     self.psi = psi
 
-
-class Moving():
+class Moving:
     """
     Расчёт динамических параметров ступени (смещение, поворот, скорости и ускорения) под действием сил в СКИП
     """
     @classmethod
-    def getA(cls, forces: Action):
+    def get_a(cls, forces: Action) -> VectorComplex:
         """
-        Мгновенное линейное ускорение как вектор в СКЦМ
-
-        :return:
+        Мгновенное линейное ускорение как вектор в СКЦМ под действием сил *forces*
         """
         # todo сделать private?
         # Если время действия сил равно нулю, то ускорение от этих сил заведомо равно нулю
@@ -260,20 +194,17 @@ class Moving():
         # Переводим суперпозицию сил двигателей в СКЦМ
         f = complexChangeSystemCoordinatesUniversal(f, VectorComplex.get_instance(0., 0.), -forces.psi)
         # Складываем силы тяжести в их суперпозицию в СКЦМ
-        # g = forces.Gdown + forces.Gcenter + forces.Gtop
         g = (stage.Stage.topMass + stage.Stage.centerMass + stage.Stage.downMass) * GravitationalAcceleration
         # Векторно складываем суперпозицию сил двигателей и суперпозицию сил тяжести от масс
-        sum = f + g
+        sum_forces = f + g
         # Получаем вектор линейного ускорения центра масс под действием суммы всех сил (Второй закон Ньютона)
-        a = sum / (stage.Stage.topMass + stage.Stage.centerMass + stage.Stage.downMass)
+        a = sum_forces / (stage.Stage.topMass + stage.Stage.centerMass + stage.Stage.downMass)
         return a
 
     @classmethod
-    def getE(cls, forces: Action):
+    def get_e(cls, forces: Action) -> float:
         """
-        Мгновенное угловое ускорение в системе коодинат ступени (СКС).
-
-        :return:
+        Мгновенное угловое ускорение в системе коодинат ступени (СКС) под действием сил *forces*.
         """
         # todo сделать private?
         # Если время действия сил равно нулю, то ускорение от этих сил заведомо равно нулю
@@ -282,85 +213,73 @@ class Moving():
         # pass
         return 0.
 
+
     # @classmethod
-    # def getLineVelosity(cls, V0: VectorComplex, t: float, forces: Action):
-    #     return V0 + Moving.getA(forces) * t
+    # def getDistanseVector(cls, V0: VectorComplex, t: float, forces: Action) -> VectorComplex:
+    #     """
+    #     Измение положения центра масс ступени в системе координат полигона
+    #
+    #     :param V0: Начальная скорость центра масс в точке S0
+    #     :param t: Время действия суперпозиции сил
+    #     :param forces: Силы действующие на объект
+    #     :return: перемещение (вектор) из начальной точки с V0 в новую ночку под действием суперпозиции сил
+    #     """
+    #     # todo сделать private или вообще убрать?
+    #     # result = VectorComplex.get_instance_c(S0.cardanus + V0.cardanus*t + Axeleration.get_a().cardanus*t**2)
+    #     result = V0 * t + Moving.get_a(forces) * t ** 2
+    #     return result
 
-
-    @classmethod
-    def getDistanseVector(cls, V0: VectorComplex, t: float, forces: Action):
-        """
-        Измение положения центра масс ступени в системе координат полигона
-
-        :param V0: Начальная скорость центра масс в точке S0
-        :param t: Время действия суперпозиции сил
-        :param forces: Силы действующие на объект
-        :return: перемещение (вектор) из начальной точки с V0 в новую ночку под действием суперпозиции сил
-        :rtype: VectorComplex
-        """
-        # todo сделать private или вообще убрать?
-        # result = VectorComplex.get_instance_c(S0.cardanus + V0.cardanus*t + Axeleration.getA().cardanus*t**2)
-        result = V0 * t + Moving.getA(forces) * t ** 2
-        return result
-
-    @classmethod
-    def getRotationAngle(cls, W0: float, t: float, forces: Action):
-        """
-        Изменение угла поворота ступени вокруг её центра масс.
-
-        :return:
-        """
-        # todo сделать private или вообще убрать?
-        result = W0 * t + Moving.getE(forces) * t ** 2
-        return result
+    # @classmethod
+    # def getRotationAngle(cls, W0: float, t: float, forces: Action) -> float:
+    #     """
+    #     Изменение угла поворота ступени вокруг её центра масс.
+    #
+    #     :param W0:
+    #     :param t:
+    #     :param forces:
+    #     """
+    #     # todo сделать private или вообще убрать?
+    #     result = W0 * t + Moving.get_e(forces) * t ** 2
+    #     return result
 
     @classmethod
-    def getNewStatus(cls, controlCommands: StageControlCommands, previous_status: RealWorldStageStatusN):
-        """ Возвращает новое состояние ступени """
-        if controlCommands.all_off():
+    def get_new_status(cls, control_commands: StageControlCommands,
+                       previous_status: RealWorldStageStatusN) -> RealWorldStageStatusN:
+        """ Возвращает новое состояние ступени
+
+        :param control_commands: управляющие команды на двигатели изделия
+        :param previous_status: предыдущее состояние изделия
+        :return: Новое состояние изделия - результат действия двигателей
+        """
+        if control_commands.all_off():
             # Если все двигатели выключены, все силы от двигателей сделать нулевыми
             pass
 
-        # duration = CheckPeriod.setDuration(previousStageStatus.position)
-        duration = CheckPeriod.setDuration(previous_status.position)
-        secDuration = CheckPeriod.to_Sec(duration)
+        duration = CheckPeriod.set_duration(previous_status.position)
+        sec_duration = CheckPeriod.to_sec(duration)
 
-        lineAxeleration = Moving.getA(Action(fdownup=VectorComplex.get_instance(0., stage.Engine.mainEngineForce)))
-        # lineAxeleration = Moving.getA(Action())
-        # lineAxeleration = VectorComplex.get_instance(-3., 0.)
-        lineVelocity = previous_status.velocity + lineAxeleration * secDuration
-        linePosition = previous_status.position + lineVelocity * secDuration
+        line_axeleration = Moving.get_a(Action(fdownup=VectorComplex.get_instance(0., stage.Engine.mainEngineForce)))
+        line_velocity = previous_status.velocity + line_axeleration * sec_duration
+        line_position = previous_status.position + line_velocity * sec_duration
 
-        # новая ориентация
         # угловое ускорение
-        angularAxeleration = 0.
+        angular_axeleration = 0.
         # угловая скорость, рад/сек
-        angularVelocity = previous_status.angular_velocity + angularAxeleration * secDuration
-        # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
-        # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
+        angular_velocity = previous_status.angular_velocity + angular_axeleration * sec_duration
         # поворот на угол, рад.
-        angle = angularVelocity * secDuration
+        angle = angular_velocity * sec_duration
         # переводим угол из радианов в форму комплексного числа
-        complexAngle = cmath.rect(1., angle)
+        complex_angle = cmath.rect(1., angle)
         # поворот вектора ориентации через перемножение комплексных чисел
-        cardanus = previous_status.orientation.cardanus * complexAngle
+        cardanus = previous_status.orientation.cardanus * complex_angle
         # приводим к единичному вектору
         cardanus = cardanus / abs(cardanus)
         # новая ориентация
         orientation = VectorComplex.get_instance_c(cardanus)
 
-        # # новая ориентация
-        # # сложение двух углов: старой, абсолютной ориентации плюс новое изменение (дельта) угла
-        # cardanus = previousStageStatus.orientation.cardanus * cmath.rect(1., (- cmath.pi / 36))
-        # # приводим к единичному вектору
-        # cardanus = cardanus / abs(cardanus)
-        # # новая ориентация
-        # orientation = VectorComplex.get_instance_c(cardanus)
+        new_position = RealWorldStageStatusN(position=line_position, velocity=line_velocity,
+                                             acceleration=line_axeleration, angular_velocity=angular_velocity,
+                                             angular_acceleration=angular_axeleration, orientation=orientation)
+        new_position.time_stamp = previous_status.time_stamp + duration
 
-        newPosition = RealWorldStageStatusN(position=linePosition, velocity=lineVelocity, acceleration=lineAxeleration,
-                                            angular_velocity=angularVelocity, angular_acceleration=angularAxeleration,
-                                            orientation=orientation)
-        newPosition.time_stamp = previous_status.time_stamp + duration
-        # newPosition.secDuration = CheckPeriod.setDuration(linePosition)
-
-        return newPosition
+        return new_position

@@ -93,7 +93,7 @@ class StageViewWindow(WindowsMSInterface):
             if self.__canvas_linked_marks is not None: self.__change_movable_marks(transform)
 
         # запускаем отрисовку цикл
-        self.__root.after(CheckPeriod.to_mSec(previous_status_duration), self._draw)
+        self.__root.after(CheckPeriod.to_mu_sec(previous_status_duration), self._draw)
         # self.__root.after(500, self._draw)
 
 

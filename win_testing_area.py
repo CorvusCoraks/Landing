@@ -124,7 +124,7 @@ class PoligonWindow(WindowsMSInterface):
 
         # запускаем отрисовку в цикл
         # self.__root.after(self.__frameRate, self.__draw)
-        self.__root.after(CheckPeriod.to_mSec(previous_status_duration), self._draw)
+        self.__root.after(CheckPeriod.to_mu_sec(previous_status_duration), self._draw)
 
     def _preparation_static_marks(self):
         pass

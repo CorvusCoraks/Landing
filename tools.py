@@ -1,16 +1,16 @@
 from point import VectorComplex
 from math import fabs
-# from stage import BigMap
 from stage import Sizes, BigMap
-from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue, CloneFactory, CloneInterface
-from abc import ABC, abstractmethod
+from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue, CloneFactory
 from queue import Queue
-from typing import Union, TypeVar, Dict, Type, Optional, NewType
+from typing import TypeVar, Dict, Optional, AnyStr, List, Union
+from enum import Enum
 
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
 
-class SingleQueue():
+
+class SingleQueue:
     """ Одиночная очередь. Очередь может содеражть только объекты ОДНОГО типа. """
     def __init__(self, name: str, content_type: QueueMembers):
         """
@@ -25,9 +25,8 @@ class SingleQueue():
         # имя очереди
         self.__name: str = name
 
-    def put(self, value: QueueMembers):
+    def put(self, value: QueueMembers) -> None:
         """ Поместить объект в очередь """
-        # if isinstance(value, type(self.__q_type)):
         if isinstance(value, self.__q_type):
             self.__queue.put(value)
         else:
@@ -83,10 +82,7 @@ class MetaQueue:
             cls.__this_object = MetaQueue(queues, cls.__create_key)
         return cls.__this_object
 
-
-    # @staticmethod
-    # def put(data_block: QueueMembers):
-    def put(self, data_block: QueueMembers):
+    def put(self, data_block: QueueMembers) -> None:
         """
         Добавить блок данных во ВСЕ очереди, которые готовы принять блок данных данного типа.
 
@@ -111,7 +107,7 @@ class MetaQueue:
             raise TypeError('Data block type ({0}) is not valid. Expected: {1}'
                             .format(type(data_block), self.__types))
 
-    def put_by_queue_name(self, queue_name: str, data_block: QueueMembers):
+    def put_by_queue_name(self, queue_name: str, data_block: QueueMembers) -> None:
         """ Запись блока данных в конкретную очередь, определяемую именем этой очереди.
 
         :param queue_name: имя очереди
@@ -198,17 +194,13 @@ class Reinforcement:
 
     accuracy = 0
 
-    def __init__(self):
-        pass
-
     @classmethod
-    def get_reinforcement(cls, stage_status: RealWorldStageStatusN, jets: StageControlCommands):
+    def get_reinforcement(cls, stage_status: RealWorldStageStatusN, jets: StageControlCommands) -> float:
         """
         Подкрепление
 
         :param stage_status: состояние ступени
         :param jets: информация о работавших двигателях
-        :return:
         """
         success_reinforcement = 0.
         landing_reinforcement = 0.
@@ -257,7 +249,7 @@ class Finish:
         pass
 
     @classmethod
-    def is_one_test_failed(cls, coord: VectorComplex):
+    def is_one_test_failed(cls, coord: VectorComplex) -> bool:
         """ Проверка на неблагополучное завершение очередной тренировки
 
         :param coord: центр масс ракеты в СКИП
@@ -265,8 +257,6 @@ class Finish:
         # Очередная тренировка заканчивается либо удачной посадкой, либо ударом о землю,
         # либо выходом за пределы зоны испытаний
         # Метод необходим исключительно для того, чтобы одно испытание не длилось вечно
-        #
-        # poligonLegY = coord.y + self.__leg_relative_y
         if fabs(coord.x) * 2 > BigMap.width \
             or coord.y > BigMap.height \
             or coord.y < cls.__leg_relative_y - cls.__yEpsilon:
@@ -287,7 +277,6 @@ class Finish:
         :param accuracy: параметр выбранной точности, 0, 1, 2, ..., 9
         :param close: выбрать диапазон расчёта параметров: дальний (не очень точный) или ближний (точный)
         :type close: bool
-        :return:
         """
 
         def within(accuracy: dict, value: float)->bool:
@@ -310,14 +299,14 @@ class Finish:
         return False
 
     @classmethod
-    def landing_scope(cls, step: int, close=True)->dict:
+    def landing_scope(cls, step: int, close=True)->Dict[AnyStr, Dict[AnyStr, float]]:
         """
         Диапазоны параметров, в которые должно попасть изделие при штатной посадке
 
         :param step: одно из десяти значений: 0, 1, ..., 9, где 0 - максимальная точность, 9 - минимальная точность
         :param close: если True, выдаём значения высокой точности при нахождении у поверхности, если False - низкой.
         :type close: bool
-        :return:
+        :return: Словарь, содержащий границы допустимости вида {'parameter_name': {'min': min_value, 'max': max_value}}
         """
         def so_far(x: int)->tuple:
             """ Линейная функция падающая от (9: 100) до (0; 1)
@@ -373,7 +362,11 @@ def math_int(value: float)->int:
     return int(value + (0.5 if value > 0 else -0.5))
 
 
-def ones_and_zeros_variants_f(vector_length: int, start_position: int)->list:
+class ZeroOrOne(Enum):
+    ZERO: int = 0
+    ONE: int = 1
+
+def ones_and_zeros_variants_f(vector_length: int, start_position: int)->List[List[ZeroOrOne]]:
     """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] в векторе длиной *vectorLength*
 
 
@@ -400,7 +393,7 @@ def ones_and_zeros_variants_f(vector_length: int, start_position: int)->list:
     # ...
     # И, последний вариант - все единицы
 
-    def one_trip(start: int, stop: int, start_str: list, start_point: int, mother_list: list):
+    def one_trip(start: int, stop: int, start_str: list, start_point: int, mother_list: list) -> None:
         """ Подпрограмма, выдающая ВСЕ варианты для конечного набора единиц, смещая их поочерёдно вправо
 
         :param start: позиция, в которой стоит единица, которую мы будем двигать вправо
@@ -451,5 +444,4 @@ def ones_and_zeros_variants_f(vector_length: int, start_position: int)->list:
         one_trip(start, stop, start_str, start_position, result)
     return result
 
-# print(onesAndZerosVariantsF(5, 0))
 

@@ -1,11 +1,10 @@
 """ Флаги завершения нитей """
-from abc import ABC, abstractmethod
+
 
 class KillCommand:
     """ Базовый класс для флагов завершения нитей. """
     def __init__(self, kill=False):
         """
-
         :param kill: значение флага
         """
         self.__value = kill
