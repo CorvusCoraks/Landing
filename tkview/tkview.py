@@ -1,8 +1,8 @@
 """ Модуль реализации абстрактной фабрики визуального представления в MS Windows """
 from view import ViewInterface
 from kill_flags import KillCommandsContainer
-from tk_view.win_testing_area import PoligonWindow
-from tk_view.win_stageview import StageViewWindow, InfoView
+from tkview.tkarea import PoligonWindow
+from tkview.tkstview import StageViewWindow, InfoView
 from stage import Sizes
 from tools import MetaQueue
 

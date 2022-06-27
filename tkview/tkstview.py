@@ -3,11 +3,11 @@ from primiteves import Arrow, ArcArrowAndText, LineArrowAndText, AbstractOnCanva
 from tkinter import Canvas, Toplevel, Tk
 from point import VectorComplex
 from typing import List, Dict, AnyStr, Union, Optional
-from tk_view.win_firststage import FirstStage2
+from tkview.tkstmacr import FirstStage2
 from stage import Sizes, BigMap
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from physics import  CheckPeriod
-from tk_view.win_interface import WindowsMSInterface
+from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
 

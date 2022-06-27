@@ -4,7 +4,7 @@ from threading import Thread
 from stage import Sizes, BigMap
 from threads import neuronet_thread, reality_thread_2
 from kill_flags import KillCommandsContainer
-from tk_view.win import WindowsMSView
+from tkview.tkview import WindowsMSView
 from tools import MetaQueue
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Dict, Any

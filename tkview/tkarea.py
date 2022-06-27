@@ -6,7 +6,7 @@ from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsCont
 from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from primiteves import StageMark
-from tk_view.win_interface import WindowsMSInterface
+from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
 from time import sleep
