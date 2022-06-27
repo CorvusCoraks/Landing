@@ -1,11 +1,9 @@
 """ Модуль реализации абстрактной фабрики визуального представления в MS Windows """
 from view import ViewInterface
-from queue import Queue
-from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
-from win_testing_area import PoligonWindow
-from win_stageview import StageViewWindow, InfoView
+from kill_flags import KillCommandsContainer
+from tk_view.win_testing_area import PoligonWindow
+from tk_view.win_stageview import StageViewWindow, InfoView
 from stage import Sizes
-from tkinter import Canvas
 from tools import MetaQueue
 
 class WindowsMSView(ViewInterface):

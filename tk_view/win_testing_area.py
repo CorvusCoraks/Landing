@@ -6,10 +6,11 @@ from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsCont
 from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from primiteves import StageMark
-from win_interface import WindowsMSInterface
+from tk_view.win_interface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
 from time import sleep
+from point import VectorComplex
 
 
 class PoligonWindow(WindowsMSInterface):
@@ -36,16 +37,7 @@ class PoligonWindow(WindowsMSInterface):
         self.__poligon_heigt = poligon_heigt
         # масштаб изображения полигона пикселей на метр
         self.__poligon_scale = poligon_scale
-        # стартовая точка испытаний в СКК
-        self.__start_point = complexChangeSystemCoordinatesUniversal(BigMap.startPointInPoligonCoordinates,
-                                                                     BigMap.canvasOriginInPoligonCoordinates,
-                                                                     0., True) / self.__poligon_scale
-        # точка посадки в СКК
-        self.__end_point = complexChangeSystemCoordinatesUniversal(BigMap.landingPointInPoligonCoordinates,
-                                                                   BigMap.canvasOriginInPoligonCoordinates,
-                                                                   0., True) / self.__poligon_scale
-        # текущая координата ЦМ ступени в СКК
-        self.__current_point = self.__start_point
+
 
         # self.__queue = queues.get("area")
         self.__queues = queues
@@ -61,7 +53,20 @@ class PoligonWindow(WindowsMSInterface):
         while self.__queues.empty('area'):
             sleep(0.01)
         else:
-            state_0 = self.__queues.get('area')
+            self.__start_point: VectorComplex = complexChangeSystemCoordinatesUniversal(
+                self.__queues.get('area').position, BigMap.canvasOriginInPoligonCoordinates, 0., True) / self.__poligon_scale
+
+        # # стартовая точка испытаний в СКК
+        # self.__start_point = complexChangeSystemCoordinatesUniversal(BigMap.startPointInPoligonCoordinates,
+        #                                                              BigMap.canvasOriginInPoligonCoordinates,
+        #                                                              0., True) / self.__poligon_scale
+
+        # точка посадки в СКК
+        self.__end_point = complexChangeSystemCoordinatesUniversal(BigMap.landingPointInPoligonCoordinates,
+                                                                   BigMap.canvasOriginInPoligonCoordinates,
+                                                                   0., True) / self.__poligon_scale
+        # текущая координата ЦМ ступени в СКК
+        self.__current_point = self.__start_point
 
         # ВременнАя точка предыдущего состояния изделия
         self.__previous_status_time_stamp = 0

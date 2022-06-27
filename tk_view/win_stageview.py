@@ -1,14 +1,13 @@
 """ Модуль визуализации состояния изделия в процесси испытания """
-from primiteves import Text, Arrow, ArcArrowAndText, LineArrowAndText, AbstractOnCanvasMark, CenterMassMark
+from primiteves import Arrow, ArcArrowAndText, LineArrowAndText, AbstractOnCanvasMark, CenterMassMark
 from tkinter import Canvas, Toplevel, Tk
-from queue import Queue
 from point import VectorComplex
 from typing import List, Dict, AnyStr, Union, Optional
-from win_firststage import FirstStage2
+from tk_view.win_firststage import FirstStage2
 from stage import Sizes, BigMap
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from physics import  CheckPeriod
-from win_interface import WindowsMSInterface
+from tk_view.win_interface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
 
