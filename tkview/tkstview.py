@@ -1,5 +1,5 @@
 """ Модуль визуализации состояния изделия в процесси испытания """
-from primiteves import Arrow, ArcArrowAndText, LineArrowAndText, AbstractOnCanvasMark, CenterMassMark
+from tkview.primiteves import Arrow, ArcArrowAndText, LineArrowAndText, AbstractOnCanvasMark, CenterMassMark
 from tkinter import Canvas, Toplevel, Tk
 from point import VectorComplex
 from typing import List, Dict, AnyStr, Union, Optional

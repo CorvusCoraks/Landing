@@ -4,12 +4,13 @@ from threading import Thread
 from stage import Sizes, BigMap
 from threads import neuronet_thread, reality_thread_2
 from kill_flags import KillCommandsContainer
-from tkview.tkview import WindowsMSView
+from tkview.tkview import TkinterView
 from tools import MetaQueue
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Dict, Any
 from point import VectorComplex
 from cmath import pi
+from view import ViewInterface
 
 if __name__ == "__main__":
     # максимальное количество тестовых посадок
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     poligonScale = 1
     stageScale = 0.1
     # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
-    view = WindowsMSView()
+    view: ViewInterface = TkinterView()
     view.set_poligon_state(queues, BigMap.width, BigMap.height)
     view.set_kill_threads(kill)
     view.set_stage_parameters(Sizes.topMassDistance,

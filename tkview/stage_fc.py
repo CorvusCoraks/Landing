@@ -1,6 +1,6 @@
 """ Фабрика примитивов, составляющих изображение изделия. """
 from abc import ABC, abstractmethod
-from primiteves import AbstractPrimitive, PoligonRectangleA
+from tkview.primiteves import AbstractPrimitive, PoligonRectangleA
 from tkinter import Canvas
 from point import VectorComplex
 from stage import Sizes

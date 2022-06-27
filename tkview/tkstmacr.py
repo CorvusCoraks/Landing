@@ -1,7 +1,7 @@
 """" Модуль крупного изображения изделия """
 from point import VectorComplex
 from tkinter import Canvas
-from stage_fc import AbstractFSFactory, ConcreteFSFactory1
+from tkview.stage_fc import AbstractFSFactory, ConcreteFSFactory1
 
 
 class FirstStage2:

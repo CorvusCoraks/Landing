@@ -5,7 +5,7 @@ from stage import Sizes, BigMap
 from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
 from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
-from primiteves import StageMark
+from tkview.primiteves import StageMark
 from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue

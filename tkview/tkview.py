@@ -1,15 +1,20 @@
-""" Модуль реализации абстрактной фабрики визуального представления в MS Windows """
+""" Модуль реализации абстрактной фабрики визуального представления в Tkinter. """
 from view import ViewInterface
 from kill_flags import KillCommandsContainer
 from tkview.tkarea import PoligonWindow
 from tkview.tkstview import StageViewWindow, InfoView
 from stage import Sizes
 from tools import MetaQueue
+from typing import Optional
 
-class WindowsMSView(ViewInterface):
+
+class TkinterView(ViewInterface):
     """ ConcreteFactory """
 
     def __init__(self):
+        # self.__queues: Optional[MetaQueue] = None
+        # self.__poligon_width: float = 0.
+        # self.__poligon_height: float = 0.
         pass
 
     def set_poligon_state(self, queues: MetaQueue, poligon_width: float, poligon_height: float):
@@ -48,8 +53,6 @@ class WindowsMSView(ViewInterface):
     def create_stage_view(self):
         stage_view_scale = 0.1
 
-        # self.__stage_window = StageViewWindow(self.__poligon_window.root, Canvas(),  Sizes.overallDimension, stage_view_scale, -1,
-        #                                       self.__env_to_stage_queue, self.__env_to_info_queue)
         self.__stage_window = StageViewWindow(self.__poligon_window.root, Sizes.overallDimension, stage_view_scale,
                                               self.__queues)
 

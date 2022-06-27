@@ -6,10 +6,10 @@ from point import VectorComplex
 from tools import MetaQueue
 
 # ViewInterface (Abstract Factory) -> AnotherView (Concrete Factory)
-#           └-> WindowsMSView (Concrete Factory)
+#           └-> TkinterView (Concrete Factory)
 
 class ViewInterface(ABC):
-    """ AbstractFactory """
+    """ AbstractFactory. Интерфейс отображения процесса выполнения программы. """
     # примитивы, отображающие что-либо конкретно, описываются в конкретной фабрике.
     @abstractmethod
     def set_poligon_state(self, queues: MetaQueue, poligon_width: float, poligon_height: float):
