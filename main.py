@@ -2,7 +2,7 @@
 
 from threading import Thread
 from stage import Sizes, BigMap
-from threads import neuronet_thread, reality_thread_2, reality_thread_3
+from threads import neuronet_thread, reality_thread_2, reality_thread_3, RealThread
 from kill_flags import KillCommandsContainer
 from tkview.tkview import TkinterView
 from tools import MetaQueue, InitialStatusAbstract, InitialStatus
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     # temp = initial_status_func
 
     # максимальное количество тестовых посадок
-    max_tests = 2
+    max_tests = 7
 
     # начальное состояние ступени в СКИП
     initial_status_obj = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
@@ -54,13 +54,14 @@ if __name__ == "__main__":
     # контейнер с командами на остановку нитей
     kill = KillCommandsContainer.get_instance()
 
-    batch_size = 1
+    batch_size = 5
     queues_m: MetaQueueN = MetaQueueN(batch_size)
     dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
 
     # Нить модели реального мира
     # realWorldThread = Thread(target=reality_thread_2, name="realWorldThread", args=(queues, kill, max_tests, initial_status_obj,))
-    realWorldThread = Thread(target=reality_thread_3, name="realWorldThread", args=(dispatcher, InitialStatus(max_tests), batch_size, kill, ))
+    # realWorldThread: Thread = RealThread(target=reality_thread_3, name="realWorldThread", args=(dispatcher, InitialStatus(max_tests), batch_size, kill, ))
+    realWorldThread: Thread = RealThread('realWorldThread', dispatcher, queues_m, InitialStatus(max_tests), kill, batch_size)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status
@@ -70,8 +71,8 @@ if __name__ == "__main__":
     # Создание отдельной нити для нейросети
     neuroNetThread = Thread(target=neuronet_thread,
                             name="NeuroNetThread",
-                            args=(queues,
-                                  kill, initial_status_obj,))
+                            args=(queues_m,
+                                  kill, batch_size))
     neuroNetThread.start()
 
     # Размер полигона в метрах!

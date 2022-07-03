@@ -49,16 +49,16 @@ class ListDispatcher(DispatcherAbstract):
 
         self.__tests_list[test_id].state = initial_state
 
-    def run(self, test_id: TestId, command: StageControlCommands) -> Tuple[TestId, RealWorldStageStatusN]:
+    def run(self, test_id: TestId, command: StageControlCommands, new_state: RealWorldStageStatusN) -> TestId:
         """ Расчёт нового состояния для одного испытания.
 
-        :return: Идентификатор состояния/испытания и состояние-результат применения команды"""
+        :return: Идентификатор состояния/испытания"""
         # tate: RealWorldStageStatusN
 
         previous_state = self.__tests_list[test_id].state
 
-        new_state = Moving.get_new_status(command, previous_state)
+        Moving.get_new_status(command, previous_state, new_state)
 
         self.__tests_list[test_id].state = new_state
 
-        return test_id, new_state
+        return test_id

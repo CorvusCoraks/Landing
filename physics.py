@@ -215,12 +215,12 @@ class Moving:
 
     @classmethod
     def get_new_status(cls, control_commands: StageControlCommands,
-                       previous_status: RealWorldStageStatusN) -> RealWorldStageStatusN:
+                       previous_status: RealWorldStageStatusN, new_state: RealWorldStageStatusN) -> None:
         """ Возвращает новое состояние ступени
 
         :param control_commands: управляющие команды на двигатели изделия
         :param previous_status: предыдущее состояние изделия
-        :return: Новое состояние изделия - результат действия двигателей
+        :param new_state: новое состояние изделия
         """
         if control_commands.all_off():
             # Если все двигатели выключены, все силы от двигателей сделать нулевыми
@@ -248,9 +248,17 @@ class Moving:
         # новая ориентация
         orientation = VectorComplex.get_instance_c(cardanus)
 
-        new_position = RealWorldStageStatusN(position=line_position, velocity=line_velocity,
-                                             acceleration=line_axeleration, angular_velocity=angular_velocity,
-                                             angular_acceleration=angular_axeleration, orientation=orientation)
-        new_position.time_stamp = previous_status.time_stamp + duration
+        # new_position = RealWorldStageStatusN(position=line_position, velocity=line_velocity,
+        #                                      acceleration=line_axeleration, angular_velocity=angular_velocity,
+        #                                      angular_acceleration=angular_axeleration, orientation=orientation)
+        # new_position.time_stamp = previous_status.time_stamp + duration
 
-        return new_position
+        new_state.position = line_position
+        new_state.velocity = line_velocity
+        new_state.acceleration = line_axeleration
+        new_state.angular_velocity = angular_velocity
+        new_state.angular_acceleration = angular_axeleration
+        new_state.orientation = orientation
+        new_state.time_stamp = previous_status.time_stamp + duration
+
+        # return new_position

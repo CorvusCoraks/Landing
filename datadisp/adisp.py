@@ -24,6 +24,6 @@ class DispatcherAbstract(ABC):
         pass
 
     @abstractmethod
-    def run(self, test_id: TestId, command: StageControlCommands) -> Tuple[TestId, RealWorldStageStatusN]:
+    def run(self, test_id: TestId, command: StageControlCommands, state: RealWorldStageStatusN) -> TestId:
         """ Метод периодического выхова для обработки команды. """
         pass

@@ -155,10 +155,10 @@ class RealWorldStageStatusN(CloneInterface, ValueCopyInterface):
         return deepcopy(self)
 
     def data_copy(self, target_object: 'RealWorldStageStatusN'):
-        target_object.position.decart = self.velocity.decart
+        target_object.position.decart = self.position.decart
         target_object.velocity.decart = self.velocity.decart
         target_object.acceleration.decart = self.acceleration.decart
-        target_object.orientation.decart = self.acceleration.decart
+        target_object.orientation.decart = self.orientation.decart
         target_object.angular_velocity = self.angular_velocity
         target_object.angular_acceleration = self.angular_acceleration
         target_object.time_stamp = self.time_stamp

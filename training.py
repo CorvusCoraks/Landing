@@ -6,6 +6,7 @@ import shelve
 
 import structures
 from tools import Finish, ones_and_zeros_variants_f, MetaQueue
+from carousel.metaque import MetaQueueN
 from point import VectorComplex
 # from physics import BigMap
 from kill_flags import KillNeuroNetThread, KillCommandsContainer
@@ -21,7 +22,7 @@ from typing import Dict, Any, Optional, Union, Tuple
 from copy import deepcopy
 
 
-def start_nb(queues: MetaQueue, kill: KillCommandsContainer, initial_status: RealWorldStageStatusN, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
     """ Входная функция для тренировки
         - при локальной тренировке, вызов функции идёт с параметрами по умолчанию.
         - при тренировке через ноутбук, производится установка параметров вызова функции.
@@ -54,7 +55,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, initial_status: Rea
     previous_state_time_stamp = 0
 
     # размер батча
-    batch_size = 1
+    # batch_size = 1
 
     # файлы сохранений
     actorCheckPointFile = savePath + actorCheckPointFile
@@ -94,7 +95,8 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, initial_status: Rea
     finish = Finish()
 
     # очередное состояние окружающей среды
-    environmentStatus: RealWorldStageStatusN
+    environmentStatus: RealWorldStageStatusN = RealWorldStageStatusN()
+    # environmentStatusA: List[RealWorldStageStatusN]
     # подкрепление для предыдущего состояния ОС
     # prevReinforcement = 0.
 
@@ -119,16 +121,20 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, initial_status: Rea
         # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
         # if environmentStatus is None: break
 
-        # Получить из очереди начальное положение изделия
-        while not kill.neuro:
-            # ждём появления начального состояния окружающей среды в очереди
-            if not queues.empty("neuro"):
-                environmentStatus = queues.get("neuro")
-                # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
+        for i in range(batch_size):
+            # Получить из очереди начальное положение изделия
+            while not kill.neuro:
+                # ждём появления начального состояния окружающей среды в очереди
+                if queues.state_to_neuronet.has_new_cargo():
+                    test_id, _ = queues.state_to_neuronet.unload(environmentStatus)
+                    # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
+                    break
+            else:
+                print("Принудительное завершение поднити нейросети во время ожидания начального состояния.\n")
                 break
-        else:
-            print("Принудительное завершение поднити нейросети во время ожидания начального состояния.\n")
-            break
+
+            # todo стостояния из окружающей среды из очереди выходят - проверено!
+            print(test_id, environmentStatus.position)
 
         # Цикл последовательных переходов из одного состояния ОС в другое
         # один проход - один переход
@@ -156,12 +162,6 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, initial_status: Rea
                     # Если в цикле ожидания очередного состояния ОС появился приказ на завершение нити обучения
                     print("Принудительно завершение поднити обучения внутри испытания.\n")
                     break
-
-            # if environmentStatus.time_stamp < previous_state_time_stamp:
-            #     # Новая отметка времени вдруг стала РАНЬШЕ, чем отметка времени предыдущего состояния.
-            #     # Это означает, что предыдущая попытка посадки изделия завершилась и началась новая.
-            #     previousQmax = 0.
-            #     pass
 
             # Подготовка входного вектора для актора
             inputActor = actorInputTensor(environmentStatus)

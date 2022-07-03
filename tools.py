@@ -52,7 +52,13 @@ class InitialStatus(InitialStatusAbstract):
                 # Последний элемент, последовательность пуста.
                 self._is_empty = True
 
-            return RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+            # return RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+            #                          orientation=VectorComplex.get_instance(0., 1.),
+            #                          velocity=VectorComplex.get_instance(0., -5.),
+            #                          angular_velocity=-pi / 36)
+
+            # todo ретурн для проверки прохождения данных по очередям.
+            return RealWorldStageStatusN(position=VectorComplex.get_instance(0., BigMap.startPointInPoligonCoordinates.y - self._current_status_index),
                                      orientation=VectorComplex.get_instance(0., 1.),
                                      velocity=VectorComplex.get_instance(0., -5.),
                                      angular_velocity=-pi / 36)

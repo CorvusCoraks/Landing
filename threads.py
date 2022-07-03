@@ -9,8 +9,10 @@ from kill_flags import KillCommandsContainer
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from datadisp.adisp import DispatcherAbstract
 from carousel.metaque import MetaQueueN
-from typing import Callable, Optional, Iterator
+from typing import Callable, Optional, Iterator, Tuple
 from time import sleep
+from carousel.atrolley import TestId
+from abc import ABC
 
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
@@ -195,3 +197,90 @@ def reality_thread_3(dispatcher: DispatcherAbstract, meta_queue: MetaQueueN, ini
         meta_queue.state_to_view.load(test_id, new_state, is_new_state)
 
     print("Завершение нити реальности.")
+
+
+class RealThread(Thread):
+    def __init__(self, name: str, dispatcher: DispatcherAbstract, meta_queue: MetaQueueN, initial_state: InitialStatusAbstract, kill: KillCommandsContainer, batch_size=1):
+        Thread.__init__(self, name=name)
+        self.__dispatcher = dispatcher
+        self.__meta_queue = meta_queue
+        self.__initial_states = initial_state
+        self.__kill = kill
+        self.__batch_size = batch_size
+
+        self.__iterator = iter(initial_state)
+        self.__sleep_time = 0.001
+        self.__finish_criterion = Finish()
+        # self.__neuronet_command: Optional[StageControlCommands] = None
+
+        self.__test_id: TestId = -1
+        self.__state: Optional[RealWorldStageStatusN] = RealWorldStageStatusN()
+        self.__neuronet_command: Optional[StageControlCommands] = StageControlCommands(time_stamp=-1)
+
+
+    def __set_initial_states(self) -> bool:
+        for i in range(self.__batch_size):
+            # инициализация начальными данными
+            state = next(self.__iterator)
+            self.__dispatcher.put_zero_state(i, state)
+            while not self.__meta_queue.state_to_neuronet.has_void_trolley():
+                sleep(self.__sleep_time)
+                if self.__kill.reality: return True
+            else:
+                self.__meta_queue.state_to_neuronet.load(i, state, True)
+
+        return False
+
+    def __command_waiting(self) -> bool:
+        # Пока есть в запасе исходные данные и пока нет команды на завершение нити
+        while not self.__meta_queue.command_to_real.has_new_cargo():
+            # пока нет в очереди очередной команды - ждём
+            sleep(self.__sleep_time)
+            if self.__kill.reality: return True
+        else:
+            # Получение команды из нейросети
+            self.__test_id, _ = self.__meta_queue.command_to_real.unload(self.__neuronet_command)
+
+        return False
+
+    def __get_reinforcement(self, new_state: RealWorldStageStatusN, command: StageControlCommands):
+        # Подкрепление действий системы управления, которые привели к новому состоянию
+        return ReinforcementValue(new_state.time_stamp,
+                                           tools.Reinforcement.get_reinforcement(new_state, command)
+                                           )
+
+    def __send_reinforcement_to_neuronet(self, test_id: TestId, reinf: ReinforcementValue):
+        # Передача подкрепления в нейросеть
+        self.__meta_queue.reinf_to_neuronet.load(test_id, reinf)
+
+    def __test_end(self, test_id: TestId, new_state: RealWorldStageStatusN) -> bool:
+        # Если это конкретное испытание закончилось
+        is_new_state: bool = False
+        if self.__finish_criterion.is_one_test_failed(new_state.position) \
+                or self.__finish_criterion.is_one_test_success(new_state, tools.Reinforcement.accuracy):
+            # отправляем в диспетчер новые исходные данные для закончившегося теста
+            new_state = next(self.__iterator)
+            self.__dispatcher.put_zero_state(test_id, new_state)
+            is_new_state = True
+        return is_new_state
+
+    def __send_new_state_to_receivers(self, test_id: TestId, new_state: RealWorldStageStatusN, is_new_state: bool):
+        # отправка нового состояния в очереди сообщений
+        self.__meta_queue.state_to_neuronet.load(test_id, new_state, is_new_state)
+        self.__meta_queue.state_to_view.load(test_id, new_state, is_new_state)
+
+    def run(self):
+        if self.__set_initial_states(): return
+
+        while not self.__initial_states.is_empty or not self.__kill.reality:
+
+            if self.__command_waiting(): break
+
+            self.__dispatcher.run(self.__test_id, self.__neuronet_command, self.__state)
+
+            reinf = self.__get_reinforcement(self.__state, self.__neuronet_command)
+
+            self.__send_reinforcement_to_neuronet(self.__test_id, reinf)
+
+            is_new_state = self.__test_end(self.__test_id, self.__state)
+            self.__send_new_state_to_receivers(self.__test_id, self.__state, is_new_state)
