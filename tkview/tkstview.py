@@ -11,7 +11,6 @@ from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
 
-# OnCanvasStaticObjectDict = Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]
 
 class StageViewWindow(WindowsMSInterface):
     """

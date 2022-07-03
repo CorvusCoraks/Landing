@@ -1,16 +1,25 @@
 from point import VectorComplex
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Union
+from typing import Union, Any, TypeVar
 
 
 QueueContent = Union['StageControlCommands', 'RealWorldStageStatusN', 'ReinforcementValue']
+T = TypeVar('T', 'RealWorldStageStatusN', 'StageControlCommands', 'ReinforcementValue')
 
 
 class CloneInterface(ABC):
     @abstractmethod
     def clone(self):
         """ Клонирование объекта (реализация паттерна Прототип). """
+        pass
+
+
+class ValueCopyInterface(ABC):
+    @abstractmethod
+    def data_copy(self, target_object: Any):
+        """ Копирование значений атрибутов объекта в другой объект такого же типа
+        (без создания объектов-значений атрибутов). """
         pass
 
 
@@ -25,7 +34,7 @@ class CloneFactory:
         return self.__prototype.clone()
 
 
-class StageControlCommands(CloneInterface):
+class StageControlCommands(CloneInterface, ValueCopyInterface):
     """
     Команда на работу двигателей в определённый момент времени на определённый срок
     """
@@ -66,8 +75,17 @@ class StageControlCommands(CloneInterface):
     def clone(self):
         return deepcopy(self)
 
+    def data_copy(self, to_object: 'StageControlCommands'):
+        to_object.time_stamp = self.time_stamp
+        to_object.duration = self.duration
+        to_object.top_left = self.top_left
+        to_object.top_right = self.top_right
+        to_object.down_left = self.down_left
+        to_object.down_right =self.down_right
+        to_object.main = self.main
 
-class RealWorldStageStatusN(CloneInterface):
+
+class RealWorldStageStatusN(CloneInterface, ValueCopyInterface):
     """ Состояние ступени в конкретный момент времени """
     def __init__(self, position=None,
                  velocity=None,
@@ -136,8 +154,16 @@ class RealWorldStageStatusN(CloneInterface):
     def clone(self):
         return deepcopy(self)
 
+    def data_copy(self, target_object: 'RealWorldStageStatusN'):
+        target_object.position.decart = self.velocity.decart
+        target_object.velocity.decart = self.velocity.decart
+        target_object.acceleration.decart = self.acceleration.decart
+        target_object.orientation.decart = self.acceleration.decart
+        target_object.angular_velocity = self.angular_velocity
+        target_object.angular_acceleration = self.angular_acceleration
+        target_object.time_stamp = self.time_stamp
 
-class ReinforcementValue(CloneInterface):
+class ReinforcementValue(CloneInterface, ValueCopyInterface):
     """
     Класс величины подкрепления для передачи через очередь между нитями
     """
@@ -150,6 +176,10 @@ class ReinforcementValue(CloneInterface):
 
     def clone(self):
         return deepcopy(self)
+
+    def data_copy(self, target_object: 'ReinforcementValue'):
+        target_object.time_stamp = self.time_stamp
+        target_object.reinforcement = self.reinforcement
 
     # @property
     # def reinforcement(self):

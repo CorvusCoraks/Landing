@@ -213,35 +213,6 @@ class Moving:
         # pass
         return 0.
 
-
-    # @classmethod
-    # def getDistanseVector(cls, V0: VectorComplex, t: float, forces: Action) -> VectorComplex:
-    #     """
-    #     Измение положения центра масс ступени в системе координат полигона
-    #
-    #     :param V0: Начальная скорость центра масс в точке S0
-    #     :param t: Время действия суперпозиции сил
-    #     :param forces: Силы действующие на объект
-    #     :return: перемещение (вектор) из начальной точки с V0 в новую ночку под действием суперпозиции сил
-    #     """
-    #     # todo сделать private или вообще убрать?
-    #     # result = VectorComplex.get_instance_c(S0.cardanus + V0.cardanus*t + Axeleration.get_a().cardanus*t**2)
-    #     result = V0 * t + Moving.get_a(forces) * t ** 2
-    #     return result
-
-    # @classmethod
-    # def getRotationAngle(cls, W0: float, t: float, forces: Action) -> float:
-    #     """
-    #     Изменение угла поворота ступени вокруг её центра масс.
-    #
-    #     :param W0:
-    #     :param t:
-    #     :param forces:
-    #     """
-    #     # todo сделать private или вообще убрать?
-    #     result = W0 * t + Moving.get_e(forces) * t ** 2
-    #     return result
-
     @classmethod
     def get_new_status(cls, control_commands: StageControlCommands,
                        previous_status: RealWorldStageStatusN) -> RealWorldStageStatusN:

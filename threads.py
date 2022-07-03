@@ -1,11 +1,16 @@
 """ Класс нитей и инструментов работы с ними. """
+# from builtins import function
 import tools
 from physics import Moving
-from tools import Finish, MetaQueue
+from tools import Finish, MetaQueue, InitialStatus, InitialStatusAbstract
 from threading import Thread
 from training import start_nb
 from kill_flags import KillCommandsContainer
-from structures import RealWorldStageStatusN, ReinforcementValue
+from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
+from datadisp.adisp import DispatcherAbstract
+from carousel.metaque import MetaQueueN
+from typing import Callable, Optional, Iterator
+from time import sleep
 
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
@@ -124,5 +129,69 @@ def reality_thread_2(queues: MetaQueue, kill: KillCommandsContainer,
         # прекращаем испытания, завершение программы
         if kill.reality:
             break
+
+    print("Завершение нити реальности.")
+
+
+def reality_thread_3(dispatcher: DispatcherAbstract, meta_queue: MetaQueueN, initial_status: InitialStatusAbstract,
+                     batch_size: int, kill: KillCommandsContainer):
+    """ Функция нити реальности. Получет данные из очереди и отправляет сообщения в очередь. """
+    # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill)
+    print("Вход в нить окружающей среды.")
+
+    finish_control = Finish()
+
+    sleep_time = 0.001
+
+    command: Optional[StageControlCommands] = None
+
+    init_iter: Iterator = iter(initial_status)
+
+    #####
+    # цикл установки исходных положений изделия
+    #####
+    for i in range(batch_size):
+        # инициализация начальными данными
+        state = next(init_iter)
+        dispatcher.put_zero_state(i, state)
+        while not meta_queue.state_to_neuronet.has_void_trolley():
+            sleep(sleep_time)
+        else:
+            meta_queue.state_to_neuronet.load(i, state, True)
+
+    #####
+    # главный цикл получения команд из очереди нейросети и отправки в нейросеть обработанных данных
+    #####
+    while not initial_status.is_empty or not kill.reality:
+        # Пока есть в запасе исходные данные и пока нет команды на завершение нити
+        while not meta_queue.command_to_real.has_new_cargo():
+            # пока нет в очереди очередной команды - ждём
+            sleep(sleep_time)
+            if kill.reality: return
+        else:
+            # Получение команды из нейросети
+            test_id, _ = meta_queue.command_to_real.unload(command)
+
+        test_id, new_state = dispatcher.run(test_id, command)
+
+        # Подкрепление действий системы управления, которые привели к новому состоянию
+        reinf = ReinforcementValue(new_state.time_stamp,
+                                           tools.Reinforcement.get_reinforcement(new_state, command)
+                                           )
+        # Передача подкрепления в нейросеть
+        meta_queue.reinf_to_neuronet.load(test_id, reinf)
+
+        # Если это конкретное испытание закончилось
+        is_new_state: bool = False
+        if finish_control.is_one_test_failed(new_state.position) \
+                or finish_control.is_one_test_success(new_state, tools.Reinforcement.accuracy):
+            # отправляем в диспетчер новые исходные данные для закончившегося теста
+            new_state = next(init_iter)
+            dispatcher.put_zero_state(test_id, new_state)
+            is_new_state = True
+
+        # отправка нового состояния в очереди сообщений
+        meta_queue.state_to_neuronet.load(test_id, new_state, is_new_state)
+        meta_queue.state_to_view.load(test_id, new_state, is_new_state)
 
     print("Завершение нити реальности.")

@@ -16,7 +16,7 @@ class VectorComplex:
     # https://stackoverflow.com/questions/8212053/private-constructor-in-python
     __create_key = object()
 
-    def __init__(self, create_key: object, tensor_view: torch_tensor, origin=None):
+    def __init__(self, create_key: object, x: float, y: float, origin=None):
         """
         Объект данного класса создавать только методами *get_instance* или *get_instance_c*
 
@@ -29,8 +29,11 @@ class VectorComplex:
         assert(create_key == VectorComplex.__create_key), \
             "VectorComplex objects must be created using getInstanse or get_instance_c method."
 
+        self._x = x
+        self._y = y
+
         # тензорное представление вида [[0, 0]]
-        self.__tensor = tensor_view
+        # self.__tensor = tensor_view
         # отдельно сохраняем данные тензора в родительском классе, ибо только они будут актуальными
         # self.__setPoint()
         # Есть система координат (А), в которой и лежит вектор
@@ -48,11 +51,13 @@ class VectorComplex:
         :param y: ордината конечной точки вектора.
         """
 
-        lst = [[x, y]]
-        tensor = torch_tensor(lst, dtype=torch_float)
-        result = VectorComplex(VectorComplex.__create_key, tensor)
-        result.__origin = origin
-        return result
+        # lst = [[x, y]]
+        # tensor = torch_tensor(lst, dtype=torch_float)
+        # result = VectorComplex(VectorComplex.__create_key, tensor)
+        # self._x = x
+        # self._y = y
+        # result.__origin = origin
+        return VectorComplex(VectorComplex.__create_key, x, y, origin)
 
     @classmethod
     def get_instance_c(cls, complex_number: complex, origin=None) -> 'VectorComplex':
@@ -60,38 +65,41 @@ class VectorComplex:
 
         :param complex_number: комплексное число, представляющее компоненты вектора (real - x, img - y)
         """
-        result = VectorComplex(VectorComplex.__create_key, torch_tensor([[complex_number.real, complex_number.imag]],
-                                                                        dtype=torch_float))
-        result.__origin = origin
-        return result
+        # result = VectorComplex(VectorComplex.__create_key, torch_tensor([[complex_number.real, complex_number.imag]],
+        #                                                                 dtype=torch_float))
+        # result.__origin = origin
+        return VectorComplex(VectorComplex.__create_key, complex_number.real, complex_number.imag, origin)
 
-    def __get_pair(self) -> Tuple[float, float]:
-        """ Получить компоненты вектора в виде кортежа двух чисел с плавающей точкой. """
-        # return self.__tensor[0][0], self.__tensor[0][1]
-        # print(type(self.__tensor[0][0].item()), type(self.__tensor[0][1].item()))
-        return self.__tensor[0][0].item(), self.__tensor[0][1].item()
+    # def __get_pair(self) -> Tuple[float, float]:
+    #     """ Получить компоненты вектора в виде кортежа двух чисел с плавающей точкой. """
+    #     # return self.__tensor[0][0], self.__tensor[0][1]
+    #     # print(type(self.__tensor[0][0].item()), type(self.__tensor[0][1].item()))
+    #     # return self.__tensor[0][0].item(), self.__tensor[0][1].item()
+    #     return self._x, self._y
+    #
+    # def __set_pair(self, x: float, y: float):
+    #     """ Установить/Изменить компоненты вектора
+    #
+    #     :param x: абцисса конечной точки вектора.
+    #     :param y: ордината конечной точки вектора.
+    #     """
+    #     # self.__tensor[0][0] = x
+    #     # self.__tensor[0][1] = y
+    #     self._x = x
+    #     self._y = y
 
-    def __set_pair(self, x: float, y: float):
-        """ Установить/Изменить компоненты вектора
-
-        :param x: абцисса конечной точки вектора.
-        :param y: ордината конечной точки вектора.
-        """
-        self.__tensor[0][0] = x
-        self.__tensor[0][1] = y
-
-    @property
-    def tensor(self) -> torch_tensor:
-        """ Тензорный вид вектора """
-        # self.__tensor[0][0] = self.__x
-        # self.__tensor[0][1] = self.__y
-        # return self.__tensor
-        return torch_tensor([[self.__tensor[0][0].item(), self.__tensor[0][1].item()]], dtype=self.__tensor.dtype)
-
-    @tensor.setter
-    def tensor(self, tnsr: torch_tensor):
-        self.__tensor = tnsr
-        # self.__setPoint()
+    # @property
+    # def tensor(self) -> torch_tensor:
+    #     """ Тензорный вид вектора """
+    #     # self.__tensor[0][0] = self.__x
+    #     # self.__tensor[0][1] = self.__y
+    #     # return self.__tensor
+    #     return torch_tensor([[self.__tensor[0][0].item(), self.__tensor[0][1].item()]], dtype=self.__tensor.dtype)
+    #
+    # @tensor.setter
+    # def tensor(self, tnsr: torch_tensor):
+    #     self.__tensor = tnsr
+    #     # self.__setPoint()
 
     @property
     def decart(self) -> Tuple[float, float]:
@@ -100,34 +108,37 @@ class VectorComplex:
 
         :return: декартовы координаты точки
         """
-        return self.__get_pair()
+        # return self.__get_pair()
+        return self._x, self._y
 
     @decart.setter
     def decart(self, point: Tuple[float, float]):
         """ Установить координаты конца вектора. """
         if len(point) != 2:
             raise Exception("Argument 'point' length ({0}) mismatch".format(len(point)))
-        self.__set_pair(point[0], point[1])
+        # self.__set_pair(point[0], point[1])
+        self._x, self._y = point
 
     @property
     def x(self) -> float:
         """ Абцисса конца вектора. """
-        x, _ = self.__get_pair()
-        return x
+        # x, _ = self.__get_pair()
+        return self._x
 
     @property
     def y(self) -> float:
         """ Ордината конца вектора. """
-        _, y = self.__get_pair()
-        return y
+        # _, y = self.__get_pair()
+        return self._y
 
     @property
     def cardanus(self) -> complex:
         """
         :return: координаты точки в виде комплексного числа
         """
-        x, y = self.__get_pair()
-        return complex(x, y)
+        # x, y = self.__get_pair()
+        # return complex(x, y)
+        return complex(self._x, self._y)
 
     @cardanus.setter
     def cardanus(self, cmx: complex):
@@ -136,7 +147,8 @@ class VectorComplex:
 
         :param cmx: координаты в виде комплексного числа
         """
-        self.__set_pair(cmx.real, cmx.imag)
+        # self.__set_pair(cmx.real, cmx.imag)
+        self._x, self._y = cmx.real, cmx.imag
 
     @property
     def origin(self):
@@ -168,6 +180,7 @@ class VectorComplex:
 
     def lazy_copy(self) -> 'VectorComplex':
         """ Ленивая копия объекта: копируются только координаты """
+        # todo заменить на deepcopy?
         return VectorComplex.get_instance(self.x, self.y)
 
     def __add__(self, other: 'VectorComplex') -> 'VectorComplex':

@@ -114,7 +114,7 @@ def start_nb(queues: MetaQueue, kill: KillCommandsContainer, initial_status: Rea
         # фиктивное значение начального состояния изделия, необходимое только для того,
         # чтобы запустился цикл прохода по процессу одной посадки
         # environmentStatus = RealWorldStageStatusN(position=VectorComplex.get_instance(0, 450))
-        # environmentStatus = initial_status
+        # environmentStatus = initial_status_obj
         # Получить из очереди начальное положение изделия
         # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
         # if environmentStatus is None: break

@@ -2,26 +2,39 @@
 
 from threading import Thread
 from stage import Sizes, BigMap
-from threads import neuronet_thread, reality_thread_2
+from threads import neuronet_thread, reality_thread_2, reality_thread_3
 from kill_flags import KillCommandsContainer
 from tkview.tkview import TkinterView
-from tools import MetaQueue
+from tools import MetaQueue, InitialStatusAbstract, InitialStatus
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Dict, Any
 from point import VectorComplex
 from cmath import pi
 from view import ViewInterface
+from carousel.metaque import MetaQueueN
+from datadisp.adisp import DispatcherAbstract
+from datadisp.listdisp import ListDispatcher
+
+
+
+# def initial_status_func():
+#     return RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+#                                           orientation=VectorComplex.get_instance(0., 1.),
+#                                           velocity=VectorComplex.get_instance(0., -5.),
+#                                           angular_velocity=-pi / 36)
 
 if __name__ == "__main__":
+    # temp = initial_status_func
+
     # максимальное количество тестовых посадок
     max_tests = 2
 
     # начальное состояние ступени в СКИП
-    initial_status = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-                                          orientation=VectorComplex.get_instance(0., 1.),
-                                          velocity=VectorComplex.get_instance(0., -5.),
-                                          angular_velocity=-pi / 36)
-    initial_status.time_stamp = 0
+    initial_status_obj = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+                                               orientation=VectorComplex.get_instance(0., 1.),
+                                               velocity=VectorComplex.get_instance(0., -5.),
+                                               angular_velocity=-pi / 36)
+    initial_status_obj.time_stamp = 0
 
     # Очередь данных в вид испытательного полигона (из нити реальности)
     # Очередь данных в вид изделия (из нити реальности)
@@ -41,8 +54,13 @@ if __name__ == "__main__":
     # контейнер с командами на остановку нитей
     kill = KillCommandsContainer.get_instance()
 
+    batch_size = 1
+    queues_m: MetaQueueN = MetaQueueN(batch_size)
+    dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
+
     # Нить модели реального мира
-    realWorldThread = Thread(target=reality_thread_2, name="realWorldThread", args=(queues, kill, max_tests, initial_status,))
+    # realWorldThread = Thread(target=reality_thread_2, name="realWorldThread", args=(queues, kill, max_tests, initial_status_obj,))
+    realWorldThread = Thread(target=reality_thread_3, name="realWorldThread", args=(dispatcher, InitialStatus(max_tests), batch_size, kill, ))
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status
@@ -53,7 +71,7 @@ if __name__ == "__main__":
     neuroNetThread = Thread(target=neuronet_thread,
                             name="NeuroNetThread",
                             args=(queues,
-                                  kill, initial_status,))
+                                  kill, initial_status_obj,))
     neuroNetThread.start()
 
     # Размер полигона в метрах!
