@@ -1,8 +1,8 @@
 """ Модуль визуализации происходящего с испытуемым объектом. """
-from tkinter import Tk, Canvas, colorchooser, Toplevel, LAST, NE, NW
+from tkinter import Tk, Canvas
 from typing import Optional
-from stage import Sizes, BigMap
-from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
+from stage import BigMap
+from kill_flags import KillCommandsContainer
 from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from tkview.primiteves import StageMark
@@ -11,6 +11,8 @@ from structures import RealWorldStageStatusN
 from tools import MetaQueue
 from time import sleep
 from point import VectorComplex
+from carousel.metaque import MetaQueueN
+from carousel.atrolley import TestId
 
 
 class PoligonWindow(WindowsMSInterface):
@@ -21,7 +23,7 @@ class PoligonWindow(WindowsMSInterface):
     # Окно с увеличенным изображением ступени рисутется как "дочернее" окно полигона.
     # При закрытии окна полигона, закрывается и окно ступени.
 
-    def __init__(self, queues: MetaQueue, poligon_width: float,
+    def __init__(self, queues: MetaQueueN, poligon_width: float,
                  poligon_heigt: float, poligon_scale: float,
                  kill: KillCommandsContainer):
         """
@@ -48,18 +50,39 @@ class PoligonWindow(WindowsMSInterface):
         # self.__killRealityFlag = killRealityFlag
         self.__kill = kill
 
-        # Получение начального положения изделия в СКИП (первое сообщение в очереди им и является)
-        # todo устанавливать отметку старта именно по этим данным
-        while self.__queues.empty('area'):
-            sleep(0.01)
-        else:
-            self.__start_point: VectorComplex = complexChangeSystemCoordinatesUniversal(
-                self.__queues.get('area').position, BigMap.canvasOriginInPoligonCoordinates, 0., True) / self.__poligon_scale
+        # Время сна в ожидании данных в очереди
+        self.__time_sleep: float = 0.001
+        # Состояние изделия для отображения
+        self.__any_state: RealWorldStageStatusN = RealWorldStageStatusN()
+        # Состояние изделия не нужное для отображение, лишнее. Для сброса лишних состояний из очереди.
+        self.__trash_state: RealWorldStageStatusN = RealWorldStageStatusN()
+        # Идентификатор испытания предназначенного для отображения.
+        self.__test_id_for_view: TestId = 0
+        # Стартовая точка отображаемого испытания.
+        self.__start_point: VectorComplex = VectorComplex.get_instance()
 
-        # # стартовая точка испытаний в СКК
-        # self.__start_point = complexChangeSystemCoordinatesUniversal(BigMap.startPointInPoligonCoordinates,
-        #                                                              BigMap.canvasOriginInPoligonCoordinates,
-        #                                                              0., True) / self.__poligon_scale
+        # # Получение начального положения изделия в СКИП (первое сообщение в очереди им и является)
+        # # todo устанавливать отметку старта именно по этим данным
+        # while self.__queues.empty('area'):
+        #     sleep(self.__time_sleep)
+        # else:
+        #     self.__start_point: VectorComplex = complexChangeSystemCoordinatesUniversal(
+        #         self.__queues.get('area').position, BigMap.canvasOriginInPoligonCoordinates, 0., True) / self.__poligon_scale
+
+        # Получение начального положения изделия
+        while not self.__queues.state_to_view.has_new_cargo():
+            # Пока нет вагонеток с начальными состояниями - засыпаем
+            sleep(self.__time_sleep)
+        else:
+            # Есть вагонетка
+            test_id, init_flag = self.__queues.state_to_view.unload(self.__trash_state)
+            if test_id == self.__test_id_for_view:
+                # Если тест, который закреплён для отображения - сохраняем его.
+                self.__trash_state.data_copy(self.__any_state)
+
+        # Стартовая точка в СКК
+        self.__start_point: VectorComplex = complexChangeSystemCoordinatesUniversal(
+            self.__any_state.position, BigMap.canvasOriginInPoligonCoordinates, 0., True) / self.__poligon_scale
 
         # точка посадки в СКК
         self.__end_point = complexChangeSystemCoordinatesUniversal(BigMap.landingPointInPoligonCoordinates,
@@ -95,9 +118,17 @@ class PoligonWindow(WindowsMSInterface):
         # длительность предыдущего статуса изделия
         previous_status_duration = 0
         # получение данных из внешних источников self.__any_queue
-        if not self.__queues.empty('area'):
+        while not self.__queues.state_to_view.has_new_cargo():
+            sleep(self.__time_sleep)
+        else:
+            test_id, _ = self.__queues.state_to_view.unload(self.__trash_state)
+            if test_id == self.__test_id_for_view:
+                self.__trash_state.data_copy(self.__any_state)
+
+        # if self.__queues.state_to_view.has_new_cargo():
+        # if not self.__queues.empty('area'):
             # print(self.__any_queue.get())
-            transform = self.__queues.get('area')
+            transform = self.__any_state
 
             previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
             self.__previous_status_time_stamp = transform.time_stamp

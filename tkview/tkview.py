@@ -4,6 +4,7 @@ from kill_flags import KillCommandsContainer
 from tkview.tkarea import PoligonWindow
 from tkview.tkstview import StageViewWindow, InfoView
 from stage import Sizes
+from carousel.metaque import MetaQueueN
 from tools import MetaQueue
 from typing import Optional
 
@@ -17,7 +18,7 @@ class TkinterView(ViewInterface):
         # self.__poligon_height: float = 0.
         pass
 
-    def set_poligon_state(self, queues: MetaQueue, poligon_width: float, poligon_height: float):
+    def set_poligon_state(self, queues: MetaQueueN, poligon_width: float, poligon_height: float):
 
         self.__queues = queues
         # self.__env_to_poligon_queue = queues.get_queue("area")

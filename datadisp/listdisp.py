@@ -48,6 +48,7 @@ class ListDispatcher(DispatcherAbstract):
         :param initial_state: Если равен *None*, значит начальные состояния закончились. """
 
         self.__tests_list[test_id].state = initial_state
+        self.__tests_list[test_id].test_id = test_id
 
     def run(self, test_id: TestId, command: StageControlCommands, new_state: RealWorldStageStatusN) -> TestId:
         """ Расчёт нового состояния для одного испытания.

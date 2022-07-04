@@ -10,6 +10,7 @@ from physics import  CheckPeriod
 from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from tools import MetaQueue
+from carousel.metaque import MetaQueueN
 
 
 class StageViewWindow(WindowsMSInterface):
@@ -17,7 +18,7 @@ class StageViewWindow(WindowsMSInterface):
     Класс окна вывода увеличенного изображения ступени и числовых характеристик
     """
     # def __init__(self, root: Tk, stage_size: float, stage_scale: float, frameRate: int, anyQueue: Queue, to_info_queue: Queue, info_block: Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]):
-    def __init__(self, root: Tk, stage_size: float, stage_scale: float, queues: MetaQueue):
+    def __init__(self, root: Tk, stage_size: float, stage_scale: float, queues: MetaQueueN):
         """
         :param root: родительский оконный менеджер
         :param stage_size: максимальный характерный размер ступени, метров
@@ -28,6 +29,8 @@ class StageViewWindow(WindowsMSInterface):
         self.__stage_scale = stage_scale
         self.__any_queue = queues
         # self.__to_info_queue = queues.get_queue("info")
+
+        self.__any_state: RealWorldStageStatusN = RealWorldStageStatusN()
 
         # ВременнАя точка предыдущего состояния изделия
         self.__previous_status_time_stamp = 0
@@ -77,13 +80,18 @@ class StageViewWindow(WindowsMSInterface):
         previous_status_duration = 0
 
         # получение данных из внешних источников self.__any_queue
-        if not self.__any_queue.empty('stage'):
-            transform = self.__any_queue.get('stage')
+        if self.__any_queue.state_to_stage_view.has_new_cargo():
+            self.__any_queue.state_to_stage_view.unload(self.__any_state)
 
+            transform = self.__any_state
             previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
             self.__previous_status_time_stamp = transform.time_stamp
 
-            # self.__to_info_queue.put(transform.lazy_copy)
+        # if not self.__any_queue.empty('stage'):
+        #     transform = self.__any_queue.get('stage')
+        #
+        #     previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
+        #     self.__previous_status_time_stamp = transform.time_stamp
 
         # отрисовка нового положения объектов на основании полученных данных из очереди
         if transform is not None:

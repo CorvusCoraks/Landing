@@ -2,7 +2,7 @@
 
 from threading import Thread
 from stage import Sizes, BigMap
-from threads import neuronet_thread, reality_thread_2, reality_thread_3, RealThread
+from threads import neuronet_thread, RealThread
 from kill_flags import KillCommandsContainer
 from tkview.tkview import TkinterView
 from tools import MetaQueue, InitialStatusAbstract, InitialStatus
@@ -14,7 +14,7 @@ from view import ViewInterface
 from carousel.metaque import MetaQueueN
 from datadisp.adisp import DispatcherAbstract
 from datadisp.listdisp import ListDispatcher
-
+from carousel.atrolley import TestId
 
 
 # def initial_status_func():
@@ -29,12 +29,14 @@ if __name__ == "__main__":
     # максимальное количество тестовых посадок
     max_tests = 7
 
+    # test_id_for_view: TestId = 0
+
     # начальное состояние ступени в СКИП
-    initial_status_obj = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-                                               orientation=VectorComplex.get_instance(0., 1.),
-                                               velocity=VectorComplex.get_instance(0., -5.),
-                                               angular_velocity=-pi / 36)
-    initial_status_obj.time_stamp = 0
+    # initial_status_obj = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
+    #                                            orientation=VectorComplex.get_instance(0., 1.),
+    #                                            velocity=VectorComplex.get_instance(0., -5.),
+    #                                            angular_velocity=-pi / 36)
+    # initial_status_obj.time_stamp = 0
 
     # Очередь данных в вид испытательного полигона (из нити реальности)
     # Очередь данных в вид изделия (из нити реальности)
@@ -54,7 +56,7 @@ if __name__ == "__main__":
     # контейнер с командами на остановку нитей
     kill = KillCommandsContainer.get_instance()
 
-    batch_size = 5
+    batch_size = 1
     queues_m: MetaQueueN = MetaQueueN(batch_size)
     dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
 
@@ -83,7 +85,7 @@ if __name__ == "__main__":
     stageScale = 0.1
     # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
     view: ViewInterface = TkinterView()
-    view.set_poligon_state(queues, BigMap.width, BigMap.height)
+    view.set_poligon_state(queues_m, BigMap.width, BigMap.height)
     view.set_kill_threads(kill)
     view.set_stage_parameters(Sizes.topMassDistance,
                               Sizes.downMassDistance,

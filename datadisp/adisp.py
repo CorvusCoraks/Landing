@@ -25,5 +25,5 @@ class DispatcherAbstract(ABC):
 
     @abstractmethod
     def run(self, test_id: TestId, command: StageControlCommands, state: RealWorldStageStatusN) -> TestId:
-        """ Метод периодического выхова для обработки команды. """
+        """ Метод периодического выхода для обработки команды. """
         pass

@@ -20,6 +20,8 @@ from net import Net
 from status import ITrainingStateStorage, TrainingStateShelve
 from typing import Dict, Any, Optional, Union, Tuple
 from copy import deepcopy
+from time import sleep
+from carousel.atrolley import TestId
 
 
 def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
@@ -28,6 +30,8 @@ def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, s
         - при тренировке через ноутбук, производится установка параметров вызова функции.
     """
     print("Вход в поднить обучения.\n")
+
+    sleep_time = 0.001
 
     state_storage: ITrainingStateStorage = TrainingStateShelve()
 
@@ -101,7 +105,7 @@ def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, s
     # prevReinforcement = 0.
 
     # Информация о подкреплении каждого шага для передачи через очередь
-    reinf: structures.ReinforcementValue
+    reinf: structures.ReinforcementValue = structures.ReinforcementValue(0, 0.)
 
     startEpoch = 0
     stopEpochNumber = 2
@@ -121,19 +125,25 @@ def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, s
         # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
         # if environmentStatus is None: break
 
+        test_id: TestId = 0
+
+        is_initial_forward = False
+
         for i in range(batch_size):
             # Получить из очереди начальное положение изделия
             while not kill.neuro:
                 # ждём появления начального состояния окружающей среды в очереди
                 if queues.state_to_neuronet.has_new_cargo():
                     test_id, _ = queues.state_to_neuronet.unload(environmentStatus)
+                    is_initial_forward = True
                     # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
                     break
+                sleep(sleep_time)
             else:
                 print("Принудительное завершение поднити нейросети во время ожидания начального состояния.\n")
                 break
 
-            # todo стостояния из окружающей среды из очереди выходят - проверено!
+            # todo состостояния из окружающей среды из очереди выходят - проверено!
             print(test_id, environmentStatus.position)
 
         # Цикл последовательных переходов из одного состояния ОС в другое
@@ -149,15 +159,18 @@ def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, s
             # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
             # if environmentStatus is None: break
 
-            if environmentStatus.time_stamp != 0:
+            print('Нейросеть: вход в цикл прямого прохода по нейросети.')
+
+            if not is_initial_forward:
                 # Для нулевого состояния повторный вход в данный цикл - лишнее.
                 # Данный цикл актуален только для ненулевых состояний.
                 while not kill.neuro:
                     # ждём очередное состояние окружающей среды
-                    if not queues.empty("neuro"):
-                        environmentStatus = queues.get("neuro")
+                    if queues.state_to_neuronet.has_new_cargo():
+                        test_id, _ = queues.state_to_neuronet.unload(environmentStatus)
                         # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
                         break
+                    sleep(sleep_time)
                 else:
                     # Если в цикле ожидания очередного состояния ОС появился приказ на завершение нити обучения
                     print("Принудительно завершение поднити обучения внутри испытания.\n")
@@ -181,17 +194,19 @@ def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, s
             random.seed()
             if random.choice([0, 1]):
                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                queues.put(StageControlCommands(environmentStatus.time_stamp))
+                # queues.put(StageControlCommands(environmentStatus.time_stamp))
+                queues.command_to_real.load(test_id, StageControlCommands(environmentStatus.time_stamp))
             else:
                 # Нейросеть актора даёт команду
-                queues.put(StageControlCommands(environmentStatus.time_stamp, main=True))
+                # queues.put(StageControlCommands(environmentStatus.time_stamp, main=True))
+                queues.command_to_real.load(test_id, StageControlCommands(environmentStatus.time_stamp, main=True))
 
-            if environmentStatus.time_stamp == 0:
+            if is_initial_forward:
                 # Получили максимальное значение функции ценности для нулевого состояния.
                 # Отправили в физ. модель команды для двигателей для нулевого состояния.
                 # Больше ничего мы для него сделать не можем, переходим сразу к ожиданию следующего состояния ОС.
                 previousQmax = Qmax.item()
-                continue
+                # continue
 
             # # Ждём появления подкрепления в очереди
             # while reinforcementQueue.empty():
@@ -207,44 +222,54 @@ def start_nb(queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, s
 
             # Ждём появления подкрепления в очереди
             while not kill.neuro:
-                if not queues.empty("reinf"):
-                    reinf = queues.get("reinf")
+                if queues.reinf_to_neuronet.has_new_cargo():
+                    queues.reinf_to_neuronet.unload(reinf)
                     break
             else:
                 # если была дана команда на завершение нити
                 print("Принудительно завершение поднити обучения внутри испытания.\n")
                 break
-
-            # while not reinforcementQueue.empty():
-            #     reinf = reinforcementQueue.get()
-            #     # Проверка на совпадение отметки времени
-            #     # if environmentStatus.time_stamp
-            #     if killThisThread.kill:
-            #         # если была дана команда на завершение нити
-            #         print("Принудительно завершение поднити обучения внутри испытания.\n")
-            #         break
-
-            # if environmentStatus.time_stamp > 0:
-            #     # для нулевого состояния окружающей среды корректировку функции ценности не производим
-
-            # Ошибка критика
-            # criticLoss = previousQmax + 0.001*(reinf + 0.01*Qmax - previousQmax)
-            criticLoss = add(previousQmax, mul(sub(add(mul(Qmax, 0.01), reinf.reinforcement), previousQmax), 0.001))
-            # обратный проход последовательно по критику, а затем по актору
-            criticLoss.backward()
-            actorAction.backward(actorGradsFromCritic())
-
-            # Оптимизация гиперпараметров нейросетей
-
-            # Функцию ценности превращаем в скаляр, чтобы на следующем проходе, по этой величине не было backward
-            previousQmax = Qmax.item()
-
-
-            # Каждые несколько проходов
-            #     Сохранение состояния окружающей среды
-            #     Сохранение состояния ступени
-            #     Сохранение состояния процесса обучения
-            #     Сохранение состяния нейросетей
+            #
+            # # while not kill.neuro:
+            # #     if not queues.empty("reinf"):
+            # #         reinf = queues.get("reinf")
+            # #         break
+            # # else:
+            # #     # если была дана команда на завершение нити
+            # #     print("Принудительно завершение поднити обучения внутри испытания.\n")
+            # #     break
+            #
+            # # while not reinforcementQueue.empty():
+            # #     reinf = reinforcementQueue.get()
+            # #     # Проверка на совпадение отметки времени
+            # #     # if environmentStatus.time_stamp
+            # #     if killThisThread.kill:
+            # #         # если была дана команда на завершение нити
+            # #         print("Принудительно завершение поднити обучения внутри испытания.\n")
+            # #         break
+            #
+            # # if environmentStatus.time_stamp > 0:
+            # #     # для нулевого состояния окружающей среды корректировку функции ценности не производим
+            #
+            # # Ошибка критика
+            # # criticLoss = previousQmax + 0.001*(reinf + 0.01*Qmax - previousQmax)
+            # criticLoss = add(previousQmax, mul(sub(add(mul(Qmax, 0.01), reinf.reinforcement), previousQmax), 0.001))
+            # # обратный проход последовательно по критику, а затем по актору
+            # criticLoss.backward()
+            # actorAction.backward(actorGradsFromCritic())
+            #
+            # # Оптимизация гиперпараметров нейросетей
+            #
+            # # Функцию ценности превращаем в скаляр, чтобы на следующем проходе, по этой величине не было backward
+            # previousQmax = Qmax.item()
+            #
+            #
+            is_initial_forward = False
+            # # Каждые несколько проходов
+            # #     Сохранение состояния окружающей среды
+            # #     Сохранение состояния ступени
+            # #     Сохранение состояния процесса обучения
+            # #     Сохранение состяния нейросетей
 
         state_storage.save_training({
             'start_epoch': 0,

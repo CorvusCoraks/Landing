@@ -63,140 +63,140 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
     print("Завершение нити нейросети.\n")
 
 
-def reality_thread_2(queues: MetaQueue, kill: KillCommandsContainer,
-                     max_tests: int, initial_status: RealWorldStageStatusN):
-    """
-    Функция моделирующая поведение ступени в реальной физической среде
-
-    :param queues: Контейнер очередей передачи данных.
-    :param kill: Контейнер команд на завершение нитей.
-    :param max_tests: Количество запланированных испытательных посадок.
-    :param initial_status: Начальное состояние (положение) изделия в СКИП
-    """
-    print("Вход в нить окружающей среды.")
-
-    finish_control = Finish()
-
-    # провести указанное число испытательных посадок
-    for i in range(max_tests):
-        # предыдущее состояние изделия
-        previous_stage_status: RealWorldStageStatusN = initial_status
-        # Информация о начальном положении изделия отправляется в нити
-        queues.put(initial_status)
-
-        while not kill.reality:
-            # ждём команду для двигателей из нейросети на отправленное начальное состояние
-            if not queues.empty("command"):
-                command = queues.get("command")
-                # команда, ведущая к новому состоянию, получена
-                break
-        else:
-            break
-
-        # цикл последовательной генерации состояний в процессе одной тестовой посадки
-        # цикл прерывается, только если во время посадки случилась удача / неудача
-        # или поступила команда на заверешение работы программы
-        while not finish_control.is_one_test_failed(previous_stage_status.position) and not kill.reality:
-            # очередное состояние изделия в СКИП
-            new_stage_status = Moving.get_new_status(command, previous_stage_status)
-            # Подкрепление действий системы управления, которые привели к новому состоянию
-            reinforcement = ReinforcementValue(new_stage_status.time_stamp,
-                                               tools.Reinforcement.get_reinforcement(new_stage_status, command)
-                                               )
-
-            # Отправляем величину подкрепления в НС
-            queues.put(reinforcement)
-            # добавить в выходную очередь очередную порцию информации о состоянии ступени
-            queues.put(new_stage_status)
-
-            # если удачная посадка
-            if finish_control.is_one_test_success(new_stage_status, tools.Reinforcement.accuracy):
-                # переходим к следующему испытанию
-                break
-
-            while not kill.reality:
-                # ждём команду из нейросети на отправленное состояние и подкрепление
-                if not queues.empty("command"):
-                    command = queues.get("command")
-                    # команда, ведущая к новому состоянию, получена
-                    break
-            else:
-                break
-
-            previous_stage_status = new_stage_status
-            print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
-                  format(i, new_stage_status.time_stamp, new_stage_status.position, new_stage_status.velocity,
-                         new_stage_status.acceleration, new_stage_status.orientation))
-
-        # прекращаем испытания, завершение программы
-        if kill.reality:
-            break
-
-    print("Завершение нити реальности.")
-
-
-def reality_thread_3(dispatcher: DispatcherAbstract, meta_queue: MetaQueueN, initial_status: InitialStatusAbstract,
-                     batch_size: int, kill: KillCommandsContainer):
-    """ Функция нити реальности. Получет данные из очереди и отправляет сообщения в очередь. """
-    # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill)
-    print("Вход в нить окружающей среды.")
-
-    finish_control = Finish()
-
-    sleep_time = 0.001
-
-    command: Optional[StageControlCommands] = None
-
-    init_iter: Iterator = iter(initial_status)
-
-    #####
-    # цикл установки исходных положений изделия
-    #####
-    for i in range(batch_size):
-        # инициализация начальными данными
-        state = next(init_iter)
-        dispatcher.put_zero_state(i, state)
-        while not meta_queue.state_to_neuronet.has_void_trolley():
-            sleep(sleep_time)
-        else:
-            meta_queue.state_to_neuronet.load(i, state, True)
-
-    #####
-    # главный цикл получения команд из очереди нейросети и отправки в нейросеть обработанных данных
-    #####
-    while not initial_status.is_empty or not kill.reality:
-        # Пока есть в запасе исходные данные и пока нет команды на завершение нити
-        while not meta_queue.command_to_real.has_new_cargo():
-            # пока нет в очереди очередной команды - ждём
-            sleep(sleep_time)
-            if kill.reality: return
-        else:
-            # Получение команды из нейросети
-            test_id, _ = meta_queue.command_to_real.unload(command)
-
-        test_id, new_state = dispatcher.run(test_id, command)
-
-        # Подкрепление действий системы управления, которые привели к новому состоянию
-        reinf = ReinforcementValue(new_state.time_stamp,
-                                           tools.Reinforcement.get_reinforcement(new_state, command)
-                                           )
-        # Передача подкрепления в нейросеть
-        meta_queue.reinf_to_neuronet.load(test_id, reinf)
-
-        # Если это конкретное испытание закончилось
-        is_new_state: bool = False
-        if finish_control.is_one_test_failed(new_state.position) \
-                or finish_control.is_one_test_success(new_state, tools.Reinforcement.accuracy):
-            # отправляем в диспетчер новые исходные данные для закончившегося теста
-            new_state = next(init_iter)
-            dispatcher.put_zero_state(test_id, new_state)
-            is_new_state = True
-
-        # отправка нового состояния в очереди сообщений
-        meta_queue.state_to_neuronet.load(test_id, new_state, is_new_state)
-        meta_queue.state_to_view.load(test_id, new_state, is_new_state)
-
-    print("Завершение нити реальности.")
+# def reality_thread_2(queues: MetaQueue, kill: KillCommandsContainer,
+#                      max_tests: int, initial_status: RealWorldStageStatusN):
+#     """
+#     Функция моделирующая поведение ступени в реальной физической среде
+#
+#     :param queues: Контейнер очередей передачи данных.
+#     :param kill: Контейнер команд на завершение нитей.
+#     :param max_tests: Количество запланированных испытательных посадок.
+#     :param initial_status: Начальное состояние (положение) изделия в СКИП
+#     """
+#     print("Вход в нить окружающей среды.")
+#
+#     finish_control = Finish()
+#
+#     # провести указанное число испытательных посадок
+#     for i in range(max_tests):
+#         # предыдущее состояние изделия
+#         previous_stage_status: RealWorldStageStatusN = initial_status
+#         # Информация о начальном положении изделия отправляется в нити
+#         queues.put(initial_status)
+#
+#         while not kill.reality:
+#             # ждём команду для двигателей из нейросети на отправленное начальное состояние
+#             if not queues.empty("command"):
+#                 command = queues.get("command")
+#                 # команда, ведущая к новому состоянию, получена
+#                 break
+#         else:
+#             break
+#
+#         # цикл последовательной генерации состояний в процессе одной тестовой посадки
+#         # цикл прерывается, только если во время посадки случилась удача / неудача
+#         # или поступила команда на заверешение работы программы
+#         while not finish_control.is_one_test_failed(previous_stage_status.position) and not kill.reality:
+#             # очередное состояние изделия в СКИП
+#             new_stage_status = Moving.get_new_status(command, previous_stage_status)
+#             # Подкрепление действий системы управления, которые привели к новому состоянию
+#             reinforcement = ReinforcementValue(new_stage_status.time_stamp,
+#                                                tools.Reinforcement.get_reinforcement(new_stage_status, command)
+#                                                )
+#
+#             # Отправляем величину подкрепления в НС
+#             queues.put(reinforcement)
+#             # добавить в выходную очередь очередную порцию информации о состоянии ступени
+#             queues.put(new_stage_status)
+#
+#             # если удачная посадка
+#             if finish_control.is_one_test_success(new_stage_status, tools.Reinforcement.accuracy):
+#                 # переходим к следующему испытанию
+#                 break
+#
+#             while not kill.reality:
+#                 # ждём команду из нейросети на отправленное состояние и подкрепление
+#                 if not queues.empty("command"):
+#                     command = queues.get("command")
+#                     # команда, ведущая к новому состоянию, получена
+#                     break
+#             else:
+#                 break
+#
+#             previous_stage_status = new_stage_status
+#             print("{0}. Time: {1}, Posititon: {2}, Velocyty: {3},\n Axelerantion: {4}, Orientation: {5}\n".
+#                   format(i, new_stage_status.time_stamp, new_stage_status.position, new_stage_status.velocity,
+#                          new_stage_status.acceleration, new_stage_status.orientation))
+#
+#         # прекращаем испытания, завершение программы
+#         if kill.reality:
+#             break
+#
+#     print("Завершение нити реальности.")
+#
+#
+# def reality_thread_3(dispatcher: DispatcherAbstract, meta_queue: MetaQueueN, initial_status: InitialStatusAbstract,
+#                      batch_size: int, kill: KillCommandsContainer):
+#     """ Функция нити реальности. Получет данные из очереди и отправляет сообщения в очередь. """
+#     # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill)
+#     print("Вход в нить окружающей среды.")
+#
+#     finish_control = Finish()
+#
+#     sleep_time = 0.001
+#
+#     command: Optional[StageControlCommands] = None
+#
+#     init_iter: Iterator = iter(initial_status)
+#
+#     #####
+#     # цикл установки исходных положений изделия
+#     #####
+#     for i in range(batch_size):
+#         # инициализация начальными данными
+#         state = next(init_iter)
+#         dispatcher.put_zero_state(i, state)
+#         while not meta_queue.state_to_neuronet.has_void_trolley():
+#             sleep(sleep_time)
+#         else:
+#             meta_queue.state_to_neuronet.load(i, state, True)
+#
+#     #####
+#     # главный цикл получения команд из очереди нейросети и отправки в нейросеть обработанных данных
+#     #####
+#     while not initial_status.is_empty or not kill.reality:
+#         # Пока есть в запасе исходные данные и пока нет команды на завершение нити
+#         while not meta_queue.command_to_real.has_new_cargo():
+#             # пока нет в очереди очередной команды - ждём
+#             sleep(sleep_time)
+#             if kill.reality: return
+#         else:
+#             # Получение команды из нейросети
+#             test_id, _ = meta_queue.command_to_real.unload(command)
+#
+#         test_id, new_state = dispatcher.run(test_id, command)
+#
+#         # Подкрепление действий системы управления, которые привели к новому состоянию
+#         reinf = ReinforcementValue(new_state.time_stamp,
+#                                            tools.Reinforcement.get_reinforcement(new_state, command)
+#                                            )
+#         # Передача подкрепления в нейросеть
+#         meta_queue.reinf_to_neuronet.load(test_id, reinf)
+#
+#         # Если это конкретное испытание закончилось
+#         is_new_state: bool = False
+#         if finish_control.is_one_test_failed(new_state.position) \
+#                 or finish_control.is_one_test_success(new_state, tools.Reinforcement.accuracy):
+#             # отправляем в диспетчер новые исходные данные для закончившегося теста
+#             new_state = next(init_iter)
+#             dispatcher.put_zero_state(test_id, new_state)
+#             is_new_state = True
+#
+#         # отправка нового состояния в очереди сообщений
+#         meta_queue.state_to_neuronet.load(test_id, new_state, is_new_state)
+#         meta_queue.state_to_view.load(test_id, new_state, is_new_state)
+#
+#     print("Завершение нити реальности.")
 
 
 class RealThread(Thread):
@@ -213,12 +213,17 @@ class RealThread(Thread):
         self.__finish_criterion = Finish()
         # self.__neuronet_command: Optional[StageControlCommands] = None
 
+        # в блок визуализации будут отсылаться только испытания с этим Id
+        self.__test_id_for_view: TestId = 0
         self.__test_id: TestId = -1
         self.__state: Optional[RealWorldStageStatusN] = RealWorldStageStatusN()
         self.__neuronet_command: Optional[StageControlCommands] = StageControlCommands(time_stamp=-1)
 
 
     def __set_initial_states(self) -> bool:
+        """ Установка начальных положений изделия в испытаниях.
+
+        :return: Поступил сигнал на завершение нити. """
         for i in range(self.__batch_size):
             # инициализация начальными данными
             state = next(self.__iterator)
@@ -232,6 +237,9 @@ class RealThread(Thread):
         return False
 
     def __command_waiting(self) -> bool:
+        """ Ожидание команды из нейросети.
+
+         :return: Поступил сигнал на завершение нити. """
         # Пока есть в запасе исходные данные и пока нет команды на завершение нити
         while not self.__meta_queue.command_to_real.has_new_cargo():
             # пока нет в очереди очередной команды - ждём
@@ -249,12 +257,23 @@ class RealThread(Thread):
                                            tools.Reinforcement.get_reinforcement(new_state, command)
                                            )
 
-    def __send_reinforcement_to_neuronet(self, test_id: TestId, reinf: ReinforcementValue):
-        # Передача подкрепления в нейросеть
-        self.__meta_queue.reinf_to_neuronet.load(test_id, reinf)
+    def __send_reinforcement_to_neuronet(self, test_id: TestId, reinf: ReinforcementValue) -> bool:
+        """ Передача подкрепления в нейросеть
+
+        :return: Поступил сигнал на завершение нити. """
+        while not self.__meta_queue.reinf_to_neuronet.has_void_trolley():
+            sleep(self.__sleep_time)
+            if self.__kill.reality: return True
+        else:
+            self.__meta_queue.reinf_to_neuronet.load(test_id, reinf)
+
+        return False
 
     def __test_end(self, test_id: TestId, new_state: RealWorldStageStatusN) -> bool:
-        # Если это конкретное испытание закончилось
+        """ Проверка на окончание этого конкретного испытания.
+
+        :return: Испытание закончилось? Новое исходное положение установлено? """
+
         is_new_state: bool = False
         if self.__finish_criterion.is_one_test_failed(new_state.position) \
                 or self.__finish_criterion.is_one_test_success(new_state, tools.Reinforcement.accuracy):
@@ -264,12 +283,34 @@ class RealThread(Thread):
             is_new_state = True
         return is_new_state
 
-    def __send_new_state_to_receivers(self, test_id: TestId, new_state: RealWorldStageStatusN, is_new_state: bool):
-        # отправка нового состояния в очереди сообщений
-        self.__meta_queue.state_to_neuronet.load(test_id, new_state, is_new_state)
-        self.__meta_queue.state_to_view.load(test_id, new_state, is_new_state)
+    def __send_new_state_to_receivers(self, test_id: TestId, new_state: RealWorldStageStatusN, is_new_state: bool) -> bool:
+        """ Отправка нового состояния в очереди сообщений.
+
+         :return: Поступил сигнал на завершение нити. """
+
+        while not self.__meta_queue.state_to_neuronet.has_void_trolley():
+            sleep(self.__sleep_time)
+            if self.__kill.reality: return True
+        else:
+            self.__meta_queue.state_to_neuronet.load(test_id, new_state, is_new_state)
+
+        if test_id == self.__test_id_for_view:
+            while not self.__meta_queue.state_to_view.has_void_trolley():
+                sleep(self.__sleep_time)
+                if self.__kill.reality: return True
+            else:
+                self.__meta_queue.state_to_view.load(test_id, new_state, is_new_state)
+
+            while not self.__meta_queue.state_to_stage_view.has_void_trolley():
+                sleep(self.__sleep_time)
+                if self.__kill.reality: return True
+            else:
+                self.__meta_queue.state_to_stage_view.load(test_id, new_state, is_new_state)
+
+        return False
 
     def run(self):
+        print('Вхоть в нить физ. модели')
         if self.__set_initial_states(): return
 
         while not self.__initial_states.is_empty or not self.__kill.reality:
@@ -280,7 +321,9 @@ class RealThread(Thread):
 
             reinf = self.__get_reinforcement(self.__state, self.__neuronet_command)
 
-            self.__send_reinforcement_to_neuronet(self.__test_id, reinf)
+            if self.__send_reinforcement_to_neuronet(self.__test_id, reinf): break
 
             is_new_state = self.__test_end(self.__test_id, self.__state)
-            self.__send_new_state_to_receivers(self.__test_id, self.__state, is_new_state)
+            if self.__send_new_state_to_receivers(self.__test_id, self.__state, is_new_state): break
+
+        print('Выход из нити физ. модели.')

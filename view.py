@@ -1,9 +1,8 @@
 # Интерфейсы визуального представления
-from queue import Queue
-from kill_flags import KillNeuroNetThread, KillRealWorldThread, KillCommandsContainer
+from kill_flags import KillCommandsContainer
 from abc import ABC, abstractmethod
 from point import VectorComplex
-from tools import MetaQueue
+from carousel.metaque import MetaQueueN
 
 # ViewInterface (Abstract Factory) -> AnotherView (Concrete Factory)
 #           └-> TkinterView (Concrete Factory)
@@ -12,7 +11,7 @@ class ViewInterface(ABC):
     """ AbstractFactory. Интерфейс отображения процесса выполнения программы. """
     # примитивы, отображающие что-либо конкретно, описываются в конкретной фабрике.
     @abstractmethod
-    def set_poligon_state(self, queues: MetaQueue, poligon_width: float, poligon_height: float):
+    def set_poligon_state(self, queues: MetaQueueN, poligon_width: float, poligon_height: float):
         """ Описание испытательного полигона в СКИП """
         pass
 
