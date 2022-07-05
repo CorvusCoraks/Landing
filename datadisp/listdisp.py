@@ -41,20 +41,19 @@ class ListDispatcher(DispatcherAbstract):
         # хранилище состояний испытаний.
         # Номер испытания (test_id) совпадает с индексом испытания в кортеже испытаний.
         self.__tests_list: tuple = tuple([Element() for i in range(batch_size)])
+        self.__none_counter: int = 0
+
+    def is_all_tests_ended(self) -> bool:
+        return self.__none_counter == len(self.__tests_list)
 
     def put_zero_state(self, test_id: TestId, initial_state: Optional[RealWorldStageStatusN]):
-        """ Установить в хранилище состояний начальное состояние *initial_state* испытания *test_id*
-
-        :param initial_state: Если равен *None*, значит начальные состояния закончились. """
+        if initial_state is None:
+            self.__none_counter += 1
 
         self.__tests_list[test_id].state = initial_state
         self.__tests_list[test_id].test_id = test_id
 
     def run(self, test_id: TestId, command: StageControlCommands, new_state: RealWorldStageStatusN) -> TestId:
-        """ Расчёт нового состояния для одного испытания.
-
-        :return: Идентификатор состояния/испытания"""
-        # tate: RealWorldStageStatusN
 
         previous_state = self.__tests_list[test_id].state
 

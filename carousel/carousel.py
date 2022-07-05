@@ -11,6 +11,11 @@ from carousel.atrolley import TestId
 class Carousel:
     """ Класс инкапсулирует двунаправленную очередь передачи данных в системе. """
     def __init__(self, cargo_prototype: T, trolley_quantity: int):
+        """
+
+        :param cargo_prototype: Объект-прототип груза
+        :param trolley_quantity: Количество 'вагонеток' в очереди
+        """
         # Объект-прототип груза
         self._cargo_prototype: T = cargo_prototype
         # очередь загруженных вагонеток в прямом направлении
@@ -53,7 +58,8 @@ class Carousel:
     def unload(self, to_object: T) -> Tuple[TestId, bool]:
         """ Разгрузить вагонетку
 
-        :return: test_id, is_initial """
+        :param to_object: Копировать состояние атрибутов в объект *to_object*
+        :return: test_id, is_initial - идентификатор испытания, состояние начальное для нового теста? """
         if type(to_object) is not type(self._cargo_prototype):
             # Если тип целевого объекта не соответствует типу груза в вагонетке
             raise TypeError('Method argument type mismatch: expected {0}, but {1}'.
@@ -65,7 +71,12 @@ class Carousel:
         return test_id, is_initial
 
     def load(self, test_id: TestId, from_object: T, initial=False) -> None:
-        """ Загрузить вагонетку """
+        """ Загрузить вагонетку
+
+        :param test_id: Идентификатор теста
+        :param from_object: копировать состояние артибутов из объекта *from_object*
+        :param initial: это начальное состояние нового испытания?
+        """
         if type(from_object) is not type(self._cargo_prototype):
             # Если тип объекта-источника не соответствует типу груза в вагонетке
             raise TypeError('Method argument type mismatch: expected {0}, but {1}'.

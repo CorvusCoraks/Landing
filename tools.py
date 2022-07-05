@@ -13,7 +13,13 @@ QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlComman
 
 
 class InitialStatusAbstract(ABC, Iterable):
+    """ Итерируемый объект начальных состояний изделия.
+    Когда начальные состояния изделия в объекте иссякают, он должен возвращать *None*"""
     def __init__(self, max_count):
+        """
+
+        :param max_count: максимальное количество начальных состояний.
+        """
         self._current_status_index: int = -1
         self._max_status_index: int = max_count - 1
         self._is_empty: bool = False
@@ -25,11 +31,16 @@ class InitialStatusAbstract(ABC, Iterable):
     # def iter(self):
 
     @abstractmethod
-    def __next__(self):
+    def __next__(self) -> Optional[RealWorldStageStatusN]:
+        """ Когда итерируемый объект опустошается, данный метод должен возвращать *None*"""
         pass
 
     @property
     def is_empty(self) -> bool:
+        """ Итерируемый объект пуст?
+
+        :return: Итерируемый объект пуст?
+        """
         return self._is_empty
 
 
@@ -254,7 +265,7 @@ class Reinforcement:
         Подкрепление
 
         :param stage_status: состояние ступени
-        :param jets: информация о работавших двигателях
+        :param jets: информация о работавших двигателях, приведших к состоянию *stage_status*
         """
         success_reinforcement = 0.
         landing_reinforcement = 0.

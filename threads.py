@@ -208,15 +208,21 @@ class RealThread(Thread):
         self.__kill = kill
         self.__batch_size = batch_size
 
+        # Итератор прохода по начальным состояниям изделия (исходным положениям)
         self.__iterator = iter(initial_state)
+        # Время сна нити в ожидании сообщений в очереди
         self.__sleep_time = 0.001
+        # Условие окончания одного конкретного испытания.
         self.__finish_criterion = Finish()
         # self.__neuronet_command: Optional[StageControlCommands] = None
 
         # в блок визуализации будут отсылаться только испытания с этим Id
         self.__test_id_for_view: TestId = 0
+        # атрибут уровня объекта для загрузки / выгрузки состояния изделия в / из очереди
         self.__test_id: TestId = -1
+        # атрибут уровня объекта для загрузки / выгрузки состояния изделия в / из очереди
         self.__state: Optional[RealWorldStageStatusN] = RealWorldStageStatusN()
+        # атрибут уровня объекта для загрузки / выгрузки состояния изделия в / из очереди
         self.__neuronet_command: Optional[StageControlCommands] = StageControlCommands(time_stamp=-1)
 
 
@@ -252,7 +258,10 @@ class RealThread(Thread):
         return self.__kill.reality
 
     def __get_reinforcement(self, new_state: RealWorldStageStatusN, command: StageControlCommands):
-        # Подкрепление действий системы управления, которые привели к новому состоянию
+        """ Подкрепление действий системы управления, которые привели к новому состоянию
+
+        :param new_state: новое состояние изделия
+        :param command: команда нейросети, которая привела к этому состоянию. """
         return ReinforcementValue(new_state.time_stamp,
                                            tools.Reinforcement.get_reinforcement(new_state, command)
                                            )
@@ -260,6 +269,8 @@ class RealThread(Thread):
     def __send_reinforcement_to_neuronet(self, test_id: TestId, reinf: ReinforcementValue) -> bool:
         """ Передача подкрепления в нейросеть
 
+        :param test_id: Идентификатор испытания
+        :param reinf: Подкрепление данного испытания.
         :return: Поступил сигнал на завершение нити. """
         while not self.__meta_queue.reinf_to_neuronet.has_void_trolley():
             sleep(self.__sleep_time)
@@ -272,6 +283,9 @@ class RealThread(Thread):
     def __test_end(self, test_id: TestId, new_state: RealWorldStageStatusN) -> bool:
         """ Проверка на окончание этого конкретного испытания.
 
+
+        :param test_id: Идентификатор теста
+        :param new_state: Новое состояние теста, проверяемое на то что он терминальный
         :return: Испытание закончилось? Новое исходное положение установлено? """
 
         is_new_state: bool = False
@@ -279,6 +293,7 @@ class RealThread(Thread):
                 or self.__finish_criterion.is_one_test_success(new_state, tools.Reinforcement.accuracy):
             # отправляем в диспетчер новые исходные данные для закончившегося теста
             new_state = next(self.__iterator)
+            # Когда источник начальных данных иссякает, то в список испытаний заносится None
             self.__dispatcher.put_zero_state(test_id, new_state)
             is_new_state = True
         return is_new_state
@@ -286,6 +301,9 @@ class RealThread(Thread):
     def __send_new_state_to_receivers(self, test_id: TestId, new_state: RealWorldStageStatusN, is_new_state: bool) -> bool:
         """ Отправка нового состояния в очереди сообщений.
 
+         :param test_id: Идентификатор теста
+         :param new_state: Новое состояние изделия
+         :param is_new_state: Состояние является начальным для нового теста?
          :return: Поступил сигнал на завершение нити. """
 
         while not self.__meta_queue.state_to_neuronet.has_void_trolley():
@@ -310,10 +328,11 @@ class RealThread(Thread):
         return self.__kill.reality
 
     def run(self):
+        """ Note. Именно этот метод запускает в нити. """
         print('Вхоть в нить физ. модели')
         if self.__set_initial_states(): return
 
-        while not self.__initial_states.is_empty and not self.__kill.reality:
+        while not self.__dispatcher.is_all_tests_ended() and not self.__kill.reality:
 
             if self.__command_waiting(): break
 
