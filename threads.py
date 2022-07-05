@@ -234,7 +234,7 @@ class RealThread(Thread):
             else:
                 self.__meta_queue.state_to_neuronet.load(i, state, True)
 
-        return False
+        return self.__kill.reality
 
     def __command_waiting(self) -> bool:
         """ Ожидание команды из нейросети.
@@ -249,7 +249,7 @@ class RealThread(Thread):
             # Получение команды из нейросети
             self.__test_id, _ = self.__meta_queue.command_to_real.unload(self.__neuronet_command)
 
-        return False
+        return self.__kill.reality
 
     def __get_reinforcement(self, new_state: RealWorldStageStatusN, command: StageControlCommands):
         # Подкрепление действий системы управления, которые привели к новому состоянию
@@ -267,7 +267,7 @@ class RealThread(Thread):
         else:
             self.__meta_queue.reinf_to_neuronet.load(test_id, reinf)
 
-        return False
+        return self.__kill.reality
 
     def __test_end(self, test_id: TestId, new_state: RealWorldStageStatusN) -> bool:
         """ Проверка на окончание этого конкретного испытания.
@@ -307,13 +307,13 @@ class RealThread(Thread):
             else:
                 self.__meta_queue.state_to_stage_view.load(test_id, new_state, is_new_state)
 
-        return False
+        return self.__kill.reality
 
     def run(self):
         print('Вхоть в нить физ. модели')
         if self.__set_initial_states(): return
 
-        while not self.__initial_states.is_empty or not self.__kill.reality:
+        while not self.__initial_states.is_empty and not self.__kill.reality:
 
             if self.__command_waiting(): break
 
