@@ -11,7 +11,7 @@ from point import VectorComplex
 # from physics import BigMap
 from kill_flags import KillNeuroNetThread, KillCommandsContainer
 # from queue import Queue
-from structures import StageControlCommands, RealWorldStageStatusN, QueueContent
+from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, cuda, tensor, float, mul, add, sub
 # from torch.nn.functional import mse_loss
 from net import Net
