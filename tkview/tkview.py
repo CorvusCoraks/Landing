@@ -1,10 +1,10 @@
 """ Модуль реализации абстрактной фабрики визуального представления в Tkinter. """
 from view import ViewInterface
-from kill_flags import KillCommandsContainer
+from kill_flags import KillCommandsContainerN
 from tkview.tkarea import PoligonWindow
 from tkview.tkstview import StageViewWindow, InfoView
 from stage import Sizes
-from carousel.metaque import MetaQueueN
+from carousel.metaque import MetaQueue2
 from tools import MetaQueue
 from typing import Optional
 
@@ -18,14 +18,14 @@ class TkinterView(ViewInterface):
         # self.__poligon_height: float = 0.
         pass
 
-    def set_poligon_state(self, queues: MetaQueueN, poligon_width: float, poligon_height: float):
+    def set_poligon_state(self, queues: MetaQueue2, poligon_width: float, poligon_height: float):
 
         self.__queues = queues
         # self.__env_to_poligon_queue = queues.get_queue("area")
         self.__poligon_width = poligon_width
         self.__poligon_height = poligon_height
 
-    def set_kill_threads(self, kill: KillCommandsContainer):
+    def set_kill_threads(self, kill: KillCommandsContainerN):
 
         self.__kill = kill
         # self.__kill_reality_thread = kill_reality

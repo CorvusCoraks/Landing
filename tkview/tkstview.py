@@ -8,9 +8,9 @@ from stage import Sizes, BigMap
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from physics import  CheckPeriod
 from tkview.tkiface import WindowsMSInterface
-from structures import RealWorldStageStatusN
+from structures import RealWorldStageStatusN, StageState
 from tools import MetaQueue
-from carousel.metaque import MetaQueueN
+from carousel.metaque import MetaQueue2
 
 
 class StageViewWindow(WindowsMSInterface):
@@ -18,7 +18,7 @@ class StageViewWindow(WindowsMSInterface):
     Класс окна вывода увеличенного изображения ступени и числовых характеристик
     """
     # def __init__(self, root: Tk, stage_size: float, stage_scale: float, frameRate: int, anyQueue: Queue, to_info_queue: Queue, info_block: Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]):
-    def __init__(self, root: Tk, stage_size: float, stage_scale: float, queues: MetaQueueN):
+    def __init__(self, root: Tk, stage_size: float, stage_scale: float, queues: MetaQueue2):
         """
         :param root: родительский оконный менеджер
         :param stage_size: максимальный характерный размер ступени, метров
@@ -79,13 +79,24 @@ class StageViewWindow(WindowsMSInterface):
         # Длительность предыдущего состояния
         previous_status_duration = 0
 
-        # получение данных из внешних источников self.__any_queue
-        if self.__any_queue.state_to_stage_view.has_new_cargo():
-            self.__any_queue.state_to_stage_view.unload(self.__any_state)
-
+        # получение данных из внешних источников
+        self.__any_queue.state_to_stage_view.parsel_waiting()
+        if issubclass(self.__any_queue.state_to_stage_view.parsel_type, StageState):
+            test_id, _ = self.__any_queue.state_to_stage_view.receive_parsel(self.__any_state)
             transform = self.__any_state
             previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
             self.__previous_status_time_stamp = transform.time_stamp
+        else:
+            raise TypeError('Data block type {0} from queue and target object {1} type mismatch.'
+                            .format(self.__any_queue.state_to_view.parsel_type, StageState))
+
+        # # получение данных из внешних источников self.__any_queue
+        # if self.__any_queue.state_to_stage_view.has_new_cargo():
+        #     self.__any_queue.state_to_stage_view.unload(self.__any_state)
+        #
+        #     transform = self.__any_state
+        #     previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
+        #     self.__previous_status_time_stamp = transform.time_stamp
 
         # if not self.__any_queue.empty('stage'):
         #     transform = self.__any_queue.get('stage')

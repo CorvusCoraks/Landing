@@ -10,6 +10,8 @@ from carousel.trolleys import AnyTrolley, TrolleyA
 # from abc import ABC, abstractmethod
 from kill_flags import KillInterface
 from time import sleep
+from math import inf
+
 # Время сна между запросами о наличии блока данных в очереди, сек
 SLEEP_TIME = 0.001
 
@@ -21,10 +23,15 @@ class CarouselB:
     def __init__(self, trolley_quantity: int):
         # количество вагонеток в карусели
         self._trolley_quantity = trolley_quantity
+        # self._break = kill_interface
         # очередь загруженных вагонеток в прямом направлении
         self._queue_loaded: Queue = Queue()
         # очередь пустых вагонеток в обратном направлении
         self._queue_unloaded: Queue = Queue()
+        # Счётчик запросов на пустую вагонетку
+        self._void_trolley_request: int = 0
+        # Если количество неудовлетворённых запросов на вагонетку привысит данную величину, то создаётся новая
+        self._MAX_FAILED_TROLLEY_REQUEST = 10
 
         for i in range(trolley_quantity):
             self._queue_unloaded.put(TrolleyA())
@@ -52,6 +59,12 @@ class CarouselB:
     @property
     def has_void_trolley(self) -> bool:
         """ В очереди имеется пустая вагонетка? """
+        self._void_trolley_request += 1
+        if self._void_trolley_request > self._MAX_FAILED_TROLLEY_REQUEST and self._queue_unloaded.empty():
+            # Количество неудовлетворённых запросов на пустую вагонетку превысило предел
+            # Очередь пустых вагонеток пуста.
+            # Создаём новую вагонетку.
+            self.add_trolley()
         return not self._queue_unloaded.empty()
 
     def unload(self) -> Any:
@@ -68,9 +81,17 @@ class CarouselB:
 
         :param unknown_cargo: контейнер (объект-носитель) неизвестного типа
         """
-        void_trolley: TrolleyA = self._queue_unloaded.get()
-        void_trolley.loading(unknown_cargo)
-        self._queue_loaded.put(void_trolley)
+        # self._void_trolley_request -= 1
+        while not self.has_void_trolley:
+            # Цикл ожидания ограничен внутри вызова метода self.has_void_trolley,
+            # когда число попыток получения пустой вагонетки превысит self._MAX_FAILED_TROLLEY_REQUEST, будет создана
+            # новая вагонетка, self.has_void_trolley станет True и цикл ожидания закончится.
+            sleep(SLEEP_TIME)
+        else:
+            self._void_trolley_request = 0
+            void_trolley: TrolleyA = self._queue_unloaded.get()
+            void_trolley.loading(unknown_cargo)
+            self._queue_loaded.put(void_trolley)
 
 
 class VoidContaners:
@@ -226,26 +247,54 @@ class PostOffice:
     # parsel_waiting - ждём блок данных из очереди
     # parsel_type - получаем тип блока данных, чтобы подготовить под него внешний пустой объект
     # receive_parsel - получить посылку.
-    def __init__(self, carousel: CarouselB, porter: Porter, kill: KillInterface):
+    def __init__(self, carousel: CarouselB, porter: Porter):
         self._carousel: CarouselB = carousel
         self._porter: Porter = porter
         self._temp_parsel: Optional[QueueBlock] = None
-        self._stop_waiting: KillInterface = kill
+        # self._stop_waiting: KillInterface = False if kill_neuro is None else kill_neuro
+        # Если kill_neuro is None то эта нить по какой-то причине нельзя останалвивать по данному флагу.
+        # self._stop_waiting: KillInterface = None or kill_neuro
 
-    def parsel_waiting(self) -> bool:
-        """ Дождаться посылки. Цикл ожидания ограничен флагом завершения нити.
+    def parsel_waiting(self, stop_waiting_flag: Optional[KillInterface]=None, max_trys: Optional[int]=None) -> bool:
+        """ Дождаться посылки. Цикл ожидания ограничен флагом завершения нити и количеством попыток затребовать посылку.
 
-        :param while_true: Флаг, означающий прерывание процесса ожидания данных из очереди.
-        :return: Флаг дал команду прервать процесс ожидания?
+        :param stop_waiting_flag: Сигнал остановки процесса, сигнал на завершение нити, где вызывается *parsel_waiting*.
+        Для главной нити приложения можно использовать значение *None*, так как главная нить завершается не по флагу,
+        а другими методами (например, закрытием окна главной нити).
+        :return: Посылка получена?
         """
-        while not self._stop_waiting.kill:
+        def stop_waiting(stop_waiting_flag: KillInterface, current_try: int, max_trys: Optional[int]=None) -> bool:
+            """
+
+            :param stop_waiting_flag: Флаг остановки текущей нити.
+            :param current_try: Текущая попытка получить посылку.
+            :param max_try: Максимально допустимое количество попыток получить посылку.
+            :return: Прекратить ожидание посылки!
+            """
+            if stop_waiting_flag is None:
+                if current_try < max_trys:
+                    return False
+                else:
+                    return True
+            elif stop_waiting_flag.kill or current_try == max_trys:
+                return True
+
+        # Максимальное количество циклов ожидания посылки из очереди (бесконечные циклы - зло)
+        # MAX_WAITING_COUNTER = 1000
+        MAX_WAITING_COUNTER = inf if max_trys is None else max_trys
+        # Текущий цикл ожидания посылки из очереди.
+        waiting_counter = 0
+
+        while not stop_waiting(stop_waiting_flag, waiting_counter, MAX_WAITING_COUNTER):
             if self._carousel.has_new_cargo:
                 self._temp_parsel = self._carousel.unload()
-                # Выход по получению посылки
-                return False
+                # Посылка получена.
+                return True
+            waiting_counter += 1
             sleep(SLEEP_TIME)
-        # Прерывание по флагу
-        return True
+        # Посылка не получена, либо потому, что активировался флаг на прерывание нити,
+        # либо в цикле ожидания просто не дождались - время вышло.
+        return False
 
     # def has_parsel(self) -> bool:
     #     """ В очереди имеются данные? """
@@ -275,7 +324,7 @@ class PostOffice:
         """ Получить данные из очереди.
 
         :param void_pack: пустая упаковка для данных из очереди.
-        :return: Информация в виде простого значения, если не требуется копирование в *void_pack*
+        :return: Кортеж вида (Идентификатор испытания, примитивный объект данных /опционально/)
         """
         if self._temp_parsel is None:
             # Если данные из очереди ещё не добывались.

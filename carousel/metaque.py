@@ -2,7 +2,8 @@
 from carousel.carousel import Carousel, CarouselB, VoidContaners, Porter, PostOffice
 # from carousel.trolleys import RealWorldTrolleyN, CommandTrolleyN
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue, StageState, ControlCommands, BatchSizeMessage, ReinforcementMessage
-from typing import Any
+from typing import Any, Optional
+from kill_flags import KillInterface, KillCommandsContainerN
 
 
 class MetaQueueN:
@@ -37,9 +38,16 @@ class MetaQueueN:
 
 
 class Channal:
-    def __init__(self, trolley_quantity: int, *args: Any):
+    """ Двунаправленный канал передачи данных """
+    def __init__(self, trolley_quantity: int, listener_kill: Optional[KillInterface], *args: Any):
+        """
+
+        :param trolley_quantity: Начальное количество вагонеток канала.
+        :param listener_kill: Флаг команды на закрытие нити ПОЛУЧАТЕЛЯ данных
+        :param args: Кортеж объектов-прототипов контейнеров, циркулирующих по каналу
+        """
         self.__carousel: CarouselB = CarouselB(trolley_quantity)
-        self.__store: VoidContaners = VoidContaners(args)
+        self.__store: VoidContaners = VoidContaners(*args)
         self.__porter: Porter = Porter(self.__store)
         self.__post_office: PostOffice = PostOffice(self.__carousel, self.__porter)
 
@@ -49,14 +57,28 @@ class Channal:
 
 
 class MetaQueue2:
-    """ Класс инкапсулирующий очереди обмена данных в приложении """
-    # todo Возможно переделать в Singletone?
-    def __init__(self):
-        self.__state_to_neuronet: Channal = Channal(10, StageState(), BatchSizeMessage())
-        self.__state_to_view: Channal = Channal(10, StageState())
-        self.__state_to_stage_view: Channal = Channal(10, StageState(), BatchSizeMessage())
-        self.__command_to_real: Channal = Channal(10, StageState(), BatchSizeMessage())
-        self.__reinforcement_to_neuronet: Channal = Channal(10, ReinforcementMessage())
+    """ Класс инкапсулирующий очереди обмена данных в приложении. Singletone. """
+
+    # Ссылка на объект Singletone
+    __this_object: Optional['MetaQueue2'] = None
+    # ключ синглтона
+    __create_key: object = object()
+
+    def __init__(self, create_key: object, kill: KillCommandsContainerN):
+        assert (create_key is MetaQueue2.__create_key), \
+            "MetaQueue2 object must be created using get_instance method."
+
+        self.__state_to_neuronet: Channal = Channal(10, kill.neuro, StageState(), BatchSizeMessage())
+        self.__state_to_view: Channal = Channal(10, kill.reality, StageState())
+        self.__state_to_stage_view: Channal = Channal(10, kill.reality, StageState())
+        self.__command_to_real: Channal = Channal(10, kill.reality, ControlCommands())
+        self.__reinforcement_to_neuronet: Channal = Channal(10, kill.neuro, ReinforcementMessage())
+
+    @classmethod
+    def get_instance(cls, kill: KillCommandsContainerN):
+        if cls.__this_object is None:
+            cls.__this_object = MetaQueue2(cls.__create_key, kill)
+        return cls.__this_object
 
     @property
     def state_to_neuronet(self) -> PostOffice:

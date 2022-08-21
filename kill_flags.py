@@ -39,7 +39,7 @@ class KillCommandsContainer:
     __create_key = object()
 
     def __init__(self, create_key):
-        assert (create_key == KillCommandsContainer.__create_key), \
+        assert (create_key is KillCommandsContainer.__create_key), \
             "KillCommands object must be created using get_instanse method."
 
         self.__killNeuroNetThread: KillNeuroNetThread = KillNeuroNetThread()
@@ -85,6 +85,9 @@ class KillInterface(ABC):
 
 class RealityKillInterface(KillInterface):
     """ Абстрактный интерфейс для установки и считывания команды завершения нити реальности. """
+    def __init__(self):
+        super().__init__()
+
     @property
     @abstractmethod
     def kill(self) -> bool:
@@ -98,6 +101,9 @@ class RealityKillInterface(KillInterface):
 
 class NeuroKillInterface(KillInterface):
     """ Абстрактный интерфейс для установки и считывания команды завершения нити нейросети. """
+    def __init__(self):
+        super().__init__()
+
     @property
     @abstractmethod
     def kill(self) -> bool:
@@ -107,6 +113,21 @@ class NeuroKillInterface(KillInterface):
     @abstractmethod
     def kill(self, value: bool) -> None:
         pass
+
+
+# class MainThreadKillInterface(KillInterface):
+#     def __init__(self):
+#         super().__init__()
+#
+#     @property
+#     @abstractmethod
+#     def kill_neuro(self) -> bool:
+#         pass
+#
+#     @kill_neuro.setter
+#     @abstractmethod
+#     def kill_neuro(self, valuet: bool) -> None:
+#         pass
 
 
 class KillCommandsContainerN:
@@ -119,31 +140,51 @@ class KillCommandsContainerN:
     class Reality(RealityKillInterface):
         """ Класс-интерфейс для работы с командами завершения нити реальности. """
         def __init__(self, container: 'KillCommandsContainerN'):
+            super().__init__()
+
             self.__container = container
 
         @property
         def kill(self) -> bool:
-            return self.__container.__reality
+            return self.__container.i_reality
 
         @kill.setter
         def kill(self, value: bool) -> None:
-            self.__container.__reality = value
+            self.__container.i_reality = value
 
     class Neuro(NeuroKillInterface):
         """ Класс-интерфейс для работы с командами завершения нити нейросети. """
         def __init__(self, container: 'KillCommandsContainerN'):
+            super().__init__()
+
             self.__container = container
 
         @property
         def kill(self) -> bool:
-            return self.__container.__neuro
+            return self.__container.i_neuro
 
         @kill.setter
         def kill(self, value: bool) -> None:
-            self.__container.__neuro = value
+            self.__container.i_neuro = value
+
+        # class MainThread(MainThreadKillInterface):
+        #     def __init__(self, container: 'KillCommandsContainerN'):
+        #         super().__init__()
+        #
+        #         self.__container = container
+        #
+        #     @property
+        #     def kill_neuro(self) -> bool:
+        #         # Главная нить останавливается не через эти флаги, а другими способами.
+        #         return False
+        #
+        #     @kill_neuro.setter
+        #     def kill_neuro(self, value: bool) -> None:
+        #         # Главная нить останавливается не через эти флаги, а другими способами.
+        #         self.__container.i_neuro = False
 
     def __init__(self, create_key):
-        assert (create_key == KillCommandsContainerN.__create_key), \
+        assert (create_key is KillCommandsContainerN.__create_key), \
             "KillCommands object must be created using get_instanse method."
 
         self.__killNeuroNetThread: KillNeuroNetThread = KillNeuroNetThread()
@@ -151,7 +192,6 @@ class KillCommandsContainerN:
 
         self.__reality_interface = KillCommandsContainerN.Reality(self)
         self.__neuro_interface = KillCommandsContainerN.Neuro(self)
-
 
     @classmethod
     def get_instance(cls) -> 'KillCommandsContainerN':
@@ -162,19 +202,19 @@ class KillCommandsContainerN:
         return cls.__this_object
 
     @property
-    def __neuro(self) -> bool:
+    def i_neuro(self) -> bool:
         return self.__killNeuroNetThread.kill
 
-    @__neuro.setter
-    def __neuro(self, value: bool):
+    @i_neuro.setter
+    def i_neuro(self, value: bool):
         self.__killNeuroNetThread.kill = value
 
     @property
-    def __reality(self) -> bool:
+    def i_reality(self) -> bool:
         return self.__killRealityThread.kill
 
-    @__reality.setter
-    def __reality(self, value: bool):
+    @i_reality.setter
+    def i_reality(self, value: bool):
         self.__killRealityThread.kill = value
 
     @property

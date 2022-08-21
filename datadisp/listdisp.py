@@ -2,7 +2,7 @@
 from datadisp.adisp import DispatcherAbstract
 from carousel.metaque import MetaQueueN
 from structures import RealWorldStageStatusN, StageControlCommands
-from kill_flags import KillCommandsContainer
+from kill_flags import KillCommandsContainerN
 from time import sleep
 from tools import InitialStatusAbstract
 from typing import Optional, Tuple
@@ -36,7 +36,7 @@ class Element:
 class ListDispatcher(DispatcherAbstract):
     """ Класс реализует множество параллельно-последовательных расчётов состояний. """
 
-    def __init__(self, batch_size: int, kill: KillCommandsContainer):
+    def __init__(self, batch_size: int, kill: KillCommandsContainerN):
         DispatcherAbstract.__init__(self, batch_size, kill)
         # хранилище состояний испытаний.
         # Номер испытания (test_id) совпадает с индексом испытания в кортеже испытаний.

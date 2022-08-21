@@ -11,7 +11,7 @@ from carousel.carousel import Carousel
 
 # def reality_thread(dispatcher: DispatcherAbstract):
 #     """ Функция нити реальности. """
-#     # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill)
+#     # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill_neuro)
 #     print("Вход в нить окружающей среды.")
 #     dispatcher.run()
 #     print("Завершение нити реальности.")
