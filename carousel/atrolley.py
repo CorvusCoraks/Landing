@@ -1,14 +1,14 @@
 """ Абстракции двунаправленной очереди. """
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional,Type, Any, TypeVar
-from structures import ValueCopyInterface, RealWorldStageStatusN, T, TestId
+from typing import Tuple
+from structures import ValueCopyInterface
 
 
 # Тип вагонетки: ВСЕ дочерние подтипы от ATrolley.
 # TrolleyType = TypeVar('TrolleyType', bound='ATrolley')
-# TestId = int
+TestId = int
 
-M = TypeVar('M', int, bool)
+
 # class ILoadUnload
 
 
@@ -66,43 +66,3 @@ class ATrolley(ABC):
     def is_initial(self, value: bool):
         """ В вагонетке начальное положение? """
         self._is_initial = value
-
-
-class TrolleyAbstract(ABC):
-    """ Абстрактный класс описывающий 'вагонетку', которая циркулирует по карусели сообщений. """
-    # todo Проверить на используемость и убрать при необходимости.
-    def __init__(self):
-        self._is_loaded: bool = False   # Вагонетка загружена?
-        # self._cargo: Optional[Any] = None
-        # self._cargo_type: Optional[Type] = None
-        # self._unloaded_object: Optional[Any] = None
-
-    # @property
-    # def load_method(self):
-    #     """
-    #
-    #     :return: метод разгрузки вагонетки
-    #     """
-    #     if type(self._cargo) == ValueCopyInterface:
-    #         return ValueCopyInterface
-    #     else:
-    #         return None
-
-    @property
-    def is_loaded(self) -> bool:
-        """ Вагонетка загружена? """
-        return self._is_loaded
-
-    @is_loaded.setter
-    def is_loaded(self, value: bool) -> None:
-        """ Вагонетка загружена? """
-        self._is_loaded = value
-
-    @abstractmethod
-    def loading(self, *args) -> Optional[Tuple]:
-        pass
-
-    @abstractmethod
-    def unloading(self, *args) -> Optional[Tuple]:
-        """ Разгрузка вагонетки """
-        pass

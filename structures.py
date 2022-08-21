@@ -1,20 +1,14 @@
 from point import VectorComplex
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Union, Any, TypeVar, Optional, Type, Tuple, Dict, overload
+from typing import Union, Any, TypeVar
 
 
-# QueueContent = Union['StageControlCommands', 'RealWorldStageStatusN', 'ReinforcementValue']
-T = TypeVar('T', 'RealWorldStageStatusN', 'StageControlCommands', 'ReinforcementValue', 'MessageBase')
-# Идентификатор конкретного испытания.
-TestId: Type[int] = int
-# Класс отметки времени конкретного испытания.
-TimeStamp: Type[int] = int
-# BlockType = TypeVar('BlockType', bound='QueueBlock')
-# link_containers_and_data = 'DataAndContainers'.get_instanse()
+QueueContent = Union['StageControlCommands', 'RealWorldStageStatusN', 'ReinforcementValue']
+T = TypeVar('T', 'RealWorldStageStatusN', 'StageControlCommands', 'ReinforcementValue')
+
 
 class CloneInterface(ABC):
-    # todo Возможно - избыточный интерфейс
     @abstractmethod
     def clone(self):
         """ Клонирование объекта (реализация паттерна Прототип). """
@@ -31,7 +25,6 @@ class ValueCopyInterface(ABC):
 
 class CloneFactory:
     """ Фабрика клонирования объектов блоков данных для очередей (реализация паттерна Прототип). """
-    # todo Возможно, избыточный класс
     def __init__(self, prototype: CloneInterface):
         # Инициация фабрики прототипом.
         self.__prototype: CloneInterface = prototype
@@ -45,7 +38,7 @@ class StageControlCommands(CloneInterface, ValueCopyInterface):
     """
     Команда на работу двигателей в определённый момент времени на определённый срок
     """
-    def __init__(self, time_stamp:Optional[TimeStamp]=None, duration=0,
+    def __init__(self, time_stamp: int, duration=0,
                  top_left=False, top_right=False,
                  down_left=False, down_right=False,
                  main=False):
@@ -75,6 +68,9 @@ class StageControlCommands(CloneInterface, ValueCopyInterface):
 
         """
         return not (self.top_left or self.top_right or self.down_left or self.down_right or self.main)
+
+    # def lazy_copy(self) -> 'StageControlCommands':
+    #     return StageControlCommands(deepcopy(self.time_stamp))
 
     def clone(self):
         return deepcopy(self)
@@ -142,6 +138,18 @@ class RealWorldStageStatusN(CloneInterface, ValueCopyInterface):
         # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
         # self.duration = duration
 
+    # def lazy_copy(self) -> 'RealWorldStageStatusN':
+    #     # todo метод ликвидировать. везде перевести на deepcopy()
+    #     newObject = RealWorldStageStatusN()
+    #     newObject.position = self.position.lazy_copy()
+    #     newObject.velocity = self.velocity.lazy_copy()
+    #     newObject.acceleration = self.acceleration.lazy_copy()
+    #     newObject.orientation = self.orientation.lazy_copy()
+    #     newObject.angular_velocity = self.angular_velocity
+    #     newObject.angular_acceleration = self.angular_acceleration
+    #     newObject.time_stamp = self.time_stamp
+    #     # newObject.duration = self.duration
+    #     return newObject
 
     def clone(self):
         return deepcopy(self)
@@ -173,153 +181,6 @@ class ReinforcementValue(CloneInterface, ValueCopyInterface):
         target_object.time_stamp = self.time_stamp
         target_object.reinforcement = self.reinforcement
 
-
-# примитивные данные для передачи через очередь (для проверок runtime)
-NumR: Tuple = tuple([int, float, bool])
-# примитивные данные для передачи через очередь (для проверок статическими анализаторами)
-NumT = Union[int, float, bool]
-# N = TypeVar('N', int, float, bool)
-
-
-class QueueBlock:
-    # Базовый класс блока данных передаваемого через очередь
-    def __init__(self, test_id: Optional[TestId]):
-        # Идентификатор испытания
-        self._test_id: Optional[TestId] = test_id
-        # Флаг используемости: блок пуст (не несёт данных) или полон (несёт данные)
-        self._is_void: bool = True
-
-    @property
-    def test_id(self) -> Optional[TestId]:
-        return self._test_id
-
-    @test_id.setter
-    def test_id(self, value: Optional[TestId]) -> None:
-        self._test_id = value
-
-    @property
-    def is_void(self) -> bool:
-        return self._is_void
-
-    @is_void.setter
-    def is_void(self, value: bool) -> None:
-        self._is_void = value
-
-
-class StageState(QueueBlock, RealWorldStageStatusN):
-    """ Блок данных о состоянии изделия. """
-    def __init__(self, test_id:Optional[TestId]=None):
-        QueueBlock.__init__(self, test_id)
-        RealWorldStageStatusN.__init__(self)
-
-
-class ControlCommands(QueueBlock, StageControlCommands):
-    """ Блок данных с командами управления. """
-    def __init__(self, test_id:Optional[TestId]=None, time_stamp:Optional[TimeStamp]=None):
-        QueueBlock.__init__(self, test_id)
-        StageControlCommands.__init__(self)
-
-
-class MessageBase(QueueBlock):
-    """ Базовый класс информационного сообщения примитивного типа (int, float, bool ets.) для передачи через очередь. """
-    def __init__(self, value: Optional[NumT]=None, test_id:Optional[TestId]=None):
-        super().__init__(test_id)
-        self._value: Optional[NumT] = value
-
-    @property
-    def value(self) -> Optional[NumT]:
-        return self._value
-
-    @value.setter
-    def value(self, val: NumT):
-        self._value = val
-
-
-class BatchSizeMessage(MessageBase):
-    def __init__(self, value: Optional[int]=None, test_id: Optional[TestId]=None):
-        super().__init__(value, test_id)
-
-
-class ReinforcementMessage(MessageBase):
-    def __init__(self, value: Optional[float]=None, test_id: Optional[TestId]=None):
-        super().__init__(value, test_id)
-
-
-# DataType = Type[Union[ValueCopyInterface, NumT]]
-# ContainerType = Type[QueueBlock]
-#
-#
-# class DataAndContainers:
-#     """ Класс двустороннего словаря, для хранения связей между блоками данных и их контейнерами. Синглтон. """
-#     # ссылка на объект Синглтон
-#     __this_object: Optional['DataAndContainers'] = None
-#     # ключ для закрытия метода __init__
-#     __create_key = object()
-#
-#     def __init__(self, create_key: object):
-#         assert (create_key == DataAndContainers.__create_key), \
-#             "DataAndContainers object must be created using get_instanse method."
-#
-#         # словарь "блок данных - контейнер"
-#         self.__dict_1: Dict[DataType, ContainerType] = dict()
-#         # словарь "контейнер - блок данных"
-#         self.__dict_2: Dict[ContainerType, DataType] = dict()
-#
-#     @classmethod
-#     def get_instanse(cls) -> 'DataAndContainers':
-#         if cls.__this_object is None:
-#             cls.__this_object = DataAndContainers(cls.__create_key)
-#
-#         return cls.__this_object
-#
-#     @overload
-#     def add_link(self, type_dict: Dict[DataType, ContainerType]) -> None:
-#         """ Добавить связь через словарь вида 'тип груза - тип контейнера'
-#
-#         :param type_dict: словарь типов вида 'тип груза - тип контейнера'"""
-#         ...
-#
-#     @overload
-#     def add_link(self, cargo_type: DataType, container_type: ContainerType) -> None:
-#         """ Добавить связть парой 'тип груза - тип контейнера'
-#
-#         :param cargo_type: Тип груза.
-#         :param container_type: Тип контейнера.
-#         """
-#         ...
-#
-#     def add_link(self, type_dict: Optional[Dict[DataType, ContainerType]], cargo_type: Optional[DataType]=None, container_type: Optional[ContainerType]=None) -> None:
-#         """ Добавить связь (либо одной парой значений, либо кортежем).
-#
-#         :param type_dict: Словарь вида 'тип груза - тип контейнера'
-#         :param cargo_type: Тип груза.
-#         :param container_type: Тип контейнера.
-#         """
-#         if type_dict is not None:
-#             for key in type_dict.keys():
-#                 self.__dict_1[key] = type_dict[key]
-#                 self.__dict_2[type_dict[key]] = key
-#         else:
-#             self.__dict_1[cargo_type] = container_type
-#             self.__dict_2[container_type] = cargo_type
-#
-#     @overload
-#     def get_link(self, cargo_type: DataType) -> ContainerType:
-#         """ Получить связть 'тип груза - тип контейнера' """
-#         ...
-#
-#     @overload
-#     def get_link(self, container_type: ContainerType) -> DataType:
-#         """ Получить связь 'тип контейнера - тип груза' """
-#         ...
-#
-#     def get_link(self, any_type: Union[DataType, ContainerType]) ->  Union[ContainerType, DataType]:
-#         """ Получить связь 'тип контейнера - тип груза', либо 'тип груза - тип контейнера'
-#
-#         :param any_type: Тип груза (или тип контейнера)
-#         :return: Тип контейнера (или тип груза)
-#         """
-#         if issubclass(any_type, QueueBlock):
-#             return self.__dict_2[any_type]
-#         else:
-#             return self.__dict_1[any_type]
+    # @property
+    # def reinforcement(self):
+    #     return self.reinforcement
