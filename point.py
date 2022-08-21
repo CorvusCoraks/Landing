@@ -26,7 +26,7 @@ class VectorComplex:
         """
         # Если ключ в вызывающем методе не совпадает с установленным во время инициализации, то инициируется ошибка.
         # И правильно. Объекты данного класса создаются только разрешёнными методами.
-        assert(create_key is VectorComplex.__create_key), \
+        assert(create_key == VectorComplex.__create_key), \
             "VectorComplex objects must be created using getInstanse or get_instance_c method."
 
         self._x = x

@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from structures import RealWorldStageStatusN, StageControlCommands
 from carousel.metaque import MetaQueueN
-from kill_flags import KillCommandsContainerN
+from kill_flags import KillCommandsContainer
 from typing import Callable, Iterable, Optional, Tuple
 from tools import InitialStatusAbstract
 from carousel.atrolley import TestId
@@ -11,7 +11,7 @@ from carousel.atrolley import TestId
 class DispatcherAbstract(ABC):
     """ Абстрактный класс инкапсулирующий методы работы с источником данных для НС. """
     def __init__(self, batch_size: int,
-                 kill: KillCommandsContainerN):
+                 kill: KillCommandsContainer):
         """
 
         :param batch_size: Размер батча в нейросети.

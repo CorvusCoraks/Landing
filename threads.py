@@ -65,13 +65,13 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
     print("Завершение нити нейросети.\n")
 
 
-# def reality_thread_2(queues: MetaQueue, kill_neuro: KillCommandsContainer,
+# def reality_thread_2(queues: MetaQueue, kill: KillCommandsContainer,
 #                      max_tests: int, initial_status: RealWorldStageStatusN):
 #     """
 #     Функция моделирующая поведение ступени в реальной физической среде
 #
 #     :param queues: Контейнер очередей передачи данных.
-#     :param kill_neuro: Контейнер команд на завершение нитей.
+#     :param kill: Контейнер команд на завершение нитей.
 #     :param max_tests: Количество запланированных испытательных посадок.
 #     :param initial_status: Начальное состояние (положение) изделия в СКИП
 #     """
@@ -86,7 +86,7 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
 #         # Информация о начальном положении изделия отправляется в нити
 #         queues.put(initial_status)
 #
-#         while not kill_neuro.reality:
+#         while not kill.reality:
 #             # ждём команду для двигателей из нейросети на отправленное начальное состояние
 #             if not queues.empty("command"):
 #                 command = queues.get("command")
@@ -98,7 +98,7 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
 #         # цикл последовательной генерации состояний в процессе одной тестовой посадки
 #         # цикл прерывается, только если во время посадки случилась удача / неудача
 #         # или поступила команда на заверешение работы программы
-#         while not finish_control.is_one_test_failed(previous_stage_status.position) and not kill_neuro.reality:
+#         while not finish_control.is_one_test_failed(previous_stage_status.position) and not kill.reality:
 #             # очередное состояние изделия в СКИП
 #             new_stage_status = Moving.get_new_status(command, previous_stage_status)
 #             # Подкрепление действий системы управления, которые привели к новому состоянию
@@ -116,7 +116,7 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
 #                 # переходим к следующему испытанию
 #                 break
 #
-#             while not kill_neuro.reality:
+#             while not kill.reality:
 #                 # ждём команду из нейросети на отправленное состояние и подкрепление
 #                 if not queues.empty("command"):
 #                     command = queues.get("command")
@@ -131,16 +131,16 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
 #                          new_stage_status.acceleration, new_stage_status.orientation))
 #
 #         # прекращаем испытания, завершение программы
-#         if kill_neuro.reality:
+#         if kill.reality:
 #             break
 #
 #     print("Завершение нити реальности.")
 #
 #
 # def reality_thread_3(dispatcher: DispatcherAbstract, meta_queue: MetaQueueN, initial_status: InitialStatusAbstract,
-#                      batch_size: int, kill_neuro: KillCommandsContainer):
+#                      batch_size: int, kill: KillCommandsContainer):
 #     """ Функция нити реальности. Получет данные из очереди и отправляет сообщения в очередь. """
-#     # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill_neuro)
+#     # dispatcher: DispatcherAbstract = ListDispatcher(meta_queue, batch_size, kill)
 #     print("Вход в нить окружающей среды.")
 #
 #     finish_control = Finish()
@@ -166,12 +166,12 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
 #     #####
 #     # главный цикл получения команд из очереди нейросети и отправки в нейросеть обработанных данных
 #     #####
-#     while not initial_status.is_empty or not kill_neuro.reality:
+#     while not initial_status.is_empty or not kill.reality:
 #         # Пока есть в запасе исходные данные и пока нет команды на завершение нити
 #         while not meta_queue.command_to_real.has_new_cargo():
 #             # пока нет в очереди очередной команды - ждём
 #             sleep(sleep_time)
-#             if kill_neuro.reality: return
+#             if kill.reality: return
 #         else:
 #             # Получение команды из нейросети
 #             test_id, _ = meta_queue.command_to_real.unload(command)
@@ -357,8 +357,8 @@ class RealThread2(Thread):
                  initial_state: InitialStatusAbstract, reality: KillInterface, batch_size=1):
         Thread.__init__(self, name=name)
         self.__dispatcher = dispatcher
-        self.__meta_queue = meta_queue
-        # self.__meta_queue = MetaQueue2()
+        # self.__meta_queue = meta_queue
+        self.__meta_queue = MetaQueue2()
         self.__initial_states = initial_state
         self.__reality = reality
         self.__batch_size = batch_size
@@ -386,12 +386,10 @@ class RealThread2(Thread):
         :return: Поступил сигнал на завершение нити. """
         for i in range(self.__batch_size):
             # инициализация начальными данными
-            state: RealWorldStageStatusN = next(self.__iterator)
+            state = next(self.__iterator)
             self.__dispatcher.put_zero_state(i, state)
 
             self.__meta_queue.state_to_neuronet.send_parsel(state, StageState, i)
-            print('RealThread2. Получение начальных положений изделия.\n')
-            print('RealThread2. Начальное положение. ', i, state.position)
 
         return self.__reality.kill
 
@@ -400,9 +398,7 @@ class RealThread2(Thread):
 
          :return: Поступил сигнал на завершение нити. """
 
-        parsel_was_reseived = self.__meta_queue.command_to_real.parsel_waiting(self.__reality)
-
-        if self.__reality.kill:
+        if self.__meta_queue.command_to_real.parsel_waiting():
             return self.__reality.kill
 
         parsel_type = self.__meta_queue.command_to_real.parsel_type
@@ -430,7 +426,7 @@ class RealThread2(Thread):
         :param reinf: Подкрепление данного испытания.
         :return: Поступил сигнал на завершение нити. """
 
-        self.__meta_queue.reinf_to_neuronet.send_parsel(reinf.reinforcement, ReinforcementMessage, test_id)
+        self.__meta_queue.reinf_to_neuronet.send_parsel(reinf, ReinforcementMessage, test_id)
 
         return self.__reality.kill
 
@@ -468,7 +464,7 @@ class RealThread2(Thread):
 
     def run(self):
         """ Note. Именно этот метод запускает в нити. """
-        print('Вход в нить физ. модели')
+        print('Вхоть в нить физ. модели')
         if self.__set_initial_states(): return
 
         while not self.__dispatcher.is_all_tests_ended() and not self.__reality.kill:

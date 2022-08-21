@@ -2,18 +2,17 @@
 from tkinter import Tk, Canvas
 from typing import Optional
 from stage import BigMap
-from kill_flags import KillCommandsContainerN
+from kill_flags import KillCommandsContainer
 from physics import CheckPeriod
 from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoordinateSystem
 from tkview.primiteves import StageMark
 from tkview.tkiface import WindowsMSInterface
-from structures import RealWorldStageStatusN, StageState
+from structures import RealWorldStageStatusN
 from tools import MetaQueue
 from time import sleep
 from point import VectorComplex
 from carousel.metaque import MetaQueueN
 from carousel.atrolley import TestId
-from carousel.metaque import MetaQueue2
 
 
 class PoligonWindow(WindowsMSInterface):
@@ -24,9 +23,9 @@ class PoligonWindow(WindowsMSInterface):
     # Окно с увеличенным изображением ступени рисутется как "дочернее" окно полигона.
     # При закрытии окна полигона, закрывается и окно ступени.
 
-    def __init__(self, queues: MetaQueue2, poligon_width: float,
+    def __init__(self, queues: MetaQueueN, poligon_width: float,
                  poligon_heigt: float, poligon_scale: float,
-                 kill: KillCommandsContainerN):
+                 kill: KillCommandsContainer):
         """
 
         :param _frameRate: частота кадров (и поступления данных в очередь). Устарело.
@@ -71,29 +70,15 @@ class PoligonWindow(WindowsMSInterface):
         #         self.__queues.get('area').position, BigMap.canvasOriginInPoligonCoordinates, 0., True) / self.__poligon_scale
 
         # Получение начального положения изделия
-        # Ждём блок данных из очереди
-        self.__queues.state_to_view.parsel_waiting(None)
-        if issubclass(self.__queues.state_to_view.parsel_type, StageState):
-            # Если тип контейнера совпадает с типом ожидаемого груза
-            test_id, _ = self.__queues.state_to_view.receive_parsel(self.__trash_state)
-
+        while not self.__queues.state_to_view.has_new_cargo():
+            # Пока нет вагонеток с начальными состояниями - засыпаем
+            sleep(self.__time_sleep)
+        else:
+            # Есть вагонетка
+            test_id, init_flag = self.__queues.state_to_view.unload(self.__trash_state)
             if test_id == self.__test_id_for_view:
                 # Если тест, который закреплён для отображения - сохраняем его.
                 self.__trash_state.data_copy(self.__any_state)
-        else:
-            raise TypeError('Data block type {0} from queue and target object {1} type mismatch.'
-                            .format(self.__queues.state_to_view.parsel_type, StageState))
-
-        # # Получение начального положения изделия
-        # while not self.__queues.state_to_view.has_new_cargo():
-        #     # Пока нет вагонеток с начальными состояниями - засыпаем
-        #     sleep(self.__time_sleep)
-        # else:
-        #     # Есть вагонетка
-        #     test_id, init_flag = self.__queues.state_to_view.unload(self.__trash_state)
-        #     if test_id == self.__test_id_for_view:
-        #         # Если тест, который закреплён для отображения - сохраняем его.
-        #         self.__trash_state.data_copy(self.__any_state)
 
         # Стартовая точка в СКК
         self.__start_point: VectorComplex = complexChangeSystemCoordinatesUniversal(
@@ -132,24 +117,13 @@ class PoligonWindow(WindowsMSInterface):
         transform: Optional[RealWorldStageStatusN] = None
         # длительность предыдущего статуса изделия
         previous_status_duration = 0
-
-        # получение данных из внешних источников
-        parsel_was_received = self.__queues.state_to_view.parsel_waiting()
-        if not issubclass(self.__queues.state_to_view.parsel_type, StageState):
-            raise TypeError('Data block type {0} from queue and target object {1} type mismatch.'
-                            .format(self.__queues.state_to_view.parsel_type, StageState))
+        # получение данных из внешних источников self.__any_queue
+        while not self.__queues.state_to_view.has_new_cargo():
+            sleep(self.__time_sleep)
         else:
-            test_id, _ = self.__queues.state_to_view.receive_parsel(self.__trash_state)
+            test_id, _ = self.__queues.state_to_view.unload(self.__trash_state)
             if test_id == self.__test_id_for_view:
                 self.__trash_state.data_copy(self.__any_state)
-
-        # # получение данных из внешних источников self.__any_queue
-        # while not self.__queues.state_to_view.has_new_cargo():
-        #     sleep(self.__time_sleep)
-        # else:
-        #     test_id, _ = self.__queues.state_to_view.unload(self.__trash_state)
-        #     if test_id == self.__test_id_for_view:
-        #         self.__trash_state.data_copy(self.__any_state)
 
         # if self.__queues.state_to_view.has_new_cargo():
         # if not self.__queues.empty('area'):
@@ -207,8 +181,8 @@ class PoligonWindow(WindowsMSInterface):
     def __on_closing(self):
         """ Обработчик закрытия главного окна. """
         # убиваем дополнительные нити
-        self.__kill.neuro.kill = True
-        self.__kill.reality.kill = True
+        self.__kill.neuro = True
+        self.__kill.reality = True
         # закрываем главное окно
         self.__root.destroy()
 

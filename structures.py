@@ -257,7 +257,7 @@ class ReinforcementMessage(MessageBase):
 #     __create_key = object()
 #
 #     def __init__(self, create_key: object):
-#         assert (create_key is DataAndContainers.__create_key), \
+#         assert (create_key == DataAndContainers.__create_key), \
 #             "DataAndContainers object must be created using get_instanse method."
 #
 #         # словарь "блок данных - контейнер"

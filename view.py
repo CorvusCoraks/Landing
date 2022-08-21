@@ -1,8 +1,8 @@
 # Интерфейсы визуального представления
-from kill_flags import KillCommandsContainerN
+from kill_flags import KillCommandsContainer
 from abc import ABC, abstractmethod
 from point import VectorComplex
-from carousel.metaque import MetaQueue2
+from carousel.metaque import MetaQueueN
 
 # ViewInterface (Abstract Factory) -> AnotherView (Concrete Factory)
 #           └-> TkinterView (Concrete Factory)
@@ -11,12 +11,12 @@ class ViewInterface(ABC):
     """ AbstractFactory. Интерфейс отображения процесса выполнения программы. """
     # примитивы, отображающие что-либо конкретно, описываются в конкретной фабрике.
     @abstractmethod
-    def set_poligon_state(self, queues: MetaQueue2, poligon_width: float, poligon_height: float):
+    def set_poligon_state(self, queues: MetaQueueN, poligon_width: float, poligon_height: float):
         """ Описание испытательного полигона в СКИП """
         pass
 
     @abstractmethod
-    def set_kill_threads(self, kill: KillCommandsContainerN):
+    def set_kill_threads(self, kill: KillCommandsContainer):
         """ Управляющие команды на удаление нитей """
         pass
 
