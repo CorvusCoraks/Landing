@@ -1,12 +1,13 @@
 """ ISwitchboard - интерфейс объекта очередей сообщений приложения. """
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Tuple, TypeVar
+from typing import Tuple, TypeVar, Any
 
 
-# Тип данных, передаваемых между функциональными блоками приложения.
-TransferredData = TypeVar('TransferredData', int, str)
-
+# Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
+TransferredData = Any
+# Дополнительная информация о блоке данных
+About = Any
 
 class AppModulesEnum(Enum):
     """ Константы, определяющие функциональные блоки приложения. """
@@ -17,15 +18,52 @@ class AppModulesEnum(Enum):
 
 
 class DataTypeEnum(Enum):
-    """ Константы, определяющие тип передаваемых данных. """
+    """ Константы, определяющие тип (тип, в смысле функционала приложения) передаваемых данных. """
     REMANING_TESTS = 0
     STAGE_STATUS = 1
+
+
+#
+# Интерфейсы передаваемых данных
+#
+
+
+class IExtra(ABC):
+    """ Идентификатор (любая дополнительная информ.) груза, определяющий, например, место груза в потоке испытаний. """
+    @abstractmethod
+    def set(self, about: About) -> None:
+        pass
+
+    @abstractmethod
+    def get(self) -> About:
+        pass
+
+
+class ICargo(ABC):
+    """ Универсальный контейнер, который содержит некий груз. """
+    @abstractmethod
+    def pack(self, cargo: TransferredData) -> None:
+        pass
+
+    @abstractmethod
+    def unpack(self) -> TransferredData:
+        pass
+
+
+class IContainer(ABC, ICargo, IExtra):
+    """ Универсальный контейнер, который содержит некий груз и дополнительные данные к нему. """
+    pass
+
+
+#
+# Интерфейсы получателя и отправителя
+#
 
 
 class ISender(ABC):
     """ Интерфейс отправителя данных. """
     @abstractmethod
-    def send(self, cargo: TransferredData) -> None:
+    def send(self, container: IContainer) -> None:
         """ Отправить данные, ожидающие отправления. """
         pass
 
@@ -48,7 +86,7 @@ class ISender(ABC):
 class IReceiver(ABC):
     """ Интерфейс получателя данных """
     @abstractmethod
-    def receive(self) -> TransferredData:
+    def receive(self) -> IContainer:
         """ Получить ожидающие данные. """
         pass
 
@@ -68,11 +106,15 @@ class IReceiver(ABC):
         pass
 
 
+#
+# Интерфейсы индивидуального канала и распределительного щита
+#
+
+
 class IWire(ABC, ISender, IReceiver):
-    """ Интефейс канала передачи данных. """
+    """ Интерфейс канала передачи данных. """
     # Подразумевает множественные варианты конкретной реализации.
     pass
-
 
 class ISwitchboard(ABC):
     """ Интерфейс класса объединяющего все каналы передачи данных в приложении. """
@@ -89,11 +131,11 @@ class ISwitchboard(ABC):
         pass
 
     @abstractmethod
-    def get_in_wires(self, receiver: AppModulesEnum) -> Tuple[ISender]:
+    def get_in_wires(self, receiver: AppModulesEnum) -> ISender:
         """ Получить все входящие интерфейсы данного блока приложения. """
         pass
 
     @abstractmethod
-    def get_out_wires(self, sender: AppModulesEnum) -> Tuple[IReceiver]:
+    def get_out_wires(self, sender: AppModulesEnum) -> IReceiver:
         """ Получить все исходящие интерфейсы данного блока приложения. """
         pass
