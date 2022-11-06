@@ -4,6 +4,13 @@ from con_intr.ifaces import TransferredData, AppModulesEnum, DataTypeEnum, IRece
 
 class TrolleyWires(IWire):
     """ Односторонний канал передачи данных. """
+    def __init__(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum):
+        super().__init__(sender, receiver, data_type)
+
+        self.__sender: AppModulesEnum = sender
+        self.__receiver: AppModulesEnum = receiver
+        self.__type: DataTypeEnum = data_type
+
     def send(self, cargo: TransferredData) -> None:
         """ Отправить данные, ожидающие отправления. """
         pass
@@ -12,10 +19,12 @@ class TrolleyWires(IWire):
         """ Имеются ли данные для отправления? """
         pass
 
+    # todo Зачем этот метод? Если можно установить получателя в конструкторе.
     def set_receiver(self, receiver: AppModulesEnum) -> None:
         """ Установить получателя данных. """
         pass
 
+    # todo Зачем этот метод? Если можно установить тип данных в конструкторе.
     def set_sending_type(self, data_type: DataTypeEnum) -> None:
         """ Установить тип отправляемых данных. """
         pass

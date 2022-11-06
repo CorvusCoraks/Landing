@@ -1,13 +1,14 @@
 """ ISwitchboard - интерфейс объекта очередей сообщений приложения. """
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Tuple, TypeVar, Any
+from typing import Any
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
 TransferredData = Any
 # Дополнительная информация о блоке данных
 About = Any
+
 
 class AppModulesEnum(Enum):
     """ Константы, определяющие функциональные блоки приложения. """
@@ -50,9 +51,23 @@ class ICargo(ABC):
         pass
 
 
-class IContainer(ABC, ICargo, IExtra):
+class IContainer(ICargo, IExtra):
     """ Универсальный контейнер, который содержит некий груз и дополнительные данные к нему. """
-    pass
+    @abstractmethod
+    def pack(self, cargo: TransferredData) -> None:
+        pass
+
+    @abstractmethod
+    def unpack(self) -> TransferredData:
+        pass
+
+    @abstractmethod
+    def set(self, about: About) -> None:
+        pass
+
+    @abstractmethod
+    def get(self) -> About:
+        pass
 
 
 #
@@ -111,10 +126,52 @@ class IReceiver(ABC):
 #
 
 
-class IWire(ABC, ISender, IReceiver):
+class IWire(ISender, IReceiver):
     """ Интерфейс канала передачи данных. """
     # Подразумевает множественные варианты конкретной реализации.
-    pass
+    # def __init__(self, sender: AppModulesEnum, reseiver: AppModulesEnum, data_type: DataTypeEnum):
+    #     pass
+
+    @abstractmethod
+    def send(self, container: IContainer) -> None:
+        """ Отправить данные, ожидающие отправления. """
+        pass
+
+    @abstractmethod
+    def has_outgoing(self) -> bool:
+        """ Имеются ли данные для отправления? """
+        pass
+
+    @abstractmethod
+    def set_receiver(self, receiver: AppModulesEnum) -> None:
+        """ Установить получателя данных. """
+        pass
+
+    @abstractmethod
+    def set_sending_type(self, data_type: DataTypeEnum) -> None:
+        """ Установить тип отправляемых данных. """
+        pass
+
+    @abstractmethod
+    def receive(self) -> IContainer:
+        """ Получить ожидающие данные. """
+        pass
+
+    @abstractmethod
+    def has_incoming(self) -> bool:
+        """ Имеются ли входящие данные? """
+        pass
+
+    @abstractmethod
+    def get_sender(self) -> AppModulesEnum:
+        """ Кто отправитель? """
+        pass
+
+    @abstractmethod
+    def get_receiving_type(self) -> DataTypeEnum:
+        """ Какой тип данных? """
+        pass
+
 
 class ISwitchboard(ABC):
     """ Интерфейс класса объединяющего все каналы передачи данных в приложении. """
