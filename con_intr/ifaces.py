@@ -1,7 +1,7 @@
 """ ISwitchboard - интерфейс объекта очередей сообщений приложения. """
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from typing import Any, Tuple
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
@@ -82,19 +82,32 @@ class ISender(ABC):
         """ Отправить данные, ожидающие отправления. """
         pass
 
-    @abstractmethod
-    def has_outgoing(self) -> bool:
-        """ Имеются ли данные для отправления? """
-        pass
+    # # todo Нужен ли этот метод?
+    # @abstractmethod
+    # def has_outgoing(self) -> bool:
+    #     """ Имеются ли данные для отправления? """
+    #     pass
+
+    # # todo Нужен ли этот метод в интерфейсе отправителя, ведь отправитель устанавливается при создании канала
+    # @abstractmethod
+    # def set_receiver(self, receiver: AppModulesEnum) -> None:
+    #     """ Установить получателя данных. """
+    #     pass
 
     @abstractmethod
-    def set_receiver(self, receiver: AppModulesEnum) -> None:
-        """ Установить получателя данных. """
+    def get_receiver(self) -> AppModulesEnum:
+        """ Кто получатель? """
         pass
 
+    # # todo Нужен ли этот метод в интерфейсе отправителя, ведь тип данных устанавливается при создании канала
+    # @abstractmethod
+    # def set_sending_type(self, data_type: DataTypeEnum) -> None:
+    #     """ Установить тип отправляемых данных. """
+    #     pass
+
     @abstractmethod
-    def set_sending_type(self, data_type: DataTypeEnum) -> None:
-        """ Установить тип отправляемых данных. """
+    def get_sending_type(self) -> DataTypeEnum:
+        """ Какой тип данных передаётся? """
         pass
 
 
@@ -129,28 +142,39 @@ class IReceiver(ABC):
 class IWire(ISender, IReceiver):
     """ Интерфейс канала передачи данных. """
     # Подразумевает множественные варианты конкретной реализации.
-    # def __init__(self, sender: AppModulesEnum, reseiver: AppModulesEnum, data_type: DataTypeEnum):
-    #     pass
+    @abstractmethod
+    def __init__(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum):
+        pass
 
     @abstractmethod
     def send(self, container: IContainer) -> None:
         """ Отправить данные, ожидающие отправления. """
         pass
 
+    # @abstractmethod
+    # def has_outgoing(self) -> bool:
+    #     """ Имеются ли данные для отправления? """
+    #     pass
+
     @abstractmethod
-    def has_outgoing(self) -> bool:
-        """ Имеются ли данные для отправления? """
+    def get_receiver(self) -> AppModulesEnum:
+        """ Кто получатель? """
         pass
 
     @abstractmethod
-    def set_receiver(self, receiver: AppModulesEnum) -> None:
-        """ Установить получателя данных. """
+    def get_sending_type(self) -> DataTypeEnum:
+        """ Какой тип данных передаётся? """
         pass
 
-    @abstractmethod
-    def set_sending_type(self, data_type: DataTypeEnum) -> None:
-        """ Установить тип отправляемых данных. """
-        pass
+    # @abstractmethod
+    # def set_receiver(self, receiver: AppModulesEnum) -> None:
+    #     """ Установить получателя данных. """
+    #     pass
+    #
+    # @abstractmethod
+    # def set_sending_type(self, data_type: DataTypeEnum) -> None:
+    #     """ Установить тип отправляемых данных. """
+    #     pass
 
     @abstractmethod
     def receive(self) -> IContainer:
@@ -176,7 +200,11 @@ class IWire(ISender, IReceiver):
 class ISwitchboard(ABC):
     """ Интерфейс класса объединяющего все каналы передачи данных в приложении. """
     # Этот интерфейс подразумевает множественные варианты его реализации.
+    #
     # Передаётся (?) между модулями? Или только интерфейсы получателя/отправителя?
+    #
+    # Отправитель, получатель, тип передаваемых данных - однозначно идентифицируют канал.
+    # Двух каналов с данными одинаковыми параметрами существовать не может.
     @abstractmethod
     def add_wire(self, new_wire: IWire) -> None:
         """ Добавить канал передачи данных. """
@@ -188,11 +216,11 @@ class ISwitchboard(ABC):
         pass
 
     @abstractmethod
-    def get_in_wires(self, receiver: AppModulesEnum) -> ISender:
+    def get_in_wires(self, receiver: AppModulesEnum) -> Tuple[ISender]:
         """ Получить все входящие интерфейсы данного блока приложения. """
         pass
 
     @abstractmethod
-    def get_out_wires(self, sender: AppModulesEnum) -> IReceiver:
+    def get_out_wires(self, sender: AppModulesEnum) -> Tuple[IReceiver]:
         """ Получить все исходящие интерфейсы данного блока приложения. """
         pass
