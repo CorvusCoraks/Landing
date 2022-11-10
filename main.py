@@ -14,29 +14,10 @@ from view import ViewInterface
 from carousel.metaque import MetaQueueN
 from datadisp.adisp import DispatcherAbstract
 from datadisp.listdisp import ListDispatcher
-from carousel.atrolley import TestId
-
-
-# def initial_status_func():
-#     return RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-#                                           orientation=VectorComplex.get_instance(0., 1.),
-#                                           velocity=VectorComplex.get_instance(0., -5.),
-#                                           angular_velocity=-pi / 36)
 
 if __name__ == "__main__":
-    # temp = initial_status_func
-
     # максимальное количество тестовых посадок
     max_tests = 7
-
-    # test_id_for_view: TestId = 0
-
-    # начальное состояние ступени в СКИП
-    # initial_status_obj = RealWorldStageStatusN(position=BigMap.startPointInPoligonCoordinates,
-    #                                            orientation=VectorComplex.get_instance(0., 1.),
-    #                                            velocity=VectorComplex.get_instance(0., -5.),
-    #                                            angular_velocity=-pi / 36)
-    # initial_status_obj.time_stamp = 0
 
     # Очередь данных в вид испытательного полигона (из нити реальности)
     # Очередь данных в вид изделия (из нити реальности)
@@ -61,8 +42,6 @@ if __name__ == "__main__":
     dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
 
     # Нить модели реального мира
-    # realWorldThread = Thread(target=reality_thread_2, name="realWorldThread", args=(queues, kill, max_tests, initial_status_obj,))
-    # realWorldThread: Thread = RealThread(target=reality_thread_3, name="realWorldThread", args=(dispatcher, InitialStatus(max_tests), batch_size, kill, ))
     realWorldThread: Thread = RealThread('realWorldThread', dispatcher, queues_m, InitialStatus(max_tests), kill, batch_size)
     realWorldThread.start()
 

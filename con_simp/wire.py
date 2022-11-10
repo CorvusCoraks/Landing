@@ -56,4 +56,3 @@ class ReportWire(Wire):
     def get_report_receiver(self) -> IReceiver:
         """ Получить интерфейс получателя рапортов. """
         return self.__report_wire
-
