@@ -12,9 +12,9 @@ class IFlowDispatcher(ABC):
     #     self.__neuronet: IAppModule = neuronet
 
     @abstractmethod
-    def initialization(self):
+    def initialization(self) -> None:
         pass
 
     @abstractmethod
-    def run(self):
+    def run(self) -> None:
         pass

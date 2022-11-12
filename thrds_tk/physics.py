@@ -1,10 +1,15 @@
 from ifc_flow.i_flow import IPhysics
-from threading import Thread
+from thrds_tk.threads import AYarn
 
 
-class PhysicsThread(IPhysics, Thread):
-    def initialization(self):
+class PhysicsThread(IPhysics, AYarn):
+    """ Нить физической модели. """
+    def initialization(self) -> None:
         pass
 
-    def run(self):
+    def run(self) -> None:
         pass
+
+    def _yarn_run(self, *args, **kwargs) -> None:
+        pass
+

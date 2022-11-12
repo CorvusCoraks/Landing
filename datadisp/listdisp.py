@@ -21,7 +21,7 @@ class Element:
         return self.__test_id
 
     @test_id.setter
-    def test_id(self, value: TestId):
+    def test_id(self, value: TestId) -> None:
         self.__test_id = value
 
     @property
@@ -29,7 +29,7 @@ class Element:
         return self.__value
 
     @state.setter
-    def state(self, value: RealWorldStageStatusN):
+    def state(self, value: RealWorldStageStatusN) -> None:
         self.__value = value
 
 
@@ -46,7 +46,7 @@ class ListDispatcher(DispatcherAbstract):
     def is_all_tests_ended(self) -> bool:
         return self.__none_counter == len(self.__tests_list)
 
-    def put_zero_state(self, test_id: TestId, initial_state: Optional[RealWorldStageStatusN]):
+    def put_zero_state(self, test_id: TestId, initial_state: Optional[RealWorldStageStatusN]) -> None:
         if initial_state is None:
             self.__none_counter += 1
 
