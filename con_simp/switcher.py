@@ -1,6 +1,6 @@
 """ Общий объект агрегирующий каналы передачи данных. """
 from con_intr.ifaces import ISwitchboard, AppModulesEnum, IReceiver, ISender, DataTypeEnum, IWire
-from wire import Wire
+from con_simp.wire import Wire
 from typing import List, Tuple
 
 

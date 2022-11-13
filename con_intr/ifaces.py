@@ -1,7 +1,7 @@
 """ ISwitchboard - интерфейс объекта очередей сообщений приложения. """
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional, overload
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
@@ -197,23 +197,20 @@ class IWire(ISender, IReceiver):
         pass
 
 
-class ISwitchboard(ABC):
-    """ Интерфейс класса объединяющего все каналы передачи данных в приложении. """
-    # Этот интерфейс подразумевает множественные варианты его реализации.
-    #
-    # Передаётся (?) между модулями? Или только интерфейсы получателя/отправителя?
-    #
-    # Отправитель, получатель, тип передаваемых данных - однозначно идентифицируют канал.
-    # Двух каналов с данными одинаковыми параметрами существовать не может.
-    @abstractmethod
-    def add_wire(self, new_wire: IWire) -> None:
-        """ Добавить канал передачи данных. """
-        pass
+class ISocket(ABC):
+    """ Специальный интерфейс для передачи его в вычислительные модули приложения. """
 
-    @abstractmethod
-    def get_wire(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum) -> IWire:
-        """ Получить канал передачи данных. """
-        pass
+    # @overload
+    # @abstractmethod
+    # def get_in_wires(self, receiver=None) -> Tuple[ISender]:
+    #     """ Получить все входящие интерфейсы данного блока приложения. """
+    #     pass
+    #
+    # @abstractmethod
+    # @overload
+    # def get_out_wires(self, sender=None) -> Tuple[IReceiver]:
+    #     """ Получить все исходящие интерфейсы данного блока приложения. """
+    #     pass
 
     @abstractmethod
     def get_in_wires(self, receiver: AppModulesEnum) -> Tuple[ISender]:
@@ -224,3 +221,33 @@ class ISwitchboard(ABC):
     def get_out_wires(self, sender: AppModulesEnum) -> Tuple[IReceiver]:
         """ Получить все исходящие интерфейсы данного блока приложения. """
         pass
+
+
+
+
+class ISwitchboard(ISocket):
+    """ Интерфейс класса объединяющего все каналы передачи данных в приложении. """
+    # Этот интерфейс подразумевает множественные варианты его реализации.
+    #
+    # Передаётся (?) между модулями? Или только интерфейсы получателя/отправителя?
+    #
+    # Отправитель, получатель, тип передаваемых данных - однозначно идентифицируют канал.
+    # Двух каналов с данными одинаковыми параметрами существовать не может.
+    #
+    @abstractmethod
+    def add_wire(self, new_wire: IWire) -> None:
+        """ Добавить канал передачи данных. """
+        pass
+
+    @abstractmethod
+    def get_wire(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum) -> IWire:
+        """ Получить канал передачи данных. """
+        pass
+#
+#
+# class Socket(ISocket):
+#     def get_in_wires(self) -> Tuple[ISender]:
+#         pass
+#
+#     def get_out_wires(self) -> Tuple[IReceiver]:
+#         pass
