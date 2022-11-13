@@ -15,9 +15,9 @@ from carousel.metaque import MetaQueueN
 from datadisp.adisp import DispatcherAbstract
 from datadisp.listdisp import ListDispatcher
 # from con_intr.ifaces import ISwitchboard
-from con_simp.switcher import Switchboard
+from con_simp.switcher import Switchboard, Socket
 from con_simp.wire import Wire
-from con_intr.ifaces import AppModulesEnum, DataTypeEnum, TransferredData
+from con_intr.ifaces import AppModulesEnum, DataTypeEnum, TransferredData, ISocket
 
 if __name__ == "__main__":
     # максимальное количество тестовых посадок
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
 
     # Нить модели реального мира
-    realWorldThread: Thread = RealThread('realWorldThread', dispatcher, switchboard, queues_m, InitialStatus(max_tests), kill, batch_size)
+    realWorldThread: Thread = RealThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, batch_size)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status

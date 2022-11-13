@@ -65,7 +65,7 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
 
 
 class RealThread(Thread):
-    def __init__(self, name: str, dispatcher: DispatcherAbstract, data_transfer: ISocket, meta_queue: MetaQueueN, initial_state: InitialStatusAbstract, kill: KillCommandsContainer, batch_size=1):
+    def __init__(self, name: str, dispatcher: DispatcherAbstract, data_socket: ISocket, meta_queue: MetaQueueN, initial_state: InitialStatusAbstract, kill: KillCommandsContainer, batch_size=1):
         """
 
         :param name: Thread name
@@ -77,7 +77,7 @@ class RealThread(Thread):
         """
         Thread.__init__(self, name=name)
         self.__dispatcher = dispatcher
-        self.__data_transfer = data_transfer
+        self.__data_socket = data_socket
         self.__meta_queue = meta_queue
         self.__initial_states = initial_state
         self.__kill = kill

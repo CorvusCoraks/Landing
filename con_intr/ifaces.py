@@ -197,40 +197,69 @@ class IWire(ISender, IReceiver):
         pass
 
 
+# class ISocket(ABC):
+#     """ Специальный интерфейс для передачи его в вычислительные модули приложения. """
+#     @overload
+#     def get_in_wires(self, receiver: None) -> Optional[Tuple[ISender]]:
+#         """ Получить все входящие интерфейсы данного блока приложения. Метод для передачи внутрь конкретного модуля. """
+#         ...
+#
+#     @abstractmethod
+#     def get_in_wires(self, receiver: Optional[AppModulesEnum]) -> Optional[Tuple[ISender]]:
+#         """ Получить все входящие интерфейсы данного блока приложения. """
+#         pass
+#
+#     @overload
+#     def get_out_wires(self, sender: None) -> Optional[Tuple[IReceiver]]:
+#         """ Получить все исходящие интерфейсы данного блока приложения. Метод для передачи внутрь конкретного модуля."""
+#         ...
+#
+#     @abstractmethod
+#     def get_out_wires(self, sender: Optional[AppModulesEnum]) -> Optional[Tuple[IReceiver]]:
+#         """ Получить все исходящие интерфейсы данного блока приложения. """
+#         pass
+
+
 class ISocket(ABC):
     """ Специальный интерфейс для передачи его в вычислительные модули приложения. """
-    @overload
-    def get_in_wires(self, receiver: None) -> Tuple[ISender]:
-        """ Получить все входящие интерфейсы данного блока приложения. """
-        ...
-
     @abstractmethod
-    def get_in_wires(self, receiver: Optional[AppModulesEnum]) -> Tuple[ISender]:
-        """ Получить все входящие интерфейсы данного блока приложения. """
+    def get_all_in(self) -> Tuple[ISender]:
+        """ Получить все входящие интерфейсы данного блока приложения."""
         pass
 
-    @overload
-    def get_out_wires(self, sender: None) -> Tuple[IReceiver]:
-        """ Получить все исходящие интерфейсы данного блока приложения. """
-        ...
 
     @abstractmethod
-    def get_out_wires(self, sender: Optional[AppModulesEnum]) -> Tuple[IReceiver]:
-        """ Получить все исходящие интерфейсы данного блока приложения. """
+    def get_all_out(self) -> Tuple[IReceiver]:
+        """ Получить все исходящие интерфейсы данного блока приложения."""
         pass
 
 
 
+# class IModuleSocket(ABC):
+#     @abstractmethod
+#     def get_in_wires(self) -> Tuple[ISender]:
+#         """ Получить все входящие интерфейсы данного блока приложения. """
+#         pass
+#
+#     # @overload
+#     # def get_out_wires(self, sender: None) -> Tuple[IReceiver]:
+#     #     """ Получить все исходящие интерфейсы данного блока приложения. """
+#     #     ...
+#
+#     @abstractmethod
+#     def get_out_wires(self) -> Tuple[IReceiver]:
+#         """ Получить все исходящие интерфейсы данного блока приложения. """
+#         pass
 
-class ISwitchboard(ISocket):
+class ISwitchboard(ABC):
     """ Интерфейс класса объединяющего все каналы передачи данных в приложении. """
     # Этот интерфейс подразумевает множественные варианты его реализации.
-    #
-    # Передаётся (?) между модулями? Или только интерфейсы получателя/отправителя?
     #
     # Отправитель, получатель, тип передаваемых данных - однозначно идентифицируют канал.
     # Двух каналов с данными одинаковыми параметрами существовать не может.
     #
+    # В реализации методов get_in_wires() get_out_wires() обеспечить варианты обработки перегруженных методов
+    # интерфейса ISocket (входной параметр Null - возвращает Null)
     @abstractmethod
     def add_wire(self, new_wire: IWire) -> None:
         """ Добавить канал передачи данных. """
@@ -240,11 +269,29 @@ class ISwitchboard(ISocket):
     def get_wire(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum) -> IWire:
         """ Получить канал передачи данных. """
         pass
-#
-#
+
+    # def get_in_wires(self) -> None:
+    #     return None
+
+    @abstractmethod
+    def get_all_in(self, receiver: Optional[AppModulesEnum]) -> Optional[Tuple[ISender]]:
+        """ Получить все входящие интерфейсы данного блока приложения. """
+        pass
+
+    @abstractmethod
+    def get_all_out(self, sender: Optional[AppModulesEnum]) -> Optional[Tuple[IReceiver]]:
+        """ Получить все исходящие интерфейсы данного блока приложения. """
+        pass
+
+
+
 # class Socket(ISocket):
-#     def get_in_wires(self) -> Tuple[ISender]:
-#         pass
+#     def __init__(self, module: AppModulesEnum, switchboard: ISwitchboard):
+#         self.__module = module
+#         self.__switchboard = switchboard
 #
-#     def get_out_wires(self) -> Tuple[IReceiver]:
-#         pass
+#     def get_all_in_wires(self, receiver: None) -> Tuple[ISender]:
+#         return  self.__switchboard.get_in_wires(self.__module)
+#
+#     def get_out_wires(self, sender: None) -> Tuple[IReceiver]:
+#         return self.__switchboard.get_out_wires(self.__module)
