@@ -199,26 +199,23 @@ class IWire(ISender, IReceiver):
 
 class ISocket(ABC):
     """ Специальный интерфейс для передачи его в вычислительные модули приложения. """
-
-    # @overload
-    # @abstractmethod
-    # def get_in_wires(self, receiver=None) -> Tuple[ISender]:
-    #     """ Получить все входящие интерфейсы данного блока приложения. """
-    #     pass
-    #
-    # @abstractmethod
-    # @overload
-    # def get_out_wires(self, sender=None) -> Tuple[IReceiver]:
-    #     """ Получить все исходящие интерфейсы данного блока приложения. """
-    #     pass
+    @overload
+    def get_in_wires(self, receiver: None) -> Tuple[ISender]:
+        """ Получить все входящие интерфейсы данного блока приложения. """
+        ...
 
     @abstractmethod
-    def get_in_wires(self, receiver: AppModulesEnum) -> Tuple[ISender]:
+    def get_in_wires(self, receiver: Optional[AppModulesEnum]) -> Tuple[ISender]:
         """ Получить все входящие интерфейсы данного блока приложения. """
         pass
 
+    @overload
+    def get_out_wires(self, sender: None) -> Tuple[IReceiver]:
+        """ Получить все исходящие интерфейсы данного блока приложения. """
+        ...
+
     @abstractmethod
-    def get_out_wires(self, sender: AppModulesEnum) -> Tuple[IReceiver]:
+    def get_out_wires(self, sender: Optional[AppModulesEnum]) -> Tuple[IReceiver]:
         """ Получить все исходящие интерфейсы данного блока приложения. """
         pass
 
