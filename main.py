@@ -8,8 +8,8 @@ from tkview.tkview import TkinterView
 from tools import MetaQueue, InitialStatusAbstract, InitialStatus
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Dict, Any
-from point import VectorComplex
-from cmath import pi
+# from point import VectorComplex
+# from cmath import pi
 from view import ViewInterface
 from carousel.metaque import MetaQueueN
 from datadisp.adisp import DispatcherAbstract
@@ -18,6 +18,7 @@ from datadisp.listdisp import ListDispatcher
 from con_simp.switcher import Switchboard, Socket
 from con_simp.wire import Wire
 from con_intr.ifaces import AppModulesEnum, DataTypeEnum, TransferredData, ISocket
+from thrds_tk.neuronet import NeuronetThread
 
 if __name__ == "__main__":
     # максимальное количество тестовых посадок
@@ -58,10 +59,13 @@ if __name__ == "__main__":
     # расчёт нейросети и физическое моделирование в отдельной нити
 
     # Создание отдельной нити для нейросети
-    neuroNetThread = Thread(target=neuronet_thread,
-                            name="NeuroNetThread",
-                            args=(queues_m,
-                                  kill, batch_size))
+    # neuroNetThread = Thread(target=neuronet_thread,
+    #                         name="NeuroNetThread",
+    #                         args=(queues_m,
+    #                               kill, batch_size))
+
+    neuroNetThread = NeuronetThread(Socket(AppModulesEnum.NEURO,switchboard), queues_m, kill, batch_size)
+
     neuroNetThread.start()
 
     # Размер полигона в метрах!

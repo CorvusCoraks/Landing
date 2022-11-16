@@ -4,6 +4,7 @@ from thrds_tk.threads import AYarn
 
 class PhysicsThread(IPhysics, AYarn):
     """ Нить физической модели. """
+
     def initialization(self) -> None:
         pass
 
