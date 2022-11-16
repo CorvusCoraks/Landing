@@ -19,6 +19,8 @@ from con_simp.switcher import Switchboard, Socket
 from con_simp.wire import Wire
 from con_intr.ifaces import AppModulesEnum, DataTypeEnum, TransferredData, ISocket
 from thrds_tk.neuronet import NeuronetThread
+from thrds_tk.physics import PhysicsThread
+# from ifc_flow.i_flow import INeuronet, IPhysics, IVisualization
 
 if __name__ == "__main__":
     # максимальное количество тестовых посадок
@@ -51,7 +53,8 @@ if __name__ == "__main__":
     dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
 
     # Нить модели реального мира
-    realWorldThread: Thread = RealThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, batch_size)
+    # realWorldThread: Thread = RealThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, batch_size)
+    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, batch_size)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status
@@ -64,7 +67,7 @@ if __name__ == "__main__":
     #                         args=(queues_m,
     #                               kill, batch_size))
 
-    neuroNetThread = NeuronetThread(Socket(AppModulesEnum.NEURO,switchboard), queues_m, kill, batch_size)
+    neuroNetThread: NeuronetThread = NeuronetThread(Socket(AppModulesEnum.NEURO,switchboard), queues_m, kill, batch_size)
 
     neuroNetThread.start()
 

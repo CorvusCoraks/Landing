@@ -1,4 +1,5 @@
 """ Класс нитей и инструментов работы с ними. """
+# todo подготовить файл к удалению, так как его функционал перенесён в модуль thrds_tk
 # from builtins import function
 import tools
 from physics import Moving
@@ -42,6 +43,7 @@ from con_intr.ifaces import ISocket
 # за время отработки данных нейросетью.
 
 
+# todo подготовить метод к ликвидации как не нужный (функционал перенесён в класс NeuronetThread модуля thrds_tk)
 def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_status: RealWorldStageStatusN):
     """
     Метод, запускаемый в отдельной нитке для обучения нейросети.
@@ -64,6 +66,7 @@ def neuronet_thread(queues: MetaQueue, kill: KillCommandsContainer, initial_stat
     print("Завершение нити нейросети.\n")
 
 
+# todo Подготовить класс к удалению, так как его функционал перенесён в класс PhysicsThread модуля thrds_tk
 class RealThread(Thread):
     def __init__(self, name: str, dispatcher: DispatcherAbstract, data_socket: ISocket, meta_queue: MetaQueueN, initial_state: InitialStatusAbstract, kill: KillCommandsContainer, batch_size=1):
         """

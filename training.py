@@ -1,4 +1,5 @@
 """ Тренировка нейросети """
+# todo подготовить файл к ликвидации как не нужный (функционал перенесён в класс NeuronetThread модуля thrds_tk)
 # from physics import Rocket
 import random
 import shelve
