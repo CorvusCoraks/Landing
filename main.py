@@ -67,7 +67,7 @@ if __name__ == "__main__":
     #                         args=(queues_m,
     #                               kill, batch_size))
 
-    neuroNetThread: NeuronetThread = NeuronetThread(Socket(AppModulesEnum.NEURO,switchboard), queues_m, kill, batch_size)
+    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), queues_m, kill, batch_size)
 
     neuroNetThread.start()
 

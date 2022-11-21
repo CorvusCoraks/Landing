@@ -20,8 +20,8 @@ from con_intr.ifaces import ISocket
 
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
-    def __init__(self, data_socket: ISocket, queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
-        AYarn.__init__(self, 'Neuron Net Thread')
+    def __init__(self, name: str, data_socket: ISocket, queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+        AYarn.__init__(self, name)
 
         print('Конструктор класса нити нейросети.')
 

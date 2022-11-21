@@ -6,10 +6,10 @@ from kill_flags import KillCommandsContainer
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from datadisp.adisp import DispatcherAbstract
 from carousel.metaque import MetaQueueN
-from typing import Optional
+from typing import Optional, Tuple, Dict
 from time import sleep
 from carousel.atrolley import TestId
-from con_intr.ifaces import ISocket
+from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 
 
 class PhysicsThread(IPhysics, AYarn):
@@ -25,6 +25,11 @@ class PhysicsThread(IPhysics, AYarn):
         self.__initial_states = initial_state
         self.__kill = kill
         self.__batch_size = batch_size
+
+        self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = self.__data_socket.get_in_dict()
+        print(self.__data_socket, self.__data_socket.get_all_in(), self.__incoming)
+        self.__outgoing: Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]] = self.__data_socket.get_out_dict()
+        print(self.__data_socket, self.__data_socket.get_all_out(), self.__outgoing)
 
         # Итератор прохода по начальным состояниям изделия (исходным положениям)
         self.__iterator = iter(initial_state)

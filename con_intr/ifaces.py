@@ -1,7 +1,7 @@
 """ ISwitchboard - интерфейс объекта очередей сообщений приложения. """
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Tuple, Optional, overload
+from typing import Any, Tuple, Optional, overload, Dict
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
@@ -223,15 +223,26 @@ class IWire(ISender, IReceiver):
 class ISocket(ABC):
     """ Специальный интерфейс для передачи его в вычислительные модули приложения. """
     @abstractmethod
-    def get_all_in(self) -> Tuple[ISender]:
+    def get_all_in(self) -> Tuple[IReceiver]:
         """ Получить все входящие интерфейсы данного блока приложения."""
         pass
 
 
     @abstractmethod
-    def get_all_out(self) -> Tuple[IReceiver]:
+    def get_all_out(self) -> Tuple[ISender]:
         """ Получить все исходящие интерфейсы данного блока приложения."""
         pass
+
+    @abstractmethod
+    def get_in_dict(self) -> Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]:
+        """ Доступ к интерфейсам получателя через двойной словарь по двум ключам (AppModuleEnum и DataTypeEnum). """
+        ...
+
+    @abstractmethod
+    def get_out_dict(self) -> Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]:
+        """ Доступ к интерфейсам отправителя через двойной словарь по двум ключам (AppModuleEnum и DataTypeEnum). """
+        ...
+
 
 
 
@@ -274,12 +285,12 @@ class ISwitchboard(ABC):
     #     return None
 
     @abstractmethod
-    def get_all_in(self, receiver: Optional[AppModulesEnum]) -> Optional[Tuple[ISender]]:
+    def get_all_in(self, receiver: Optional[AppModulesEnum]) -> Optional[Tuple[IReceiver]]:
         """ Получить все входящие интерфейсы данного блока приложения. """
         pass
 
     @abstractmethod
-    def get_all_out(self, sender: Optional[AppModulesEnum]) -> Optional[Tuple[IReceiver]]:
+    def get_all_out(self, sender: Optional[AppModulesEnum]) -> Optional[Tuple[ISender]]:
         """ Получить все исходящие интерфейсы данного блока приложения. """
         pass
 
