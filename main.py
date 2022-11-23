@@ -1,5 +1,8 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
+import sys
 
+from basics import log_file_name, logger_name
+from logging import getLogger, FileHandler, StreamHandler, Formatter, INFO, DEBUG
 from threading import Thread
 from stage import Sizes, BigMap
 from threads import neuronet_thread, RealThread
@@ -22,13 +25,31 @@ from thrds_tk.neuronet import NeuronetThread
 from thrds_tk.physics import PhysicsThread
 # from ifc_flow.i_flow import INeuronet, IPhysics, IVisualization
 
+def log_init():
+    """ Инициализация логирования. """
+    logger = getLogger(logger_name)
+    logger.setLevel(DEBUG)
+    log_filehandler = FileHandler(log_file_name, mode='w', encoding='UTF-8')
+    log_streamhandler = StreamHandler(stream=sys.stdout)
+    # formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = Formatter('%(name)s - %(levelname)s - %(message)s')
+    log_filehandler.setFormatter(formatter)
+    # logger.addHandler(log_filehandler)
+    logger.addHandler(log_streamhandler)
+
 if __name__ == "__main__":
+    log_init()
+
+    logger = getLogger(logger_name)
+    logger.info("Input in {0} module\n".format(__name__))
+
     # максимальное количество тестовых посадок
     max_tests = 7
 
     # Реализация сообщений через распределительный щит
     switchboard = Switchboard()
     switchboard.add_wire(Wire(AppModulesEnum.PHYSICS,AppModulesEnum.NEURO, DataTypeEnum.STAGE_STATUS))
+    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.REMANING_TESTS))
 
     # Очередь данных в вид испытательного полигона (из нити реальности)
     # Очередь данных в вид изделия (из нити реальности)
@@ -48,13 +69,14 @@ if __name__ == "__main__":
     # контейнер с командами на остановку нитей
     kill = KillCommandsContainer.get_instance()
 
+    # todo зачем здесь размер батча? Это параметр блока нейросети!
     batch_size = 1
     queues_m: MetaQueueN = MetaQueueN(batch_size)
     dispatcher: DispatcherAbstract = ListDispatcher(batch_size, kill)
 
     # Нить модели реального мира
     # realWorldThread: Thread = RealThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, batch_size)
-    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, batch_size)
+    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', dispatcher, Socket(AppModulesEnum.PHYSICS, switchboard), queues_m, InitialStatus(max_tests), kill, max_tests, batch_size)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status

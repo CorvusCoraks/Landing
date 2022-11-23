@@ -18,7 +18,7 @@ class InitialStatusAbstract(ABC, Iterable):
     def __init__(self, max_count):
         """
 
-        :param max_count: максимальное количество начальных состояний.
+        :param max_count: максимальное количество начальных состояний (запланированных испытаний).
         """
         self._current_status_index: int = -1
         self._max_status_index: int = max_count - 1

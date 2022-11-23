@@ -1,3 +1,5 @@
+from basics import log_file_name, logger_name
+from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
 import tools
@@ -11,12 +13,13 @@ from time import sleep
 from carousel.atrolley import TestId
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 
+ph_logger = getLogger(logger_name+'.physics')
 
 class PhysicsThread(IPhysics, AYarn):
     """ Нить физической модели. """
 
     def __init__(self, name: str, dispatcher: DispatcherAbstract, data_socket: ISocket, meta_queue: MetaQueueN,
-                 initial_state: InitialStatusAbstract, kill: KillCommandsContainer, batch_size=1):
+                 initial_state: InitialStatusAbstract, kill: KillCommandsContainer, max_tests: int, batch_size=1):
         AYarn.__init__(self, name)
 
         self.__dispatcher = dispatcher
@@ -24,12 +27,19 @@ class PhysicsThread(IPhysics, AYarn):
         self.__meta_queue = meta_queue
         self.__initial_states = initial_state
         self.__kill = kill
+        self.__max_tests = max_tests
+        # todo Зачем здесь размер батча? Это параметр блока нейросети! Убрать!
         self.__batch_size = batch_size
 
         self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = self.__data_socket.get_in_dict()
-        print(self.__data_socket, self.__data_socket.get_all_in(), self.__incoming)
+        # print(self.__data_socket, self.__data_socket.get_all_in(), self.__incoming)
+        ph_logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.format(self.__class__.__name__, self.__data_socket, self.__data_socket.get_all_in(), self.__incoming))
         self.__outgoing: Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]] = self.__data_socket.get_out_dict()
-        print(self.__data_socket, self.__data_socket.get_all_out(), self.__outgoing)
+        # print(self.__data_socket, self.__data_socket.get_all_out(), self.__outgoing)
+        ph_logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.format(self.__class__.__name__, self.__data_socket, self.__data_socket.get_all_out(), self.__outgoing))
+
+        # def test(class_type: type, method_name: str, mess: str, attr: tuple) -> str:
+        #     ...
 
         # Итератор прохода по начальным состояниям изделия (исходным положениям)
         self.__iterator = iter(initial_state)

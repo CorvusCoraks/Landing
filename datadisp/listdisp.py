@@ -11,7 +11,7 @@ from physics import Moving
 
 
 class Element:
-    """ Элемент коллекции текущих испытаний. """
+    """ Элемент коллекции текущих испытаний: идентификатор теста и состояние изделия в этом тесте. """
     def __init__(self):
         self.__test_id: TestId = -1
         self.__value: Optional[RealWorldStageStatusN] = None
@@ -35,7 +35,7 @@ class Element:
 
 class ListDispatcher(DispatcherAbstract):
     """ Класс реализует множество параллельно-последовательных расчётов состояний. """
-
+    # todo зачем в этом классе размер батча?
     def __init__(self, batch_size: int, kill: KillCommandsContainer):
         DispatcherAbstract.__init__(self, batch_size, kill)
         # хранилище состояний испытаний.

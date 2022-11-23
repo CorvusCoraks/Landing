@@ -1,3 +1,5 @@
+from logging import getLogger
+from basics import logger_name
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
@@ -17,13 +19,14 @@ from time import sleep
 from carousel.atrolley import TestId
 from con_intr.ifaces import ISocket
 
+logger = getLogger(logger_name+'.neuronet')
 
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
     def __init__(self, name: str, data_socket: ISocket, queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
         AYarn.__init__(self, name)
 
-        print('Конструктор класса нити нейросети.')
+        logger.info('Конструктор класса нити нейросети. {}.__init__'.format(self.__class__.__name__))
 
         self.__data_soket = data_socket
         self.__queues = queues
@@ -53,7 +56,7 @@ class NeuronetThread(INeuronet, AYarn):
 
         # используемое для обучения устройство
         self.__calc_device = device("cuda:0" if cuda.is_available() else "cpu")
-        print(self.__calc_device)
+        logger.debug('{}'.format(self.__calc_device))
 
         # предыдущее значение функции ценности выданное нейросетью криктика
         self.__previousQmax = self.__state_dict['previous_q_max']
@@ -63,7 +66,7 @@ class NeuronetThread(INeuronet, AYarn):
         # размер батча
         # batch_size = 1
 
-        print(self.__actorCheckPointFile, ' || ', self.__criticCheckPointFile)
+        logger.debug('{} || {}'.format(self.__actorCheckPointFile, self.__criticCheckPointFile))
 
         # Актор
         # количество входов
@@ -140,15 +143,14 @@ class NeuronetThread(INeuronet, AYarn):
                         test_id, _ = self.__queues.state_to_neuronet.unload(self.__environmentStatus)
                         is_initial_forward = True
                         # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
+                        logger.debug('Нейросеть. Начальное состояние изделия:\ttest_id: {}\t{}'.format(test_id, self.__environmentStatus.position))
                         break
                     sleep(self.__sleep_time)
                 else:
-                    print("Принудительное завершение поднити нейросети во время ожидания начального состояния.\n")
+                    logger.info("Принудительное завершение поднити нейросети во время ожидания начального состояния.")
                     break
 
-                # todo состостояния из окружающей среды из очереди выходят - проверено!
-                print(test_id, self.__environmentStatus.position)
-
+            logger.info('Нейросеть: Перед входом в цикл прямого прохода по нейросети.')
             # Цикл последовательных переходов из одного состояния ОС в другое
             # один проход - один переход
             while not self.__finish.is_one_test_failed(self.__environmentStatus.position) and not self.__kill.neuro:
@@ -162,8 +164,6 @@ class NeuronetThread(INeuronet, AYarn):
                 # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
                 # if environmentStatus is None: break
 
-                print('Нейросеть: вход в цикл прямого прохода по нейросети.')
-
                 if not is_initial_forward:
                     # Для нулевого состояния повторный вход в данный цикл - лишнее.
                     # Данный цикл актуален только для ненулевых состояний.
@@ -176,8 +176,10 @@ class NeuronetThread(INeuronet, AYarn):
                         sleep(self.__sleep_time)
                     else:
                         # Если в цикле ожидания очередного состояния ОС появился приказ на завершение нити обучения
-                        print("Принудительно завершение поднити обучения внутри испытания.\n")
+                        logger.info("Принудительно завершение поднити обучения внутри испытания.")
                         break
+
+                logger.debug('Нейросеть. Состояние изделия:\ttest_id: {}\t{}'.format(test_id, self.__environmentStatus.position))
 
                 # Подготовка входного вектора для актора
                 inputActor = actorInputTensor(self.__environmentStatus)
@@ -230,7 +232,7 @@ class NeuronetThread(INeuronet, AYarn):
                         break
                 else:
                     # если была дана команда на завершение нити
-                    print("Принудительно завершение поднити обучения внутри испытания.\n")
+                    logger.info("Принудительно завершение поднити обучения внутри испытания.")
                     break
                 #
                 # # while not kill.neuro:
