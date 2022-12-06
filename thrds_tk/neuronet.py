@@ -1,36 +1,39 @@
 from logging import getLogger
-from basics import logger_name
+from basics import logger_name, TestId, FinishAppException
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
 # import shelve
 import structures
 from tools import Finish
-from carousel.metaque import MetaQueueN
-# from point import VectorComplex
-from kill_flags import KillCommandsContainer
 from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, cuda, tensor, float
 from net import Net
 from status import ITrainingStateStorage, TrainingStateShelve
-from typing import Dict, Any, Optional
-# from copy import deepcopy
+from typing import Dict, Any, Optional, Callable
 from time import sleep
-from carousel.atrolley import TestId
-from con_intr.ifaces import ISocket
+from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer
+from con_simp.contain import Container, BioContainer
+from con_simp.wire import ReportWire
 
 logger = getLogger(logger_name+'.neuronet')
+Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
+Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
-    def __init__(self, name: str, data_socket: ISocket, queues: MetaQueueN, kill: KillCommandsContainer, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+    def __init__(self, name: str, data_socket: ISocket, max_tests: int, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
         AYarn.__init__(self, name)
 
         logger.info('Конструктор класса нити нейросети. {}.__init__'.format(self.__class__.__name__))
 
-        self.__data_soket = data_socket
-        self.__queues = queues
-        self.__kill = kill
+        # self.__data_soket = data_socket
+        self.__inbound: Inbound = data_socket.get_in_dict()
+        self.__outbound: Outbound = data_socket.get_out_dict()
+        # self.__queues = queues
+        # self.__kill = kill
+        self.__max_tests = max_tests
+        # todo размер батча должен определяться динамически внутри данного модуля, а не передаваться из вне
         self.__batch_size = batch_size
 
         # файлы сохранений
@@ -99,7 +102,7 @@ class NeuronetThread(INeuronet, AYarn):
         self.__finish = Finish()
 
         # очередное состояние окружающей среды
-        self.__environmentStatus: RealWorldStageStatusN = RealWorldStageStatusN()
+        # self.__environmentStatus: RealWorldStageStatusN = RealWorldStageStatusN()
         # environmentStatusA: List[RealWorldStageStatusN]
         # подкрепление для предыдущего состояния ОС
         # prevReinforcement = 0.
@@ -116,172 +119,240 @@ class NeuronetThread(INeuronet, AYarn):
     def run(self) -> None:
         pass
 
+    def __finish_app_checking(self, inbound: Inbound) -> None:
+        """ Метод проверяет на появление в канале связи команды на заврешение приложения. """
+        # Если команда на завершение приложения есть
+        if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
+            # Получаем эту команду
+            inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
+            # Возбуждаем исключение завершения приложения.
+            raise FinishAppException
+        # return False
+
+    def __get_remaining_tests(self, inbound: Inbound, sleep_time: float, finish_app_checking: Callable[[Inbound], None]) -> int:
+        """ Получить оставшееся количество запланированных испытаний. """
+        while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].has_incoming():
+            # Пока в канале нет сообщений, крутимся в цикле ожидания.
+            sleep(sleep_time)
+            finish_app_checking(inbound)
+
+        # Дождались сообщения
+        container = inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].receive()
+        remaining_tests: int = container.unpack()
+        return remaining_tests
+
+    def __collect_batch(self, inbound: Inbound, sleep_time: float,
+                        finish_app_checking: Callable[[Inbound], None], batch_size: int) \
+            -> Dict[TestId, RealWorldStageStatusN]:
+        """ Собрать словарь-контейнер-накопитель для состояний изделия в разных испытаниях для создания батча. """
+        # Результирующий словарь
+        batch_dict: Dict[TestId, RealWorldStageStatusN] = {}
+        for i in range(batch_size):
+            # Отсчитываем количество, в зависимости от планируемого размера батча
+            while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].has_incoming():
+                # Крутимся в цикле в ожидании данных в канале.
+                sleep(sleep_time)
+                finish_app_checking(inbound)
+
+            # Есть порция данных
+            container = inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].receive()
+            assert isinstance(container, BioContainer), \
+                "Container class should be a BioContainer. But now is {}".format(container.__class__)
+            test_id, _ = container.get()
+            stage_status = container.unpack()
+            # test_id, stage_status = container.get(), container.unpack()
+            # Пополняем словарь
+            batch_dict[test_id] = stage_status
+
+        return batch_dict
+
     def _yarn_run(self, *args, **kwargs) -> None:
-        while not self.__kill.neuro:
-            # if kill.neuro:
-            #     # если была дана команда на завершение нити
-            #     print("Принудительное завершение поднити обучения по эпохе.\n")
-            #     break
+        # Вечный цикл. Выход из него по команде на завершение приложения.
+        while True:
+            try:
+                # Оставшееся количество запланированных испытаний.
+                remaining_tests: int = self.__get_remaining_tests(self.__inbound, self.__sleep_time, self.__finish_app_checking)
+                # Если размер планируемого батча больше полного планируемого количества испытаний, то будем формировать
+                # батч размером в полное планируемое количество испытаний.
+                self.__batch_size = self.__batch_size if self.__batch_size <= remaining_tests else remaining_tests
 
-            # фиктивное значение начального состояния изделия, необходимое только для того,
-            # чтобы запустился цикл прохода по процессу одной посадки
-            # environmentStatus = RealWorldStageStatusN(position=VectorComplex.get_instance(0, 450))
-            # environmentStatus = initial_status_obj
-            # Получить из очереди начальное положение изделия
-            # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
-            # if environmentStatus is None: break
+                # Отправляем в модуль физической модели число испытаний, которое хочет получить данный модуль.
+                report_wire = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].get_report_sender()
+                assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
+                    'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
+                        format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
+                report_wire.send(Container(cargo=self.__batch_size))
 
-            test_id: TestId = 0
+                # Сформировать словарь состояний изделия в различных испытаниях.
+                batch_dict: Dict[TestId, RealWorldStageStatusN] = \
+                    self.__collect_batch(self.__inbound, self.__sleep_time,
+                                         self.__finish_app_checking, self.__batch_size)
 
-            is_initial_forward = False
+                # сформировать батч-тензор для ввода в актора из состояний N испытаний
 
-            for i in range(self.__batch_size):
-                # Получить из очереди начальное положение изделия
-                while not self.__kill.neuro:
-                    # ждём появления начального состояния окружающей среды в очереди
-                    if self.__queues.state_to_neuronet.has_new_cargo():
-                        test_id, _ = self.__queues.state_to_neuronet.unload(self.__environmentStatus)
-                        is_initial_forward = True
-                        # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
-                        logger.debug('Нейросеть. Начальное состояние изделия:\ttest_id: {}\t{}'.format(test_id, self.__environmentStatus.position))
-                        break
-                    sleep(self.__sleep_time)
-                else:
-                    logger.info("Принудительное завершение поднити нейросети во время ожидания начального состояния.")
-                    break
+                # получить тензор выхода (действий/команд) актора для каждого из N испытаний
 
-            logger.info('Нейросеть: Перед входом в цикл прямого прохода по нейросети.')
-            # Цикл последовательных переходов из одного состояния ОС в другое
-            # один проход - один переход
-            while not self.__finish.is_one_test_failed(self.__environmentStatus.position) and not self.__kill.neuro:
-                # if kill.neuro:
-                #     # если была дана команда на завершение нити
-                #     print("Принудительно завершение поднити обучения внутри испытания.\n")
-                #     break
+                # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний
+                # на входе в актора, V - количество вариантов действий актора (количество вариантов включений двигателей)
+                # Если батч-тензор на входе в актора состоит из 10 испытаний, количество вариантов
+                # включения двигателей - 20, то на вход в критика пойдёт тензор размером 10 х 20, т. е. 200 векторов
 
-                # получить предыдущее (начальное) состояние
+                # Получить тензор значений функции ценности на выходе из критика размерностью NхV
 
-                # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
-                # if environmentStatus is None: break
+                # Для каждого из N испытаний выбрать максимальное значение функции ценности из соответствующих V вариантов.
 
-                if not is_initial_forward:
-                    # Для нулевого состояния повторный вход в данный цикл - лишнее.
-                    # Данный цикл актуален только для ненулевых состояний.
-                    while not self.__kill.neuro:
-                        # ждём очередное состояние окружающей среды
-                        if self.__queues.state_to_neuronet.has_new_cargo():
-                            test_id, _ = self.__queues.state_to_neuronet.unload(self.__environmentStatus)
-                            # состояние окружающей среды получено, выходим из цикла ожидания в цикл обучения
-                            break
-                        sleep(self.__sleep_time)
+                # Варианты действий актора, которые соответствуют выбранным максимальным N значениям функции ценности,
+                # принять к исполнению и получить подкрепление на выбранные действия.
+
+                # # Отправка команды, согласно максимального значения функции ценности
+                # # Пока случайным образом в тестовых целях, чтобы работало.
+                for key in batch_dict:
+                    # Проходимся по словарю/массиву/тензору комманд
+                    # И отправляем их поочерёдно в модуль физической модели.
+                    #
+                    # Пока вот выбрано случайным образом в тестовых целях, чтобы работало.
+                    # И вместо реальных команд нолик и единица.
+                    random.seed()
+                    if random.choice([0, 1]):
+                        # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
+                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(Container(key, StageControlCommands(0)))
                     else:
-                        # Если в цикле ожидания очередного состояния ОС появился приказ на завершение нити обучения
-                        logger.info("Принудительно завершение поднити обучения внутри испытания.")
-                        break
+                        # Нейросеть актора даёт команду
+                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(Container(key, StageControlCommands(1)))
 
-                logger.debug('Нейросеть. Состояние изделия:\ttest_id: {}\t{}'.format(test_id, self.__environmentStatus.position))
+                # Рассчитать ошибку на основании выбранных N максимальных значений функции ценности
+                # и N полученных подкреплений.
 
-                # Подготовка входного вектора для актора
-                inputActor = actorInputTensor(self.__environmentStatus)
+                # Произвести корректировку гиперпараметров нейросети методом обратного распространения ошибки.
 
-                # проход через актора с получением действий актора
-                actorAction = self.__netActor(inputActor)
+                self.__state_storage.save_training({
+                    'start_epoch': 0,
+                    'current_epoch': 0,
+                    'stop_epoch': 2,
+                    'previous_q_max': 0
+                })
 
-                # Подготовка входного вектора для критика
-                inputCritic = criticInputTensor(self.__environmentStatus, actorAction)
-                # проход через критика с использованием ВСЕХ возможных действий в данном состоянии ОС
-                # с получением ВСЕХ возможных значений функции ценности
-                aLotOfQTensor = self.__netCritic(inputCritic)
-                # выбор максимального значения функции ценности
-                Qmax = tensor([[1]], dtype=float, requires_grad=True)
-                # Отправка команды, согласно максимального значения функции ценности
-                # Пока случайным образом в тестовых целях, чтобы работало.
-                random.seed()
-                if random.choice([0, 1]):
-                    # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                    # queues.put(StageControlCommands(environmentStatus.time_stamp))
-                    self.__queues.command_to_real.load(test_id, StageControlCommands(self.__environmentStatus.time_stamp))
-                else:
-                    # Нейросеть актора даёт команду
-                    # queues.put(StageControlCommands(environmentStatus.time_stamp, main=True))
-                    self.__queues.command_to_real.load(test_id, StageControlCommands(self.__environmentStatus.time_stamp, main=True))
+            except FinishAppException:
+                # Поступила команда на завершение приложения.
+                # Прекращаем бесконечный цикл в нити.
+                logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
+                break
 
-                if is_initial_forward:
-                    # Получили максимальное значение функции ценности для нулевого состояния.
-                    # Отправили в физ. модель команды для двигателей для нулевого состояния.
-                    # Больше ничего мы для него сделать не можем, переходим сразу к ожиданию следующего состояния ОС.
-                    self.__previousQmax = Qmax.item()
-                    # continue
-
-                # # Ждём появления подкрепления в очереди
-                # while reinforcementQueue.empty():
-                #     if killThisThread.kill:
-                #         # если была дана команда на завершение нити
-                #         print("Принудительно завершение поднити обучения внутри испытания.\n")
-                #         break
-                # else:
-                #     reinf = reinforcementQueue.get()
-                #     # Проверка на совпадение отметки времени
-                #     # if environmentStatus.time_stamp
-                #     pass
-
-                # Ждём появления подкрепления в очереди
-                while not self.__kill.neuro:
-                    if self.__queues.reinf_to_neuronet.has_new_cargo():
-                        self.__queues.reinf_to_neuronet.unload(self.__reinf)
-                        break
-                else:
-                    # если была дана команда на завершение нити
-                    logger.info("Принудительно завершение поднити обучения внутри испытания.")
-                    break
-                #
-                # # while not kill.neuro:
-                # #     if not queues.empty("reinf"):
-                # #         reinf = queues.get("reinf")
-                # #         break
-                # # else:
-                # #     # если была дана команда на завершение нити
-                # #     print("Принудительно завершение поднити обучения внутри испытания.\n")
-                # #     break
-                #
-                # # while not reinforcementQueue.empty():
-                # #     reinf = reinforcementQueue.get()
-                # #     # Проверка на совпадение отметки времени
-                # #     # if environmentStatus.time_stamp
-                # #     if killThisThread.kill:
-                # #         # если была дана команда на завершение нити
-                # #         print("Принудительно завершение поднити обучения внутри испытания.\n")
-                # #         break
-                #
-                # # if environmentStatus.time_stamp > 0:
-                # #     # для нулевого состояния окружающей среды корректировку функции ценности не производим
-                #
-                # # Ошибка критика
-                # # criticLoss = previousQmax + 0.001*(reinf + 0.01*Qmax - previousQmax)
-                # criticLoss = add(previousQmax, mul(sub(add(mul(Qmax, 0.01), reinf.reinforcement), previousQmax), 0.001))
-                # # обратный проход последовательно по критику, а затем по актору
-                # criticLoss.backward()
-                # actorAction.backward(actorGradsFromCritic())
-                #
-                # # Оптимизация гиперпараметров нейросетей
-                #
-                # # Функцию ценности превращаем в скаляр, чтобы на следующем проходе, по этой величине не было backward
-                # previousQmax = Qmax.item()
-                #
-                #
-                is_initial_forward = False
-                # # Каждые несколько проходов
-                # #     Сохранение состояния окружающей среды
-                # #     Сохранение состояния ступени
-                # #     Сохранение состояния процесса обучения
-                # #     Сохранение состяния нейросетей
-
-            self.__state_storage.save_training({
-                'start_epoch': 0,
-                'current_epoch': 0,
-                'stop_epoch': 2,
-                'previous_q_max': 0
-            })
+        # while not self.__kill.neuro:
+        #
+        #     logger.info('Нейросеть: Перед входом в цикл прямого прохода по нейросети.')
+        #     # Цикл последовательных переходов из одного состояния ОС в другое
+        #     # один проход - один переход
+        #     # while not self.__finish.is_one_test_failed(self.__environmentStatus.position) and not self.__kill.neuro:
+        #     while not self.__kill.neuro:
+        #         # if kill.neuro:
+        #         #     # если была дана команда на завершение нити
+        #         #     print("Принудительно завершение поднити обучения внутри испытания.\n")
+        #         #     break
+        #
+        #         # получить предыдущее (начальное) состояние
+        #
+        #         # environmentStatus = wait_data_from_queue(kill.neuro, queues, 'neuro')
+        #         # if environmentStatus is None: break
+        #
+        #         if not is_initial_forward:
+        #
+        #         # # Подготовка входного вектора для актора
+        #         # inputActor = actorInputTensor(self.__environmentStatus)
+        #         #
+        #         # # проход через актора с получением действий актора
+        #         # actorAction = self.__netActor(inputActor)
+        #         #
+        #         # # Подготовка входного вектора для критика
+        #         # inputCritic = criticInputTensor(self.__environmentStatus, actorAction)
+        #         # # проход через критика с использованием ВСЕХ возможных действий в данном состоянии ОС
+        #         # # с получением ВСЕХ возможных значений функции ценности
+        #         # aLotOfQTensor = self.__netCritic(inputCritic)
+        #         # # выбор максимального значения функции ценности
+        #         # Qmax = tensor([[1]], dtype=float, requires_grad=True)
+        #         # # Отправка команды, согласно максимального значения функции ценности
+        #         # # Пока случайным образом в тестовых целях, чтобы работало.
+        #         for key in batch_dict:
+        #             # Проходимся по словарю/массиву/тензору комманд
+        #             # И отправляем их поочерёдно в модуль физической модели.
+        #             # Пока вот выбранно случайным образом в тестовых целях, чтобы работало.
+        #             # И вместо реальных команд нолик и единица.
+        #             random.seed()
+        #             if random.choice([0, 1]):
+        #                 # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
+        #                 # self.__queues.command_to_real.load(test_id, StageControlCommands(self.__environmentStatus.time_stamp))
+        #                 self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(Container(test_id, 0))
+        #             else:
+        #                 # Нейросеть актора даёт команду
+        #                 # self.__queues.command_to_real.load(test_id, StageControlCommands(self.__environmentStatus.time_stamp, main=True))
+        #                 self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(Container(test_id, 1))
+        #
+        #         # if is_initial_forward:
+        #         #     # Получили максимальное значение функции ценности для нулевого состояния.
+        #         #     # Отправили в физ. модель команды для двигателей для нулевого состояния.
+        #         #     # Больше ничего мы для него сделать не можем, переходим сразу к ожиданию следующего состояния ОС.
+        #         #     self.__previousQmax = Qmax.item()
+        #         #     # continue
+        #         #
+        #         # # Ждём появления подкрепления в очереди
+        #         # while not self.__kill.neuro:
+        #         #     if self.__queues.reinf_to_neuronet.has_new_cargo():
+        #         #         self.__queues.reinf_to_neuronet.unload(self.__reinf)
+        #         #         break
+        #         # else:
+        #         #     # если была дана команда на завершение нити
+        #         #     logger.info("Принудительно завершение поднити обучения внутри испытания.")
+        #         #     break
+        #
+        #         #
+        #         # # while not kill.neuro:
+        #         # #     if not queues.empty("reinf"):
+        #         # #         reinf = queues.get("reinf")
+        #         # #         break
+        #         # # else:
+        #         # #     # если была дана команда на завершение нити
+        #         # #     print("Принудительно завершение поднити обучения внутри испытания.\n")
+        #         # #     break
+        #         #
+        #         # # while not reinforcementQueue.empty():
+        #         # #     reinf = reinforcementQueue.get()
+        #         # #     # Проверка на совпадение отметки времени
+        #         # #     # if environmentStatus.time_stamp
+        #         # #     if killThisThread.kill:
+        #         # #         # если была дана команда на завершение нити
+        #         # #         print("Принудительно завершение поднити обучения внутри испытания.\n")
+        #         # #         break
+        #         #
+        #         # # if environmentStatus.time_stamp > 0:
+        #         # #     # для нулевого состояния окружающей среды корректировку функции ценности не производим
+        #         #
+        #         # # Ошибка критика
+        #         # # criticLoss = previousQmax + 0.001*(reinf + 0.01*Qmax - previousQmax)
+        #         # criticLoss = add(previousQmax, mul(sub(add(mul(Qmax, 0.01), reinf.reinforcement), previousQmax), 0.001))
+        #         # # обратный проход последовательно по критику, а затем по актору
+        #         # criticLoss.backward()
+        #         # actorAction.backward(actorGradsFromCritic())
+        #         #
+        #         # # Оптимизация гиперпараметров нейросетей
+        #         #
+        #         # # Функцию ценности превращаем в скаляр, чтобы на следующем проходе, по этой величине не было backward
+        #         # previousQmax = Qmax.item()
+        #
+        #         #
+        #         #
+        #         is_initial_forward = False
+        #         # # Каждые несколько проходов
+        #         # #     Сохранение состояния окружающей среды
+        #         # #     Сохранение состояния ступени
+        #         # #     Сохранение состояния процесса обучения
+        #         # #     Сохранение состяния нейросетей
+        #
+        #     self.__state_storage.save_training({
+        #         'start_epoch': 0,
+        #         'current_epoch': 0,
+        #         'stop_epoch': 2,
+        #         'previous_q_max': 0
+        #     })
 
 
 def actorInputTensor(environment: RealWorldStageStatusN):

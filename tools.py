@@ -3,10 +3,11 @@ from math import fabs
 from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue, CloneFactory
 from queue import Queue
-from typing import TypeVar, Dict, Optional, AnyStr, List, Union, Iterable
+from typing import TypeVar, Dict, Optional, AnyStr, List, Union, Iterable, Tuple
 from enum import Enum
 from math import pi
 from abc import ABC,abstractmethod
+from basics import TestId
 
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
@@ -31,7 +32,7 @@ class InitialStatusAbstract(ABC, Iterable):
     # def iter(self):
 
     @abstractmethod
-    def __next__(self) -> Optional[RealWorldStageStatusN]:
+    def __next__(self) -> Tuple[Optional[TestId], Optional[RealWorldStageStatusN]]:
         """ Когда итерируемый объект опустошается, данный метод должен возвращать *None*"""
         pass
 
@@ -53,11 +54,11 @@ class InitialStatus(InitialStatusAbstract):
         self._is_empty = False
         return self
 
-    def __next__(self) -> Optional[RealWorldStageStatusN]:
+    def __next__(self) -> Tuple[Optional[TestId], Optional[RealWorldStageStatusN]]:
         self._current_status_index += 1
         if self._is_empty:
             # Когда закончились начальные состояния, метод начинает возвращать *None*
-            return None
+            return None, None
         else:
             if self._current_status_index == self._max_status_index:
                 # Последний элемент, последовательность пуста.
@@ -68,148 +69,12 @@ class InitialStatus(InitialStatusAbstract):
             #                          velocity=VectorComplex.get_instance(0., -5.),
             #                          angular_velocity=-pi / 36)
 
-            # todo ретурн для проверки прохождения данных по очередям.
-            return RealWorldStageStatusN(position=VectorComplex.get_instance(0., BigMap.startPointInPoligonCoordinates.y - self._current_status_index),
+            assert isinstance(self._current_status_index, TestId), "Iterator index 'int'-type couldn't cast to TestId " \
+                                                                   "class: TestId is not a subclass of 'int'-type."
+            return self._current_status_index, RealWorldStageStatusN(position=VectorComplex.get_instance(0., BigMap.startPointInPoligonCoordinates.y - self._current_status_index),
                                      orientation=VectorComplex.get_instance(0., 1.),
                                      velocity=VectorComplex.get_instance(0., -5.),
                                      angular_velocity=-pi / 36)
-
-
-class SingleQueue:
-    """ Одиночная очередь. Очередь может содеражть только объекты ОДНОГО типа. """
-    def __init__(self, name: str, content_type: QueueMembers):
-        """
-
-        :param name: имя очереди
-        :param content_type: тип элементов, которыми заполняется очередь
-        """
-        # инкапсулированная очередь
-        self.__queue: Queue[QueueMembers] = Queue()
-        # тип элементов, содежащихся в очереди
-        self.__q_type: type = content_type
-        # имя очереди
-        self.__name: str = name
-
-    def put(self, value: QueueMembers) -> None:
-        """ Поместить объект в очередь """
-        if isinstance(value, self.__q_type):
-            self.__queue.put(value)
-        else:
-            raise ValueError('SingleQueue: argument value = {0} is not valid type. Expected: {1}'
-                             .format(value, self.__q_type))
-
-    def get(self) -> QueueMembers:
-        """ Извлечь объект из очереди """
-        return self.__queue.get()
-
-    def empty(self) -> bool:
-        """ Если очередь пуста, то True """
-        return self.__queue.empty()
-
-    @property
-    def q_type(self) -> type:
-        """ Возвращает тип элементов, допустимых для данной очереди """
-        return self.__q_type
-
-
-class MetaQueue:
-    """ Класс инкапсулирющий ВСЕ очереди передачи данных приложения. Синглтон. """
-    # Переделал класс в соответствие с sOlid.
-    __this_object: Optional['MetaQueue'] = None
-    # словарь очередей
-    __queues_dict: Dict[str, SingleQueue] = {}
-    # ключ синглтона
-    __create_key: object = object()
-    # Множество допустимых типов
-    __types: set = {}
-
-    def __init__(self, names: dict, create_key: object):
-        """
-        :param names: словарь с элементами вида {'имя_очереди': тип_элемента_очереди}
-        :param create_key: ключ синглтона
-        """
-        assert (create_key is self.__create_key), \
-            "MetaQueue object must be created using get_instanse method."
-
-        for key, value in names.items():
-            # создание словаря очередей
-            self.__queues_dict[key] = SingleQueue(key, value)
-
-        self.__types = set(names.values())
-
-    @classmethod
-    def get_instance(cls, queues: Dict[str, QueueMembers]) -> 'MetaQueue':
-        """ Если объект не существует, то создаёт его.
-
-        :param queues:  словарь с элементами вида {'имя_очереди': тип_элемента_очереди}
-        """
-        if cls.__this_object is None:
-            cls.__this_object = MetaQueue(queues, cls.__create_key)
-        return cls.__this_object
-
-    def put(self, data_block: QueueMembers) -> None:
-        """
-        Добавить блок данных во ВСЕ очереди, которые готовы принять блок данных данного типа.
-
-        :param data_block: блок данных
-        """
-        # был ли блок данных отправлен в какую-либо очередь?
-        was_sent: bool = False
-        # инициация прототипа
-        clone_factory: CloneFactory = CloneFactory(data_block)
-
-        # Перебираем очереди, чтобы отправить блок данных
-        for name, queue in self.__queues_dict.items():
-            if isinstance(data_block, queue.q_type):
-                # Если data_block имеет тип, соответствующий данной очереди,
-                # то отправляем data_block в эту очередь.
-                # Pycharm почему-то считает, что data_block имеет тип type.
-                queue.put(clone_factory.clone())
-                was_sent = True
-
-        if not was_sent:
-            # Если для блока данных не нашлось очереди, значит мы не ждём данных этого типа.
-            raise TypeError('Data block type ({0}) is not valid. Expected: {1}'
-                            .format(type(data_block), self.__types))
-
-    def put_by_queue_name(self, queue_name: str, data_block: QueueMembers) -> None:
-        """ Запись блока данных в конкретную очередь, определяемую именем этой очереди.
-
-        :param queue_name: имя очереди
-        :param data_block: блок данных, предназначенный для отправления в очередь.
-        """
-        # Инициация прототипа
-        clone_factory: CloneFactory = CloneFactory(data_block)
-
-        if queue_name in self.__queues_dict.keys():
-            # Имя очереди присутствует среди имён очередей
-            # Отправляем блок данных в эту очередь.
-            self.__queues_dict[queue_name].put(clone_factory.clone())
-        else:
-            raise ValueError('MetaQueue: queue_name="{0}" argument is not valid key of queues dict'.format(queue_name))
-
-
-    def get(self, queue_name: str) -> QueueMembers:
-        """ Получить блок данных из очереди.
-
-        :param queue_name: имя очереди
-        :return: блок данных, полученный из очереди
-        """
-        if queue_name in self.__queues_dict.keys():
-            return self.__queues_dict[queue_name].get()
-        else:
-            raise ValueError('MetaQueue: queue_name="{0}" argument is not valid key of queues dict'.format(queue_name))
-
-    def empty(self, queue_name: str) -> bool:
-        """ Очередь пуста?
-
-        :param queue_name: имя очереди
-        :return: очередь пуста? True или False
-        """
-        if queue_name in self.__queues_dict.keys():
-            return self.__queues_dict[queue_name].empty()
-
-        raise ValueError('MetaQueue: name="{0}" argument is not valid key of queues dict'.format(queue_name))
 
 
 class Reinforcement:

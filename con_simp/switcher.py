@@ -1,30 +1,41 @@
 """ Общий объект агрегирующий каналы передачи данных. """
-from con_intr.ifaces import ISwitchboard, AppModulesEnum, IReceiver, ISender, DataTypeEnum, ISocket
+from con_intr.ifaces import ISwitchboard, IReceiver, ISender, ISocket, A, D, IWire
 from con_simp.wire import Wire
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Dict, Optional
 
 
 class Switchboard(ISwitchboard):
     def __init__(self):
+        # Список с каналами передачи данных.
         self.__wires: List[Wire] = list()
 
+    def _is_unique(self, new_wire: IWire) -> bool:
+        if self.get_wire(new_wire.get_sender(), new_wire.get_receiver(), new_wire.get_sending_type()) is None:
+            return True
+        else:
+            return False
+
     def add_wire(self, new_wire: Wire) -> None:
+        assert self._is_unique(new_wire) is True, "Adding wire have a equal parameters (Sender, Receiver, Data Type) " \
+                                                  "with wire added earlier. Adding wire should be a unique object."
         self.__wires.append(new_wire)
 
-    def get_wire(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum) -> Wire:
+    def get_wire(self, sender: A, receiver: A, data_type: D) -> Optional[Wire]:
         for value in self.__wires:
             if value.get_sender() == sender and value.get_receiver() == receiver \
                     and value.get_receiving_type() == data_type:
                 return value
 
-    def get_all_in(self, receiver: AppModulesEnum) -> Tuple[IReceiver]:
+        return None
+
+    def get_all_in(self, receiver: A) -> Tuple[IReceiver]:
         result: List[IReceiver] = list()
         for value in self.__wires:
             if value.get_receiver() == receiver:
                 result.append(value)
         return tuple(result)
 
-    def get_all_out(self, sender: AppModulesEnum) -> Tuple[ISender]:
+    def get_all_out(self, sender: A) -> Tuple[ISender]:
         result: List[ISender] = list()
         for value in self.__wires:
             if value.get_sender() == sender:
@@ -33,22 +44,24 @@ class Switchboard(ISwitchboard):
 
 
 class Socket(ISocket):
-    def __init__(self, module: AppModulesEnum, switchboard: ISwitchboard):
+    def __init__(self, module: A, switchboard: ISwitchboard):
+        """
+
+        :param module: Модуль приложения, для которого создаётся Сокет.
+        :param switchboard: Объект, содержащий ВСЕ каналы связи приложения.
+        """
         self.__module = module
         self.__switchboard = switchboard
 
     def get_all_in(self) -> Tuple[IReceiver]:
-        return  self.__switchboard.get_all_in(self.__module)
+        return self.__switchboard.get_all_in(self.__module)
 
     def get_all_out(self) -> Tuple[ISender]:
-        # test = self.__switchboard.get_all_out(self.__module)
         return self.__switchboard.get_all_out(self.__module)
 
-    def get_in_dict(self) -> Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]:
-        """ Доступ к интерфейсам получателя через двойной словарь по двум ключам (AppModuleEnum и DataTypeEnum). """
-
+    def get_in_dict(self) -> Dict[A, Dict[D, IReceiver]]:
         # итоговое отображение в виде словаря
-        incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = {}
+        incoming: Dict[A, Dict[D, IReceiver]] = {}
         # перебор всех входящих каналов передачи данных
         for ireceiver in self.get_all_in():
             # первый ключ в итоговом словаре
@@ -61,11 +74,9 @@ class Socket(ISocket):
             incoming[key][ireceiver.get_receiving_type()] = ireceiver
         return incoming
 
-    def get_out_dict(self) -> Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]:
-        """ Доступ к интерфейсам отправителя через двойной словарь по двум ключам (AppModuleEnum и DataTypeEnum). """
-
+    def get_out_dict(self) -> Dict[A, Dict[D, ISender]]:
         # итоговое отображение в виде словаря
-        outgoing: Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]] = {}
+        outgoing: Dict[A, Dict[D, ISender]] = {}
         # перебор всех исходящих каналов передачи данных
         for isender in self.get_all_out():
             # первый ключ в итоговом словаре

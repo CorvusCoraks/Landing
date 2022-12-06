@@ -1,7 +1,7 @@
 from point import VectorComplex
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Union, Any, TypeVar
+from typing import Union, Any, TypeVar, Dict
 
 
 QueueContent = Union['StageControlCommands', 'RealWorldStageStatusN', 'ReinforcementValue']
@@ -69,9 +69,6 @@ class StageControlCommands(CloneInterface, ValueCopyInterface):
         """
         return not (self.top_left or self.top_right or self.down_left or self.down_right or self.main)
 
-    # def lazy_copy(self) -> 'StageControlCommands':
-    #     return StageControlCommands(deepcopy(self.time_stamp))
-
     def clone(self):
         return deepcopy(self)
 
@@ -115,19 +112,11 @@ class RealWorldStageStatusN(CloneInterface, ValueCopyInterface):
         :type duration: int
         """
         # Линейные положение, линейная скорость и ускорение - всё это в СКИП
-        # self.position = position if position is not None else VectorComplex.get_instance()
         self.position = position or VectorComplex.get_instance()
-        # self.velocity = velocity if velocity is not None else VectorComplex.get_instance()
         self.velocity = velocity or VectorComplex.get_instance()
         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
-        # self.acceleration = acceleration if acceleration is not None else VectorComplex.get_instance()
         self.acceleration = acceleration or VectorComplex.get_instance()
         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
-        # if orientation is None:
-        #     self.orientation = VectorComplex.get_instance(0., 0.)
-        # else:
-        #     self.orientation = orientation
-        # self.orientation = orientation if orientation is not None else VectorComplex.get_instance()
         self.orientation = orientation or VectorComplex.get_instance()
         self.angular_velocity = angular_velocity
         # Аналогично, зачем мне предыдущее угловое ускорение?
@@ -137,19 +126,6 @@ class RealWorldStageStatusN(CloneInterface, ValueCopyInterface):
         # Длительность действия этих параметров
         # todo убрать за ненадобностью, так как длительность можно вычислить по разнице между временнЫми метками
         # self.duration = duration
-
-    # def lazy_copy(self) -> 'RealWorldStageStatusN':
-    #     # todo метод ликвидировать. везде перевести на deepcopy()
-    #     newObject = RealWorldStageStatusN()
-    #     newObject.position = self.position.lazy_copy()
-    #     newObject.velocity = self.velocity.lazy_copy()
-    #     newObject.acceleration = self.acceleration.lazy_copy()
-    #     newObject.orientation = self.orientation.lazy_copy()
-    #     newObject.angular_velocity = self.angular_velocity
-    #     newObject.angular_acceleration = self.angular_acceleration
-    #     newObject.time_stamp = self.time_stamp
-    #     # newObject.duration = self.duration
-    #     return newObject
 
     def clone(self):
         return deepcopy(self)
@@ -180,7 +156,3 @@ class ReinforcementValue(CloneInterface, ValueCopyInterface):
     def data_copy(self, target_object: 'ReinforcementValue'):
         target_object.time_stamp = self.time_stamp
         target_object.reinforcement = self.reinforcement
-
-    # @property
-    # def reinforcement(self):
-    #     return self.reinforcement

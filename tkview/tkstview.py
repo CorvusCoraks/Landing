@@ -9,26 +9,32 @@ from decart import complexChangeSystemCoordinatesUniversal, pointsListToNewCoord
 from physics import  CheckPeriod
 from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
-from tools import MetaQueue
-from carousel.metaque import MetaQueueN
+from con_intr.ifaces import ISocket, IReceiver, ISender
+from tkview.view_chn import ViewParts, ViewData
+from time import sleep
+from basics import FinishAppException
+from con_simp.contain import Container
 
+ViewInbound = Dict[ViewParts, Dict[ViewData, IReceiver]]
+ViewOutbound = Dict[ViewParts, Dict[ViewData, ISender]]
 
 class StageViewWindow(WindowsMSInterface):
     """
     Класс окна вывода увеличенного изображения ступени и числовых характеристик
     """
-    # def __init__(self, root: Tk, stage_size: float, stage_scale: float, frameRate: int, anyQueue: Queue, to_info_queue: Queue, info_block: Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]):
-    def __init__(self, root: Tk, stage_size: float, stage_scale: float, queues: MetaQueueN):
+    def __init__(self, root: Tk, data_queue: ISocket, stage_size: float, stage_scale: float):
         """
         :param root: родительский оконный менеджер
+        :param data_queue: Интерфейс для получения данных в рамках блока визуализации
         :param stage_size: максимальный характерный размер ступени, метров
         :param stage_scale: масштаб изображения ступени на канве
-        :param queues: очередь для передачи данных одного фрейма движения ступени
         """
+        # todo время сна перенести в вышестоящий вызов
+        self.__sleep_time = 0.001
         self.__stage_size = stage_size
         self.__stage_scale = stage_scale
-        self.__any_queue = queues
-        # self.__to_info_queue = queues.get_queue("info")
+
+        self.__states_in: ViewInbound = data_queue.get_in_dict()
 
         self.__any_state: RealWorldStageStatusN = RealWorldStageStatusN()
 
@@ -78,29 +84,47 @@ class StageViewWindow(WindowsMSInterface):
         transform: Optional[RealWorldStageStatusN] = None
         # Длительность предыдущего состояния
         previous_status_duration = 0
+        try:
 
-        # получение данных из внешних источников self.__any_queue
-        if self.__any_queue.state_to_stage_view.has_new_cargo():
-            self.__any_queue.state_to_stage_view.unload(self.__any_state)
+            while not self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS]:
+                sleep(self.__sleep_time)
+                if self.__states_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH]:
+                    raise FinishAppException
+            else:
+                container = self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
+                assert isinstance(container, Container), "Container class should be a Container. " \
+                                                         "Now: {}".format(container.__class__)
+                test_id, self.__any_state = container.get(), container.unpack()
 
-            transform = self.__any_state
-            previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
-            self.__previous_status_time_stamp = transform.time_stamp
+                transform = self.__any_state
+                previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
+                self.__previous_status_time_stamp = transform.time_stamp
 
-        # if not self.__any_queue.empty('stage'):
-        #     transform = self.__any_queue.get('stage')
-        #
-        #     previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
-        #     self.__previous_status_time_stamp = transform.time_stamp
 
-        # отрисовка нового положения объектов на основании полученных данных из очереди
-        if transform is not None:
-            self.__change_static_marks(transform)
-            if self.__canvas_linked_marks is not None: self.__change_movable_marks(transform)
+            # # получение данных из внешних источников self.__any_queue
+            # if self.__any_queue.state_to_stage_view.has_new_cargo():
+            #     self.__any_queue.state_to_stage_view.unload(self.__any_state)
+            #
+            #     transform = self.__any_state
+            #     previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
+            #     self.__previous_status_time_stamp = transform.time_stamp
+
+            # if not self.__any_queue.empty('stage'):
+            #     transform = self.__any_queue.get('stage')
+            #
+            #     previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
+            #     self.__previous_status_time_stamp = transform.time_stamp
+
+            # отрисовка нового положения объектов на основании полученных данных из очереди
+            if transform is not None:
+                self.__change_static_marks(transform)
+                if self.__canvas_linked_marks is not None: self.__change_movable_marks(transform)
+
+        except FinishAppException:
+            pass
 
         # запускаем отрисовку цикл
         self.__root.after(CheckPeriod.to_mu_sec(previous_status_duration), self._draw)
-        # self.__root.after(500, self._draw)
 
 
     def __change_static_marks(self, transform: RealWorldStageStatusN):
