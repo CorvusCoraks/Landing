@@ -12,6 +12,8 @@ from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from physics import Moving
 from copy import deepcopy
+from states.i_states import IStatesStore
+from states.s_states import DictStore
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -79,14 +81,17 @@ class PhysicsThread(IPhysics, AYarn):
         # Условие окончания одного конкретного испытания.
         self.__finish_criterion = Finish()
 
+        # Объект-хранилище текущих испытаний
+        self.__store: IStatesStore = DictStore()
+
         # в блок визуализации будут отсылаться только испытания с этим Id
-        self.__test_id_for_view: TestId = 0
+        # self.__test_id_for_view: TestId = 0
         # атрибут уровня объекта для загрузки / выгрузки состояния изделия в / из очереди
-        self.__test_id: TestId = -1
+        # self.__test_id: TestId = -1
         # атрибут уровня объекта для загрузки / выгрузки состояния изделия в / из очереди
-        self.__state: Optional[RealWorldStageStatusN] = RealWorldStageStatusN()
+        # self.__state: Optional[RealWorldStageStatusN] = RealWorldStageStatusN()
         # атрибут уровня объекта для загрузки / выгрузки состояния изделия в / из очереди
-        self.__neuronet_command: Optional[StageControlCommands] = StageControlCommands(time_stamp=-1)
+        # self.__neuronet_command: Optional[StageControlCommands] = StageControlCommands(time_stamp=-1)
 
     def initialization(self) -> None:
         pass
@@ -241,9 +246,10 @@ class PhysicsThread(IPhysics, AYarn):
         # Испытания, которые уже происходят (обрабатываются)
         # Вычисляется, как количество вернувшихся из нейросети состояний минус те из них, которые можно считать
         # завершившимися
-        ongoing_tests: int = 0
+        # ongoing_tests: int = 0
+        # ongoing_tests: int = self.__store.get_amount()
         # Испытания, вернувшиеся из нейросити, за вычетом тех из них, которые можно считать завершившимися
-        ongoing_states: Dict[TestId, RealWorldStageStatusN] = {}
+        # ongoing_states: Dict[TestId, RealWorldStageStatusN] = {}
 
         while tests_left != 0:
             # Пока ещё есть испытания в планах, цикл работает.
@@ -261,24 +267,27 @@ class PhysicsThread(IPhysics, AYarn):
                     "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
                     "чем количество оставшихся доступных состояний (испытания в работе плюс испытания в генераторе)"
 
-                if requested_states_count <= len(ongoing_states):
+                # if requested_states_count <= len(ongoing_states):
+                if requested_states_count <= self.__store.get_amount():
                     # Если запрошенное блоком нейросети количество состояний МЕНЬШЕ,
                     # чем оставшееся после предыдущего прохода по нейросети.
-                    self.__states_distribution(self.__outgoing, ongoing_states, BioEnum.ALIVE, requested_states_count)
+                    # self.__states_distribution(self.__outgoing, ongoing_states, BioEnum.ALIVE, requested_states_count)
+                    self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE, requested_states_count)
                     logger.debug("Отправлено в НС {} испытаний.".format(requested_states_count))
                 else:
                     # Если запрошенное блоком нейросети количество состояний БОЛЬШЕ,
                     # чем оставшееся после предыдущего прохода по нейросети.
                     # Добиваем до нужного количества, генерацией новых состояний.
-                    new_states = self.__set_initial_states(requested_states_count - len(ongoing_states))
+                    new_states = self.__set_initial_states(requested_states_count - self.__store.get_amount())
                     # Отправляем потребителям инициализированные состояния
                     self.__states_distribution(self.__outgoing, new_states, BioEnum.INIT)
                     # И отправляем все оставшиеся имеющиеся состояния потребителям, в т. ч. и модулю нейросети.
-                    self.__states_distribution(self.__outgoing, ongoing_states, BioEnum.ALIVE)
+                    self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE)
                     logger.debug("Отправлено в НС {} (новых) + {} (старых) испытаний.".
-                                 format(len(new_states), len(ongoing_states)))
+                                 format(len(new_states), self.__store.get_amount()))
                     # добавляем новые состояния к общему словарю
-                    ongoing_states.update(new_states)
+                    # ongoing_states.update(new_states)
+                    self.__store.add_state(states=new_states)
 
                 # Получение команд из блока нейросети.
                 commands: Dict[TestId, StageControlCommands] = \
@@ -292,29 +301,36 @@ class PhysicsThread(IPhysics, AYarn):
                 logger.debug("Словарь команд из нейросети: {}".format(commands))
 
                 # Вычитаем из запланированных испытаний те, которые уже в работе.
-                future_tests = tests_left - len(ongoing_states)
+                # future_tests = tests_left - len(ongoing_states)
+                future_tests = tests_left - self.__store.get_amount()
 
                 fin_states: Dict[TestId, RealWorldStageStatusN] = {}
                 # Цикл получения новых состояний (после применения команд нейросети)
                 for key in commands:
                     # Меняем состояния изделия в словаре текущих испытаний на новые (после применения команд)
-                    ongoing_states[key] = Moving.get_new_status(commands[key], ongoing_states[key])
-                    reinf: ReinforcementValue = self.__get_reinforcement(ongoing_states[key], commands[key])
+                    # ongoing_states[key] = Moving.get_new_status(commands[key], ongoing_states[key])
+                    self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key)))
+                    # reinf: ReinforcementValue = self.__get_reinforcement(ongoing_states[key], commands[key])
+                    reinf: ReinforcementValue = self.__get_reinforcement(self.__store.get_state(key), commands[key])
                     container: Container = Container(key, reinf)
                     self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.REINFORCEMENT].send(deepcopy(container))
 
                     # Если данное испытание подошло к концу, исключаем его из общего словаря.
-                    if self.__test_end(ongoing_states[key]):
+                    # if self.__test_end(ongoing_states[key]):
+                    if self.__test_end(self.__store.get_state(key)):
                         # Словарь завершённых тестов.
-                        fin_states[key] = ongoing_states[key]
+                        # fin_states[key] = ongoing_states[key]
+                        fin_states[key] = self.__store.get_state(key)
                         # Словарь текущих испытаний, очищенный от завершённых испытаний.
-                        ongoing_states.pop(key)
+                        # ongoing_states.pop(key)
+                        self.__store.del_state(key)
 
                 # Так как словарь с испытаниями подчистился от тех испытаний, которые уже завершились.
                 # То приплюсовываем к количеству незапущенных испытаний, количество "живых" испытаний в обработке.
                 # |----------------------------tests_left-------------------------------|
                 # |--ongoing_states--|-----------------future_tests---------------------|
-                tests_left = len(ongoing_states) + future_tests
+                # tests_left = len(ongoing_states) + future_tests
+                tests_left = self.__store.get_amount() + future_tests
 
                 # Отправляем в модуль вида завершённые состояния для отображения.
                 for key in fin_states:
