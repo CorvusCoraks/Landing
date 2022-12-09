@@ -5,15 +5,13 @@ from basics import log_file_name, logger_name
 from logging import getLogger, FileHandler, StreamHandler, Formatter, INFO, DEBUG, Logger
 from stage import Sizes, BigMap
 from tkview.tkview import TkinterView
-from tools import InitialStatus
-from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
-from typing import Dict, Any
 from view import ViewInterface
 from con_simp.switcher import Switchboard, Socket
 from con_simp.wire import Wire, ReportWire
 from con_intr.ifaces import AppModulesEnum, DataTypeEnum, TransferredData, ISocket
 from thrds_tk.neuronet import NeuronetThread
 from thrds_tk.physics import PhysicsThread
+from states.s_states import InitGenerator
 
 
 def get_log_handler(out: str):
@@ -81,7 +79,8 @@ if __name__ == "__main__":
     batch_size = 1
 
     # Нить модели реального мира
-    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitialStatus(max_tests), max_tests, batch_size)
+    # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitialStatus(max_tests), max_tests, batch_size)
+    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests, batch_size)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status

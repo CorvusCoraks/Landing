@@ -8,6 +8,14 @@ from structures import RealWorldStageStatusN
 class IInitStates(ABC):
     """ Интерфейс инициализации начальных состояний новых испытаний. """
     @abstractmethod
+    def __init__(self, max_tests: Optional[int]):
+        """
+
+        :param max_tests: Максимальное запланированное количество испытаний.
+        """
+        ...
+
+    @abstractmethod
     def get_state(self) -> Optional[Tuple[Optional[TestId], RealWorldStageStatusN]]:
         """ Получить новое начальное состояние нового испытания.
 
@@ -27,7 +35,7 @@ class IInitStates(ABC):
 
 
 class IStatesStore(ABC):
-    """ Интерфейс хранилища состояний, которые уже находятся в работе. """
+    """ Интерфейс хранилища состояний, которые уже находятся в работе (т. е. завершившихся здесь нет). """
     @abstractmethod
     def get_state(self, test_id: TestId) -> Optional[RealWorldStageStatusN]:
         """ Получить текущее состояние испытания.
@@ -49,29 +57,29 @@ class IStatesStore(ABC):
 
     @overload
     @abstractmethod
-    def add_state(self, states: Dict[TestId, RealWorldStageStatusN]):
+    def add_state(self, states: Dict[TestId, RealWorldStageStatusN]) -> bool:
         ...
 
     @overload
     @abstractmethod
-    def add_state(self, test_id: TestId, state: RealWorldStageStatusN):
+    def add_state(self, test_id: TestId, state: RealWorldStageStatusN) -> bool:
         ...
 
     @abstractmethod
     def add_state(self, states: Optional[Dict[TestId, RealWorldStageStatusN]] = None,
-                  test_id: Optional[TestId] = None, state: Optional[RealWorldStageStatusN] = None):
-        """ Добавить в хранилище состояний новое состояние (одно или целый словарь)
+                  test_id: Optional[TestId] = None, state: Optional[RealWorldStageStatusN] = None) -> bool:
+        """ Добавить в хранилище состояний новое состояние (целый словарь или одно)
 
         :param states: Словарь состояний (overload 1)
         :param test_id: Идентификатор состояния (overload 2)
         :param state: Состояние (overload 2)
+        :return: Если == False, значит добавляемые состояния уже есть в хранилище - ошибка!
         """
-        # Если уже есть состояния с такими идентификаторами, то они перезапишутся.
         ...
 
     @abstractmethod
     def del_state(self, test_id: TestId) -> bool:
-        """
+        """ Удалить испытание.
 
         :param test_id:
         :return: Если == False, значит испытания с таким test_id не существует, и удалить его не получилось.

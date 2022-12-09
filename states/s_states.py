@@ -1,10 +1,11 @@
+""" Реализация хранилища испытаний в виде словаря. """
 from typing import Optional, Tuple, Dict, List, overload
-
 from states.i_states import IStatesStore, IInitStates
 from basics import TestId
 from structures import RealWorldStageStatusN
 # from typing import Dict
 from copy import deepcopy
+from states.iterable import InitialStatusAbstract, InitialStatus
 
 
 class DictStore(IStatesStore):
@@ -29,15 +30,33 @@ class DictStore(IStatesStore):
             self.__ongoing_states[test_id] = state
             return True
 
-    def add_state(self, states: Dict[TestId, RealWorldStageStatusN] = None, test_id: TestId = None, state: RealWorldStageStatusN = None):
+    def add_state(self, states: Dict[TestId, RealWorldStageStatusN] = None, test_id: TestId = None, state: RealWorldStageStatusN = None) -> bool:
         # Реализация @overload методов родительского интерфейса.
         if states is not None and test_id is None and state is None:
-            # Добавление набора состояний в виде словаря. Если уже есть испытания с такими идентификаторами,
-            # то их состояния перезаписываются.
-            self.__ongoing_states.update(states)
+            # Добавление набора состояний в виде словаря.
+            # Находим пересечение множества ключей хранящихся состояний и множества ключей добавляемых состояний.
+            # Если пересечение не нулевое, значит в хранилище уже есть данные
+            # по какому-то добавляемому испытанию - ошибка.
+            set_ongoing = set(self.__ongoing_states.keys()).intersection(set(states.keys()))
+            if len(set_ongoing) != 0:
+                # В хранилище есть данные по какому-то добавляемому испытанию - ошибка.
+                # Возможна несанкционированная перезапись.
+                assert len(set_ongoing) == 0, "Keys is already in storage: {}".format(set_ongoing)
+                return False
+            else:
+                self.__ongoing_states.update(states)
+                # self.__ongoing_states |= states
+                return True
         elif states is None and test_id is not None and state is not None:
-            # Добавление состояния по его ключу. Если уже есть такое состояние, то оно перезапишется.
-            self.__ongoing_states[test_id] = state
+            # Добавление состояния по его ключу.
+            if test_id in set(self.__ongoing_states.keys()):
+                # Ключ уже присутствует в хранилище - ошибка.
+                # Возможна несанкционированная перезапись.
+                assert test_id in set(self.__ongoing_states.keys()), "Key is already in storage: {}".format(test_id)
+                return False
+            else:
+                self.__ongoing_states[test_id] = state
+                return True
         else:
             raise TypeError("Bad arguments of overload method.")
 
@@ -60,8 +79,14 @@ class DictStore(IStatesStore):
 
 
 class InitGenerator(IInitStates):
+
+    def __init__(self, max_tests: int):
+        self.__max_tests: int = max_tests
+        self._initial = InitialStatus(self.__max_tests)
+        self.__iter = iter(self._initial)
+
     def get_state(self) -> Optional[Tuple[Optional[TestId], RealWorldStageStatusN]]:
-        pass
+        return next(self.__iter)
 
     def get_amount(self) -> int:
-        pass
+        return self._initial.remaining_count()

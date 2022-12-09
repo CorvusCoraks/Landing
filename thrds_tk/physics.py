@@ -3,7 +3,7 @@ from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
 import tools
-from tools import Finish, InitialStatusAbstract
+from tools import Finish
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Optional, Tuple, Dict, Callable
 from time import sleep
@@ -13,7 +13,7 @@ from con_simp.wire import ReportWire
 from physics import Moving
 from copy import deepcopy
 from states.i_states import IStatesStore
-from states.s_states import DictStore
+from states.s_states import DictStore, IInitStates
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -48,8 +48,10 @@ Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 class PhysicsThread(IPhysics, AYarn):
     """ Нить физической модели. """
 
+    # def __init__(self, name: str, data_socket: ISocket,
+    #              initial_state: InitialStatusAbstract, max_tests: int, batch_size=1):
     def __init__(self, name: str, data_socket: ISocket,
-                 initial_state: InitialStatusAbstract, max_tests: int, batch_size=1):
+                 initial_state: IInitStates, max_tests: int, batch_size=1):
         """
 
         :param name: Имя нити.
@@ -63,7 +65,7 @@ class PhysicsThread(IPhysics, AYarn):
         # self.__dispatcher = dispatcher
         self.__data_socket = data_socket
         # self.__meta_queue = meta_queue
-        self.__initial_states = initial_state
+        # self.__initial_states = initial_state
         # self.__kill = kill
         self.__max_tests = max_tests
         # todo Зачем здесь размер батча? Это параметр блока нейросети! Убрать!
@@ -75,7 +77,9 @@ class PhysicsThread(IPhysics, AYarn):
         logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.format(self.__class__.__name__, self.__data_socket, self.__data_socket.get_all_out(), self.__outgoing))
 
         # Итератор прохода по начальным состояниям изделия (исходным положениям)
-        self.__iterator = iter(initial_state)
+        # self.__iterator = iter(initial_state)
+        # Генератор начальных состояний.
+        self.__initial_states = initial_state
         # Время сна нити в ожидании сообщений в очереди
         self.__sleep_time = 0.001
         # Условие окончания одного конкретного испытания.
@@ -146,7 +150,8 @@ class PhysicsThread(IPhysics, AYarn):
 
         for i in range(states_count):
             # инициализация начальными данными
-            test_id, state = next(self.__iterator)
+            # test_id, state = next(self.__iterator)
+            test_id, state = self.__initial_states.get_state()
             logger.debug('__set_initial_state. Начальное состояние: {}, {}'.format(i, state.position))
 
             if state is None:
@@ -287,7 +292,8 @@ class PhysicsThread(IPhysics, AYarn):
                                  format(len(new_states), self.__store.get_amount()))
                     # добавляем новые состояния к общему словарю
                     # ongoing_states.update(new_states)
-                    self.__store.add_state(states=new_states)
+                    if not self.__store.add_state(states=new_states):
+                        raise KeyError("Any adding test identificators is already in store.")
 
                 # Получение команд из блока нейросети.
                 commands: Dict[TestId, StageControlCommands] = \
@@ -309,21 +315,28 @@ class PhysicsThread(IPhysics, AYarn):
                 for key in commands:
                     # Меняем состояния изделия в словаре текущих испытаний на новые (после применения команд)
                     # ongoing_states[key] = Moving.get_new_status(commands[key], ongoing_states[key])
-                    self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key)))
+                    if not self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key))):
+                        raise KeyError("Updated test with this identificator is not present in store.")
                     # reinf: ReinforcementValue = self.__get_reinforcement(ongoing_states[key], commands[key])
-                    reinf: ReinforcementValue = self.__get_reinforcement(self.__store.get_state(key), commands[key])
+                    state = self.__store.get_state(key)
+                    if state is None:
+                        raise KeyError("Requested test identificator is not present in store.")
+                    reinf: ReinforcementValue = self.__get_reinforcement(state, commands[key])
                     container: Container = Container(key, reinf)
                     self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.REINFORCEMENT].send(deepcopy(container))
 
                     # Если данное испытание подошло к концу, исключаем его из общего словаря.
                     # if self.__test_end(ongoing_states[key]):
-                    if self.__test_end(self.__store.get_state(key)):
+                    state = self.__store.get_state(key)
+                    if state is not None and self.__test_end(state):
                         # Словарь завершённых тестов.
                         # fin_states[key] = ongoing_states[key]
-                        fin_states[key] = self.__store.get_state(key)
+                        fin_states[key] = state
                         # Словарь текущих испытаний, очищенный от завершённых испытаний.
                         # ongoing_states.pop(key)
                         self.__store.del_state(key)
+                    elif state is None:
+                        raise KeyError("Requested test identificator is not present in store.")
 
                 # Так как словарь с испытаниями подчистился от тех испытаний, которые уже завершились.
                 # То приплюсовываем к количеству незапущенных испытаний, количество "живых" испытаний в обработке.
