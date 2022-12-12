@@ -67,23 +67,22 @@ class PoligonWindow(WindowsMSInterface):
         # todo передать из вышестоящего модуля
         # Время сна в ожидании данных в очереди
         self.__time_sleep: float = 0.001
-        # todo проверить использование и удалить
-        # Состояние изделия для отображения
-        self.__any_state: RealWorldStageStatusN = RealWorldStageStatusN()
-        # Состояние изделия не нужное для отображение, лишнее. Для сброса лишних состояний из очереди.
-        self.__trash_state: RealWorldStageStatusN = RealWorldStageStatusN()
         # Идентификатор испытания предназначенного для отображения.
         self.__test_id_for_view: TestId = 0
         self.__bio: BioEnum = BioEnum.FIN
-        # todo получать в draw()
+
         # Стартовая точка отображаемого испытания в СКК. Значение по умолчанию.
         self.__start_point: VectorComplex = VectorComplex.get_instance()
+        # Идентификатор стартовой точки на канве.
+        self.__sp_mark: int = -1
 
         # точка посадки в СКК
         self.__end_point = complexChangeSystemCoordinatesUniversal(BigMap.landingPointInPoligonCoordinates,
                                                                    BigMap.canvasOriginInPoligonCoordinates,
                                                                    0., True) / self.__poligon_scale
-        # todo присваивать в draw()
+        # Идентификатор точки финиша на канве.
+        self.__ep_mark: int = -1
+
         # текущая координата ЦМ ступени в СКК
         self.__current_point: VectorComplex = VectorComplex.get_instance()
 
@@ -94,6 +93,8 @@ class PoligonWindow(WindowsMSInterface):
         self.__root.geometry("+300+100")
         self.__root.title("Trajectory")
         self.__canvas = Canvas(self.__root, width=self.__poligon_width / self.__poligon_scale, height=self.__poligon_heigt / self.__poligon_scale)
+        self._create_objects_on_canvas()
+        self._preparation_movable_marks()
         self.__canvas.pack()
 
         self._preparation_static_marks()
@@ -109,6 +110,7 @@ class PoligonWindow(WindowsMSInterface):
 
             view_state: Optional[RealWorldStageStatusN] = None
             test_id: TestId = -1
+            bio: BioEnum = BioEnum.INIT
             while view_state is None:
                 # пока не дошли до визуализируемого испытания
                 while not self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].has_incoming():
@@ -133,17 +135,8 @@ class PoligonWindow(WindowsMSInterface):
                         self.__test_id_for_view = test_id
                         self.__bio = bio
                         view_state = state
-                        # Переводим в координаты канвы.
-                        self.__start_point = complexChangeSystemCoordinatesUniversal(view_state.position,
-                                                                                     BigMap.canvasOriginInPoligonCoordinates,
-                                                                                     0., True) / self.__poligon_scale
-                        self.__current_point = self.__start_point
-                        logger.debug('Начало визуализации нового испытания: id = {}, bio = {}, time stamp = {}'.format(test_id, bio, state.time_stamp))
 
-                        # todo Метод будет создавать новые объекты раз за разом в том же месте! Неправильно!
-                        self._create_objects_on_canvas()
-                        # todo Метод будет создавать новые объекты раз за разом в том же месте! Неправильно!
-                        self._preparation_movable_marks()
+                        logger.debug('Начало визуализации нового испытания: id = {}, bio = {}, time stamp = {}'.format(test_id, bio, state.time_stamp))
 
                         # Выход из цикла.
                         continue
@@ -161,11 +154,10 @@ class PoligonWindow(WindowsMSInterface):
                     logger.debug('Продолжение визуализации испытания: id = {}, bio = {}, time stamp = {}'.format(test_id, bio, state.time_stamp))
 
             # Отсылаем состояние ступени другим визуализаторам этого испытания.
-            container = Container(test_id, view_state)
+            container = BioContainer(test_id, bio, view_state)
             self.__dispatcher_out[ViewParts.AREA][ViewData.STAGE_STATUS].send(deepcopy(container))
             self.__dispatcher_out[ViewParts.STAGE][ViewData.STAGE_STATUS].send(deepcopy(container))
             self.__dispatcher_out[ViewParts.INFO][ViewData.STAGE_STATUS].send(deepcopy(container))
-            # self.__data_queues.get_wire(ViewParts.DISPATCHER, ViewParts.INFO, ViewData.STAGE_STATUS).send(deepcopy(container))
 
         except FinishAppException:
             logger.info('Поступила команда на завершение приложения. Завершаем работу диспетчера состояний.')
@@ -185,9 +177,10 @@ class PoligonWindow(WindowsMSInterface):
                     raise FinishAppException
             else:
                 container = self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
-                assert isinstance(container, Container), "Container class should be a Container. " \
+                assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
                                                             "Now: {}".format(container.__class__)
-                test_id, view_state = container.get(), container.unpack()
+                test_id, bio = container.get()
+                view_state = container.unpack()
 
             logger.debug('Положение изделия в СКИП. x: {}, y: {}'.format(view_state.position.x, view_state.position.y))
             # длительность предыдущего статуса изделия
@@ -201,13 +194,31 @@ class PoligonWindow(WindowsMSInterface):
                 0., True
             )
 
-            # отрисовка нового положения объектов на основании полученных данных из self.__any_queue
-            # if transform is not None:
-            # сдвинуть отметку ЦМ ступени
-            if self.__stage_mark.moveMark(self.__current_point, stage_canvas_position / self.__poligon_scale):
-                # значение обновляем только тогда, если производился сдвиг отметки по канве
-                # в противном случае, прошедшее значение смещения попало в трэшхолд и не является значимым
-                self.__current_point = stage_canvas_position / self.__poligon_scale
+            # Между испытаниями маркер точки старта и маркер ЦМ изделия находятся в точке (0, 0) канвы.
+
+            if bio == BioEnum.INIT:
+                # Стартовая точка = первая точка в данном испытании.
+                self.__start_point.decart = stage_canvas_position.decart
+                # Перемещаем маркер стартовой позиции из точки (0; 0) в истинную точку старта
+                self.__canvas.move(self.__sp_mark, self.__start_point.x, self.__start_point.y)
+                # Перемещаем маркер ЦМ изделия из точки (0, 0) в точку старта.
+                self.__stage_mark.moveMark(self.__current_point, self.__start_point)
+                # Сохраняем точку старта как текущее положение ЦМ изделия.
+                self.__current_point = self.__start_point
+            elif bio == BioEnum.FIN:
+                # Испытание завершено, возвращаем маркер стартовой позиции в точку (0; 0)
+                self.__canvas.move(self.__sp_mark, -self.__start_point.x, -self.__start_point.y)
+                # Возвращаем маркер ЦМ изделия в точку (0, 0)
+                self.__stage_mark.moveMark(self.__current_point, VectorComplex.get_instance())
+                # Сохраняем точку положения маркера ЦМ как текущую точку.
+                self.__current_point = VectorComplex.get_instance()
+            else:
+                # отрисовка нового положения объектов на основании полученных данных из self.__any_queue
+                # сдвинуть отметку ЦМ ступени
+                if self.__stage_mark.moveMark(self.__current_point, stage_canvas_position / self.__poligon_scale):
+                    # значение обновляем только тогда, если производился сдвиг отметки по канве
+                    # в противном случае, прошедшее значение смещения попало в трэшхолд и не является значимым
+                    self.__current_point = stage_canvas_position / self.__poligon_scale
 
         except FinishAppException:
             logger.info('Поступила команда на завершение приложения. Завершаем работу метода отрисовки исп. полигона.')
@@ -223,13 +234,18 @@ class PoligonWindow(WindowsMSInterface):
 
     def _create_objects_on_canvas(self):
         """ метод расставляет необходимые отметки по полигону (точка сброса ступени, точка посадки ступени и пр.) """
+
         # отметка точки посадки в виде треугольника
-        self.__canvas.create_polygon([self.__end_point.x - 10, self.__end_point.y,
-                                      self.__end_point.x, self.__end_point.y - 10,
-                                      self.__end_point.x + 10, self.__end_point.y], fill="#1f1")
+        start: VectorComplex = VectorComplex.get_instance(0, 0)
+        finish: VectorComplex = VectorComplex.get_instance(0, 0)
+        self.__ep_mark = self.__canvas.create_polygon([finish.x - 10, finish.y,
+                                      finish.x, finish.y - 10,
+                                      finish.x + 10, finish.y], fill="#1f1")
+        self.__canvas.move(self.__ep_mark, self.__end_point.x, self.__end_point.y)
+
         # Отметка точки начала спуска ступени
-        self.__canvas.create_oval([self.__start_point.x - 5, self.__start_point.y - 5,
-                                   self.__start_point.x + 5, self.__start_point.y + 5], fill="green")
+        self.__sp_mark = self.__canvas.create_oval([start.x - 5, start.y - 5,
+                                   start.x + 5, start.y + 5], fill="green")
 
     def __on_closing(self):
         """ Обработчик закрытия главного окна. """

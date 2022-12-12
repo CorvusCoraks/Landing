@@ -4,7 +4,7 @@ from tkview.tkarea import PoligonWindow
 from tkview.tkstview import StageViewWindow, InfoView
 from stage import Sizes
 from con_intr.ifaces import ISocket
-from tkview.view_chn import ViewParts, ViewData, ViewDataSwitcher
+from tkview.view_chn import ViewParts, ViewDataSwitcher
 from con_simp.switcher import Switchboard, Socket
 
 # Техническое описание обработки очереди сообщений.
@@ -92,8 +92,8 @@ class TkinterView(ViewInterface):
         self.__stage_window = StageViewWindow(self.__poligon_window.root, Socket(ViewParts.STAGE, self.__data_queues), Sizes.overallDimension, stage_view_scale)
 
     def create_info_view(self):
-        block = InfoView.get_info_block(self.__stage_window.canvas)
-        self.__stage_window.create_info_block_on_canvas(block)
+        info_view = InfoView(Socket(ViewParts.INFO, self.__data_queues))
+        self.__stage_window.set_info_block(info_view)
         # Запустить главный цикл событий tkinter, так как в main.py этот метод вызывается последним.
         # Запущен mainloop() от окна ступени, так как информация тоже находится в этом окне.
         # Т. е. main_loop() вызывается на последнем инициализированном окне?

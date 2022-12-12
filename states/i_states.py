@@ -4,6 +4,10 @@ from typing import Optional, Tuple, Dict, overload
 from basics import TestId
 from structures import RealWorldStageStatusN
 
+# IIninitStates -> InitGanerator
+#           └> another interaface realization
+# IStatesStore -> DictStore
+#           └> another interface realization
 
 class IInitStates(ABC):
     """ Интерфейс инициализации начальных состояний новых испытаний. """

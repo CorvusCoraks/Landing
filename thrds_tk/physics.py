@@ -79,7 +79,7 @@ class PhysicsThread(IPhysics, AYarn):
         # Итератор прохода по начальным состояниям изделия (исходным положениям)
         # self.__iterator = iter(initial_state)
         # Генератор начальных состояний.
-        self.__initial_states = initial_state
+        self.__initial_states: IInitStates = initial_state
         # Время сна нити в ожидании сообщений в очереди
         self.__sleep_time = 0.001
         # Условие окончания одного конкретного испытания.
