@@ -1,8 +1,8 @@
 """ Модуль класса Точка: объект имеющий две координаты """
-from torch import tensor as torch_tensor
+# from torch import tensor as torch_tensor
 from cmath import rect
 from typing import Union, Tuple
-from torch import float as torch_float
+# from torch import float as torch_float
 
 # Тип, означающий число
 NumberType = Union[complex, int, float]

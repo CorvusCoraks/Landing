@@ -7,7 +7,7 @@ from point import VectorComplex
 from stage import BigMap
 from structures import RealWorldStageStatusN
 
-# InitialStatusAbstract - iterable interface  -> InitialStatus - iterable realization
+# InitialStatusAbstract (iterable interface)  -> InitialStatus (iterable realization)
 #           └> another iterable realization
 
 class InitialStatusAbstract(ABC, Iterable):
