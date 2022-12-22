@@ -1,19 +1,38 @@
 """ Реализации интерфейсов nn_iface.py """
-from abc import abstractmethod
-from typing import Union, Dict, Optional, overload
-
-from torch import nn
-from torch.nn import Module
-
+from typing import Union, Dict, Optional
+from torch.nn import Module, Conv2d
+import torch.nn.functional as F
 from thrds_tk.nn_iface import InterfaceStorage, InterfaceNeuronNet, InterfaceACCombo, ProcessStateInterface
+
+
+class TestModel(Module):
+    """ Фиктивная нейросеть для технического временного использования в процессе разработки реализации. """
+    def __init__(self):
+        super().__init__()
+        self.conv1 = Conv2d(1, 20, 5)
+        self.conv2 = Conv2d(20, 20, 5)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        return F.relu(self.conv2(x))
 
 
 class Storage(InterfaceStorage):
     def save(self, suffix: str, i_nn: Optional[InterfaceNeuronNet] = None, data: Optional[Dict] = None) -> None:
-        pass
+        if suffix == "model" and i_nn is not None:
+            pass
+        elif suffix == "model_state" and i_nn is not None:
+            pass
+        else:
+            pass
 
-    def load(self, suffix: str) -> Union[nn.Module, Dict]:
-        pass
+    def load(self, suffix: str) -> Union[Module, Dict]:
+        if suffix == "model":
+            return TestModel()
+        elif suffix == "model_state":
+            return dict()
+        else:
+            return dict()
 
 
 class NeuronNet(InterfaceNeuronNet):
@@ -22,7 +41,7 @@ class NeuronNet(InterfaceNeuronNet):
 
     @property
     def nn(self) -> Module:
-        pass
+        return TestModel()
 
     def prepare_input(self) -> None:
         pass
@@ -40,11 +59,11 @@ class NeuronNet(InterfaceNeuronNet):
 class ActorAndCritic(InterfaceACCombo):
     @property
     def actor(self) -> Module:
-        pass
+        return TestModel()
 
     @property
     def critic(self) -> Module:
-        pass
+        return TestModel()
 
     def save(self, storage: InterfaceStorage) -> bool:
         pass
@@ -62,7 +81,7 @@ class State(ProcessStateInterface):
 
     @property
     def batch_size(self) -> int:
-        return 0
+        return -1
 
     @batch_size.setter
     def batch_size(self, value: int) -> None:

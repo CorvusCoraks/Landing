@@ -1,7 +1,6 @@
 from torch.nn import Module
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union, overload
-from torch import nn
 
 
 class InterfaceNeuronNet(ABC):
@@ -91,7 +90,7 @@ class InterfaceStorage(ABC):
 
     @abstractmethod
     def save(self, suffix: str, i_nn: Optional[InterfaceNeuronNet] = None, data: Optional[Dict] = None) -> None:
-        """
+        """ Реализация @overload-методов save().
 
         :param suffix: Имя подраздела в хранилище
         :param i_nn: Нейросеть для сохранения.
@@ -106,11 +105,11 @@ class InterfaceStorage(ABC):
         ...
 
     @abstractmethod
-    def load(self, suffix: str) -> Union[nn.Module, Dict]:
+    def load(self, suffix: str) -> Union[Module, Dict]:
         """ Восстановить ранее сохранённые данные.
 
         :param suffix: suffix="model|model_state|any_other_states"
-        :return: Или нейросеть, или словарь с некими параметрами.
+        :return: Или нейросеть, или словарь с некими параметрами в зависимости от suffix.
         """
         # if suffix == "model":
         #     pass
