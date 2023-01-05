@@ -1,5 +1,5 @@
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
@@ -9,12 +9,13 @@ from tools import Finish
 from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, cuda, tensor, float
 from net import Net
-from status import ITrainingStateStorage, TrainingStateShelve
 from typing import Dict, Any, Optional, Callable
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
+from thrds_tk.nn_iface import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, InterfaceACCombo
+from thrds_tk.nn_class import ModuleStorage, StateStorage, State, ActorAndCritic
 
 logger = getLogger(logger_name+'.neuronet')
 Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
@@ -27,49 +28,51 @@ class NeuronetThread(INeuronet, AYarn):
 
         logger.info('Конструктор класса нити нейросети. {}.__init__'.format(self.__class__.__name__))
 
-        # self.__data_soket = data_socket
         self.__inbound: Inbound = data_socket.get_in_dict()
         self.__outbound: Outbound = data_socket.get_out_dict()
-        # self.__queues = queues
-        # self.__kill = kill
+
         self.__max_tests = max_tests
-        # todo размер батча должен определяться динамически внутри данного модуля, а не передаваться из вне
-        self.__batch_size = batch_size
 
-        # файлы сохранений
-        self.__actorCheckPointFile = savePath + actorCheckPointFile
-        self.__criticCheckPointFile = savePath + criticCheckPointFile
+        # Объекты для работы по новой структуре вычислительного блока
+        # Имя испытания нейросети
+        self.__model_name = "first"
+        # Хранилища для модуля НС
+        self.__load_storage_model: InterfaceStorage = ModuleStorage(self.__model_name)
+        self.__save_storage_model: InterfaceStorage = self.__load_storage_model
+        # Хранилище для состояния процесса обучения.
+        self.__load_storage_training_state: InterfaceStorage = StateStorage(self.__model_name)
+        self.__save_storage_training_state: InterfaceStorage = self.__load_storage_training_state
+        # Хранилище для состояния НС
+        self.__load_storage_model_state: InterfaceStorage = self.__load_storage_training_state
+        self.__save_storage_model_state: InterfaceStorage = self.__load_storage_training_state
 
-        self.__sleep_time = 0.001
+        self.__training_state: ProcessStateInterface = State()
+        self.__two_nn: InterfaceACCombo = ActorAndCritic()
 
-        self.__state_storage: ITrainingStateStorage = TrainingStateShelve()
+        # Загрузка
+        try:
+            self.__training_state.load(self.__load_storage_training_state)
+        except FileNotFoundError:
+            # Задание начальных состояний для параметров испытаний.
+            self.__training_state.batch_size = 1
+            self.__training_state.epoch_start = 0
+            self.__training_state.epoch_current = 0
+            self.__training_state.epoch_stop = 2
+            self.__training_state.prev_q_max = 0
 
-        self.__state_dict: Dict[str, Any] = self.__state_storage.load_training(default())
-
-        # shelveFilename = "shelve"
-        # with shelve.open(shelveFilename) as sh:
-        #     shKeys = sh.keys()
-        #     if "9_50_v" in shKeys:
-        #         # Ключ найден, прочесть значение.
-        #         criticBlank = sh["9_50_v"]
-        #     else:
-        #         # Ключ не найден. Создать значение.
-        #         sh["9_50_v"] = ones_and_zeros_variants_f(8, 3)
-        #         criticBlank = sh["9_50_v"]
+        try:
+            self.__two_nn.load(self.__load_storage_model)
+        except FileNotFoundError:
+            # Создание нейросетей.
+            pass
 
         # используемое для обучения устройство
         self.__calc_device = device("cuda:0" if cuda.is_available() else "cpu")
         logger.debug('{}'.format(self.__calc_device))
 
-        # предыдущее значение функции ценности выданное нейросетью криктика
-        self.__previousQmax = self.__state_dict['previous_q_max']
-
         self.__previous_state_time_stamp = 0
 
-        # размер батча
-        # batch_size = 1
-
-        logger.debug('{} || {}'.format(self.__actorCheckPointFile, self.__criticCheckPointFile))
+        # logger.debug('{} || {}'.format(self.__actorCheckPointFile, self.__criticCheckPointFile))
 
         # Актор
         # количество входов
@@ -109,9 +112,6 @@ class NeuronetThread(INeuronet, AYarn):
 
         # Информация о подкреплении каждого шага для передачи через очередь
         self.__reinf: structures.ReinforcementValue = structures.ReinforcementValue(0, 0.)
-
-        self.__startEpoch = 0
-        self.__stopEpochNumber = 2
 
     def initialization(self) -> None:
         pass
@@ -171,22 +171,22 @@ class NeuronetThread(INeuronet, AYarn):
         while True:
             try:
                 # Оставшееся количество запланированных испытаний.
-                remaining_tests: int = self.__get_remaining_tests(self.__inbound, self.__sleep_time, self.__finish_app_checking)
+                remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME, self.__finish_app_checking)
                 # Если размер планируемого батча больше полного планируемого количества испытаний, то будем формировать
                 # батч размером в полное планируемое количество испытаний.
-                self.__batch_size = self.__batch_size if self.__batch_size <= remaining_tests else remaining_tests
+                self.__training_state.batch_size = self.__training_state.batch_size if self.__training_state.batch_size <= remaining_tests else remaining_tests
 
                 # Отправляем в модуль физической модели число испытаний, которое хочет получить данный модуль.
                 report_wire = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].get_report_sender()
                 assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
                     'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
                         format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
-                report_wire.send(Container(cargo=self.__batch_size))
+                report_wire.send(Container(cargo=self.__training_state.batch_size))
 
                 # Сформировать словарь состояний изделия в различных испытаниях.
                 batch_dict: Dict[TestId, RealWorldStageStatusN] = \
-                    self.__collect_batch(self.__inbound, self.__sleep_time,
-                                         self.__finish_app_checking, self.__batch_size)
+                    self.__collect_batch(self.__inbound, SLEEP_TIME,
+                                         self.__finish_app_checking, self.__training_state.batch_size)
 
                 # сформировать батч-тензор для ввода в актора из состояний N испытаний
 
@@ -225,16 +225,21 @@ class NeuronetThread(INeuronet, AYarn):
 
                 # Произвести корректировку гиперпараметров нейросети методом обратного распространения ошибки.
 
-                self.__state_storage.save_training({
-                    'start_epoch': 0,
-                    'current_epoch': 0,
-                    'stop_epoch': 2,
-                    'previous_q_max': 0
-                })
+                # self.__state_storage.save_training({
+                #     'start_epoch': 0,
+                #     'current_epoch': 0,
+                #     'stop_epoch': 2,
+                #     'previous_q_max': 0
+                # })
+
+                # Сохранение по новым интерфейсам.
+                self.__training_state.save(self.__save_storage_training_state)
+                self.__two_nn.save(self.__save_storage_model_state)
 
             except FinishAppException:
                 # Поступила команда на завершение приложения.
                 # Прекращаем бесконечный цикл в нити.
+                self.__two_nn.save(self.__save_storage_model)
                 logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
                 break
 
@@ -355,6 +360,9 @@ class NeuronetThread(INeuronet, AYarn):
         #     })
 
 
+def load_nn(nn: InterfaceNeuronNet, storage: InterfaceStorage):
+    pass
+
 def actorInputTensor(environment: RealWorldStageStatusN):
     """
     Формирует тензор входных параметров актора
@@ -387,6 +395,7 @@ def actorGradsFromCritic():
 
 def default() -> Dict[str, Any]:
     """ Значения по умолчанию. """
+    # todo убрать за ненадобностью
     default_dict: Optional[Dict[str, Any]] = {}
     default_dict['start_epoch'] = 0
     default_dict['current_epoch'] = 0
