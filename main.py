@@ -95,8 +95,9 @@ if __name__ == "__main__":
     # Мостшаб изображения
     # poligon_scale = 4 / 1000  # при ширине полигона 300000 м., ширина окна - 1200 точек
     # количество метров на одну точку
-    poligonScale = 1
-    stageScale = 0.1
+    # poligonScale = 1
+    # stageScale = 0.1
+
     # Создание окна (визуально показывает ситуацию) испытательного полигона. Главная, текущая нить.
     view: ViewInterface = TkinterView(Socket(AppModulesEnum.VIEW, switchboard))
     view.set_poligon_state(BigMap.width, BigMap.height)

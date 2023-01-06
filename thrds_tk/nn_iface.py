@@ -16,6 +16,7 @@ class DictKey(Enum):
     BATCH_SIZE = "batch_size"
     EPOCH = "epoch_array"               # Начальная эпоха, текущая эпоха, последняя эпоха
     PREV_Q_MAX = "previous_q_max"
+    TEMP_FOR_TEST = "temp_for_test"
 
 
 class InterfaceNeuronNet(ABC):

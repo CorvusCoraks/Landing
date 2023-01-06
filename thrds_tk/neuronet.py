@@ -238,7 +238,8 @@ class NeuronetThread(INeuronet, AYarn):
 
             except FinishAppException:
                 # Поступила команда на завершение приложения.
-                # Прекращаем бесконечный цикл в нити.
+                #
+                self.__training_state.save(self.__save_storage_training_state)
                 self.__two_nn.save(self.__save_storage_model)
                 logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
                 break
