@@ -1,9 +1,9 @@
-""" Реализации интерфейсов nn_iface.py """
-from typing import Union, Dict, Optional, Tuple
+""" Реализации интерфейсов nn_iface.ifaces.py """
+from typing import Dict
 from torch.nn import Module, Conv2d
-from torch import device, save, load, cuda
+from torch import save, load
 import torch.nn.functional as F
-from thrds_tk.nn_iface import InterfaceStorage, InterfaceNeuronNet, InterfaceACCombo, ProcessStateInterface, DictKey
+from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, InterfaceACCombo, ProcessStateInterface, DictKey
 from threading import Thread
 from queue import Queue
 from time import sleep
@@ -111,10 +111,18 @@ class StateStorage(Storage, Thread):
 
     @property
     def save_queue(self) -> Queue:
+        """
+
+        :return: Очередь для передачи сохраняемого словаря.
+        """
         return self.__dict_queue
 
     @property
     def report_queue(self) -> Queue:
+        """
+
+        :return: Очередь для передачи подтверждения, что сохранение произведено.
+        """
         return self.__report_queue
 
 

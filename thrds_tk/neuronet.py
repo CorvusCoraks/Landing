@@ -11,11 +11,11 @@ from torch import device, cuda, tensor, float
 from net import Net
 from typing import Dict, Any, Optional, Callable
 from time import sleep
-from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer
+from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
-from thrds_tk.nn_iface import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, InterfaceACCombo
-from thrds_tk.nn_class import ModuleStorage, StateStorage, State, ActorAndCritic
+from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, InterfaceACCombo
+from nn_iface.classes import ModuleStorage, StateStorage, State, ActorAndCritic
 
 logger = getLogger(logger_name+'.neuronet')
 Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]

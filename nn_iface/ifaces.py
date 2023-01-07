@@ -1,3 +1,4 @@
+""" Интерфейсы модуля нейросети. """
 from torch.nn import Module
 from abc import ABC, abstractmethod
 from typing import Dict
