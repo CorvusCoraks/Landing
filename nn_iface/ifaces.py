@@ -75,43 +75,6 @@ class InterfaceStorage(ABC):
         :param name: Имя сохранения (используется в качестве имени файла с сохранением, имени записи в БД и т. д.)
         """
         ...
-    #
-    # @overload
-    # @abstractmethod
-    # def save(self, i_nn: InterfaceNeuronNet, suffix: Suffix) -> None:
-    #     """ Сохранить гиперпараметры нейросети.
-    #
-    #     :param i_nn: Нейросеть для сохранения.
-    #     :param suffix: Имя подраздела в хранилище.
-    #     """
-    #     ...
-    #
-    # @overload
-    # @abstractmethod
-    # def save(self, data: Dict, suffix: Suffix) -> None:
-    #     """ Сохранить иные данные.
-    #
-    #     :param data: Любые данные в виде словаря для сохранения.
-    #     :param suffix: Имя подраздела в хранилище.
-    #     """
-    #     ...
-    #
-    # @abstractmethod
-    # def save(self, suffix: Suffix, i_nn: Optional[InterfaceNeuronNet] = None, data: Optional[Dict] = None) -> None:
-    #     """ Реализация @overload-методов save().
-    #
-    #     :param suffix: Имя подраздела в хранилище
-    #     :param i_nn: Нейросеть для сохранения.
-    #     :param data: Любые данные в виде словаря для сохранения.
-    #     """
-    #     # if suffix == Suffix.MODEL and i_nn is not None:
-    #     #     ...
-    #     # elif suffix == Suffix.MODEL_STATE and i_nn is not None:
-    #     #     ...
-    #     # else:
-    #     #     ...
-    #     ...
-
 
     # 1. Сохранение идёт словарями.
     # 2. Содержимое словаря определяется ключом/описанием
@@ -123,28 +86,11 @@ class InterfaceStorage(ABC):
     def load(self) -> Dict:
         ...
 
-    # @abstractmethod
-    # def load(self, suffix: Suffix) -> Union[Module, Dict, LoadErrors]:
-    #     """ Восстановить ранее сохранённые данные.
-    #
-    #     :param suffix: suffix="model|model_state|any_other_states"
-    #     :return: Или нейросеть, или словарь с некими параметрами в зависимости от suffix.
-    #     """
-    #     # if suffix == Suffix.MODEL:
-    #     #     pass
-    #     #     return nn.Module()
-    #     # elif suffix == Suffix.MODEL_STATE:
-    #     #     pass
-    #     #     return dict()
-    #     # else:
-    #     #     ...
-    #     ...
-
 
 class InterfaceSaveLoad(ABC):
     """ Интерфейс сохранения и загрузки данных в/из хранилища. """
     @abstractmethod
-    def save(self, storage: InterfaceStorage) -> bool:
+    def save(self, storage: InterfaceStorage) -> None:
         """ Сохрнить в хранилище.
 
         :param storage: Хранилище.
@@ -153,7 +99,7 @@ class InterfaceSaveLoad(ABC):
         ...
 
     @abstractmethod
-    def load(self, storage: InterfaceStorage) -> bool:
+    def load(self, storage: InterfaceStorage) -> None:
         """ Загрузить из хранилища.
 
         :param storage: Хранилище.
@@ -202,11 +148,11 @@ class InterfaceACCombo(InterfaceSaveLoad):
         ...
 
     @abstractmethod
-    def save(self, storage: InterfaceStorage) -> bool:
+    def save(self, storage: InterfaceStorage) -> None:
         ...
 
     @abstractmethod
-    def load(self, storage: InterfaceStorage) -> bool:
+    def load(self, storage: InterfaceStorage) -> None:
         ...
 
 
@@ -267,27 +213,6 @@ class ProcessStateInterface(InterfaceSaveLoad):
     @abstractmethod
     def epoch_stop(self, value: int) -> None:
         ...
-
-    #
-    # @property
-    # @abstractmethod
-    # def epoch(self) -> Tuple[int, int, int]:
-    #     """
-    #
-    #     :return: номер начальной эпохи, номер текущей эпохи, номер последней эпохи
-    #     """
-    #     ...
-    #
-    # @epoch.setter
-    # @abstractmethod
-    # def epoch(self, start: int = -1, current: int = -1, stop: int = -1) -> None:
-    #     """
-    #
-    #     :param start: номер начальной эпохи
-    #     :param current: номер текущей эпохи
-    #     :param stop: номер последней эпохи
-    #     """
-    #     ...
 
     @property
     @abstractmethod

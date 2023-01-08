@@ -15,7 +15,8 @@ from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTyp
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, InterfaceACCombo
-from nn_iface.classes import ModuleStorage, StateStorage, State, ActorAndCritic
+from nn_iface.store_nn import ModuleStorage, ActorAndCritic
+from nn_iface.store_st import StateStorage, State
 
 logger = getLogger(logger_name+'.neuronet')
 Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]

@@ -1,79 +1,15 @@
-""" Реализации интерфейсов nn_iface.ifaces.py """
+""" Реализация состояния и его хранилища. """
 from typing import Dict
-from torch.nn import Module, Conv2d
-from torch import save, load
-import torch.nn.functional as F
-from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, InterfaceACCombo, ProcessStateInterface, DictKey
+from nn_iface.ifaces import InterfaceStorage, ProcessStateInterface, DictKey
 from threading import Thread
 from queue import Queue
 from time import sleep
 from basics import SLEEP_TIME
-
-
-class TestModel(Module):
-    """ Фиктивная нейросеть для технического временного использования в процессе разработки реализации. """
-    def __init__(self):
-        super().__init__()
-        self.conv1 = Conv2d(1, 20, 5)
-        self.conv2 = Conv2d(20, 20, 5)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        return F.relu(self.conv2(x))
-
-
-class Storage(InterfaceStorage):
-    """ *.pt хранилище """
-    # Отдельный файл под структуру нейросети (так как она грузится один раз на запуске тренировки,
-    # и один раз сохраняется на завершении тренировки). И критик, и актор: словарь с двумя элементами.
-    # todo сохранять структуру нейросети на завершении тренировки не целесообразно
-    # Отдельный файл под параметры, которые сохраняются после каждого батча (каждой оптимизации):
-    # - гиперпараметры нейросети
-    # - параметры оптимизатора
-    # и т. п.
-    def __init__(self, research_name: str):
-        # Имя исследования
-        self._research_name = research_name
-        # Бланк концовки имени файла (будет испльзоваться в функции format)
-        self._filename_ending = "{}.pt"
-        # Имя файла-хранилища
-        self._storage_filename = research_name + self._filename_ending
-
-    def save(self, any_dict: Dict):
-        if self._storage_filename.endswith(self._filename_ending):
-            # Проверка допустимости имени файла.
-            raise Exception("Don`t use class Storage directly.")
-        # Словарь данных, которые временно выгружаются из хранилища.
-        dict_from: Dict = {}
-
-        try:
-            # выгружаем ранее сохранённый словарь
-            dict_from = self.load()
-        except FileNotFoundError:
-            # Если файл для сохранения был не обнаружен, то создаём его, сохраняя пустой словарь
-            save({}, self._storage_filename)
-
-        # обновляем словарь (обновляем старые ключи и добавляем новые)
-        dict_from.update(any_dict)
-        # сохраняем обновлённый словарь
-        save(dict_from, self._storage_filename)
-
-    def load(self) -> Dict:
-        if self._storage_filename.endswith(self._filename_ending):
-            # Проверка допустимости имени файла.
-            raise Exception("Don`t use class Storage directly.")
-        return load(self._storage_filename)
-
-
-class ModuleStorage(Storage):
-    """ Хранилище структуры нейросетей (и актора, и критика). """
-    def __init__(self, research_name: str):
-        super().__init__(research_name)
-        self._storage_filename = self._storage_filename.format("_nn")
+from nn_iface.storage import Storage
 
 
 class StateStorage(Storage, Thread):
-    # Класс записи состояния в хранилище через дополнительную нить.
+    # Класс записи состояния процесса тренировки в хранилище через дополнительную нить.
     def __init__(self, research_name: str):
         Storage.__init__(self, research_name)
         Thread.__init__(self)
@@ -124,68 +60,6 @@ class StateStorage(Storage, Thread):
         :return: Очередь для передачи подтверждения, что сохранение произведено.
         """
         return self.__report_queue
-
-
-
-# class SaveCommand:
-#     def __init__(self, save_dict: Dict, storage: StateStorage):
-#         self.dict: Dict = save_dict
-#         self.storage: StateStorage = storage
-
-
-# class SaveThread(Thread):
-#     def __init__(self, queue: Queue):
-#         # Демон, так как демон завершается (исполнение прерывается) с завершением породившей его нити.
-#         super().__init__(daemon=True)
-#         self.__queue: Queue = queue
-#
-#     def run(self) -> None:
-#         while True:
-#             if not self.__queue.empty():
-#                 for_save: SaveCommand = self.__queue.get()
-#                 if not isinstance(for_save, SaveCommand):
-#                     raise TypeError("From queue received wrong type object: {0}. Queue only for SaveCommand type objects."
-#                                     .format(for_save.__class__))
-#                 for_save.storage.save(for_save.dict)
-#             else:
-#                 sleep(SLEEP_TIME)
-
-
-class NeuronNet(InterfaceNeuronNet):
-    def create(self) -> None:
-        pass
-
-    @property
-    def nn(self) -> Module:
-        return TestModel()
-
-    def prepare_input(self) -> None:
-        pass
-
-    def proceccing_output(self) -> None:
-        pass
-
-    def forward(self) -> None:
-        pass
-
-    def backward(self) -> None:
-        pass
-
-
-class ActorAndCritic(InterfaceACCombo):
-    @property
-    def actor(self) -> Module:
-        return TestModel()
-
-    @property
-    def critic(self) -> Module:
-        return TestModel()
-
-    def save(self, storage: InterfaceStorage) -> bool:
-        pass
-
-    def load(self, storage: InterfaceStorage) -> bool:
-        pass
 
 
 class State(ProcessStateInterface):
@@ -257,7 +131,6 @@ class State(ProcessStateInterface):
     @epoch_stop.setter
     def epoch_stop(self, value: int) -> None:
         self.__proxy_dict[DictKey.EPOCH][2] = value
-
 
     @property
     def prev_q_max(self) -> float:

@@ -1,6 +1,6 @@
 """ Фабрика выдачи различных хранилищ. """
 from nn_iface.ifaces import InterfaceStorage
-from nn_iface.classes import Storage
+from nn_iface.store_nn import Storage
 
 def storage_fabrica(fabrica_type: str, name: str) -> InterfaceStorage:
     if fabrica_type == "sql_db":
