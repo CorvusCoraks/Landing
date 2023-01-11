@@ -1,5 +1,6 @@
 """ Интерфейсы модуля нейросети. """
 from torch.nn import Module
+from torch import Tensor
 from abc import ABC, abstractmethod
 from typing import Dict
 from enum import Enum
@@ -222,6 +223,52 @@ class ProcessStateInterface(InterfaceSaveLoad):
     @prev_q_max.setter
     @abstractmethod
     def prev_q_max(self, value) -> None:
+        ...
+
+
+class ProjectInterface(ABC):
+    @abstractmethod
+    def save(self):
+        ...
+
+    @abstractmethod
+    def save_state(self):
+        ...
+
+    @abstractmethod
+    def load(self):
+        ...
+
+    @abstractmethod
+    def actor_input_preparation(self):
+        ...
+
+    @abstractmethod
+    def critic_input_preparation(self):
+        ...
+
+    @abstractmethod
+    def actor_loss(self) -> Tensor:
+        ...
+
+    @abstractmethod
+    def critic_loss(self) -> Tensor:
+        ...
+
+    @abstractmethod
+    def actor_optimizer(self):
+        ...
+
+    @abstractmethod
+    def critic_optimaizer(self):
+        ...
+
+    @abstractmethod
+    def actor_forward(self) -> Tensor:
+        ...
+
+    @abstractmethod
+    def critic_forward(self) -> Tensor:
         ...
 
 
