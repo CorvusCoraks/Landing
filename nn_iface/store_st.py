@@ -1,5 +1,8 @@
 """ Реализация состояния и его хранилища. """
-from typing import Dict
+from typing import Dict, Optional
+
+# from torch import device as torch_device
+
 from nn_iface.ifaces import InterfaceStorage, ProcessStateInterface, DictKey
 from threading import Thread
 from queue import Queue
@@ -139,3 +142,13 @@ class State(ProcessStateInterface):
     @prev_q_max.setter
     def prev_q_max(self, value) -> None:
         self.__proxy_dict[DictKey.PREV_Q_MAX] = value
+
+    # @property
+    # def device(self) -> Optional[str]:
+    #     return self.__proxy_dict[DictKey.DEVICE]
+    #
+    # @device.setter
+    # def device(self, value: Optional[str]) -> None:
+    #     self.__proxy_dict[DictKey.DEVICE]
+
+

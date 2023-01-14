@@ -1,7 +1,7 @@
 """ Реализация хранилища нейросетей. """
 from torch.nn import Module, Conv2d
 import torch.nn.functional as F
-from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, InterfaceACCombo
+from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet
 from nn_iface.storage import Storage
 
 
@@ -45,17 +45,17 @@ class NeuronNet(InterfaceNeuronNet):
         pass
 
 
-class ActorAndCritic(InterfaceACCombo):
-    @property
-    def actor(self) -> Module:
-        return TestModel()
-
-    @property
-    def critic(self) -> Module:
-        return TestModel()
-
-    def save(self, storage: InterfaceStorage) -> bool:
-        pass
-
-    def load(self, storage: InterfaceStorage) -> bool:
-        pass
+# class ActorAndCritic(InterfaceACCombo):
+#     @property
+#     def actor(self) -> Module:
+#         return TestModel()
+#
+#     @property
+#     def critic(self) -> Module:
+#         return TestModel()
+#
+#     def save(self, storage: InterfaceStorage) -> bool:
+#         pass
+#
+#     def load(self, storage: InterfaceStorage) -> bool:
+#         pass

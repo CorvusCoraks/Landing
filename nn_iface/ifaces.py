@@ -1,8 +1,9 @@
 """ Интерфейсы модуля нейросети. """
 from torch.nn import Module
 from torch import Tensor
+from torch import device as torch_device
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
 from enum import Enum
 
 
@@ -18,6 +19,7 @@ class DictKey(Enum):
     BATCH_SIZE = "batch_size"
     EPOCH = "epoch_array"               # Начальная эпоха, текущая эпоха, последняя эпоха
     PREV_Q_MAX = "previous_q_max"
+    # DEVICE = "device"
     TEMP_FOR_TEST = "temp_for_test"
 
 
@@ -109,52 +111,52 @@ class InterfaceSaveLoad(ABC):
         ...
 
 
-class InterfaceACCombo(InterfaceSaveLoad):
-    """ Интерфейс работы с актором и с критиком. """
-
-    @property
-    @abstractmethod
-    def actor(self) -> Module:
-        """
-
-        :return: Нейросеть.
-        """
-        ...
-
-    @actor.setter
-    @abstractmethod
-    def actor(self, value: Module) -> None:
-        """
-
-        :param value: Нейросеть.
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def critic(self) -> Module:
-        """
-
-        :return: Нейросеть.
-        """
-        ...
-
-    @critic.setter
-    @abstractmethod
-    def critic(self, value: Module) -> None:
-        """
-
-        :param value: Нейросеть.
-        """
-        ...
-
-    @abstractmethod
-    def save(self, storage: InterfaceStorage) -> None:
-        ...
-
-    @abstractmethod
-    def load(self, storage: InterfaceStorage) -> None:
-        ...
+# class InterfaceACCombo(InterfaceSaveLoad):
+#     """ Интерфейс работы с актором и с критиком. """
+#
+#     @property
+#     @abstractmethod
+#     def actor(self) -> Module:
+#         """
+#
+#         :return: Нейросеть.
+#         """
+#         ...
+#
+#     @actor.setter
+#     @abstractmethod
+#     def actor(self, value: Module) -> None:
+#         """
+#
+#         :param value: Нейросеть.
+#         """
+#         ...
+#
+#     @property
+#     @abstractmethod
+#     def critic(self) -> Module:
+#         """
+#
+#         :return: Нейросеть.
+#         """
+#         ...
+#
+#     @critic.setter
+#     @abstractmethod
+#     def critic(self, value: Module) -> None:
+#         """
+#
+#         :param value: Нейросеть.
+#         """
+#         ...
+#
+#     @abstractmethod
+#     def save(self, storage: InterfaceStorage) -> None:
+#         ...
+#
+#     @abstractmethod
+#     def load(self, storage: InterfaceStorage) -> None:
+#         ...
 
 
 class ProcessStateInterface(InterfaceSaveLoad):
@@ -225,50 +227,95 @@ class ProcessStateInterface(InterfaceSaveLoad):
     def prev_q_max(self, value) -> None:
         ...
 
+    # @property
+    # @abstractmethod
+    # def device(self) -> Optional[str]:
+    #     ...
+    #
+    # @device.setter
+    # @abstractmethod
+    # def device(self, value: str) -> None:
+    #     ...
 
 class ProjectInterface(ABC):
+    """ Интерфейс тестируемого варианта системы актор-критик. """
+    # Взаимодействие потока обучения должно происходить исключительно с этим интерфейсом,
+    # но не непосредственно с нейросетями.
+    @property
     @abstractmethod
-    def save(self):
+    def state(self) -> ProcessStateInterface:
+        """ Состояние процесса тренировки. """
+        ...
+
+    # @state.setter
+    # @abstractmethod
+    # def state(self):
+    #     ...
+
+    @abstractmethod
+    def save_nn(self):
+        """ Сохранить модель нейросети. """
         ...
 
     @abstractmethod
     def save_state(self):
+        """ Сохранить состояние нейросети и состояние процесса тренировки. """
         ...
 
     @abstractmethod
-    def load(self):
+    def load_nn(self):
+        """ Загрузить модель нейросети. """
+        ...
+
+    @abstractmethod
+    def load_state(self):
+        """ Загрузить состояние нейросети и состояние процесса тренировки. """
+        ...
+
+    @property
+    @abstractmethod
+    def device(self) -> str:
+        """ Устройство для обсчёта тензоров. Пример: 'cuda:0','cpu' """
         ...
 
     @abstractmethod
     def actor_input_preparation(self):
+        """ Подготовка входных данных для актора. """
         ...
 
     @abstractmethod
     def critic_input_preparation(self):
+        """ Подготовка входных данных для критика. """
         ...
 
     @abstractmethod
     def actor_loss(self) -> Tensor:
+        """ Функция потерь актора. """
         ...
 
     @abstractmethod
     def critic_loss(self) -> Tensor:
+        """ Функция потерь критика. """
         ...
 
     @abstractmethod
     def actor_optimizer(self):
+        """ Оптимизатор актора ? """
         ...
 
     @abstractmethod
     def critic_optimaizer(self):
+        """ Оптимизатор критика ? """
         ...
 
     @abstractmethod
     def actor_forward(self) -> Tensor:
+        """ Прямой проход актора. """
         ...
 
     @abstractmethod
     def critic_forward(self) -> Tensor:
+        """ Прямой проход критика. """
         ...
 
 

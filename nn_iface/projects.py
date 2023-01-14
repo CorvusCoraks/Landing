@@ -1,10 +1,11 @@
 """ Конкретный проект (комбинация нейросетей). """
-from torch import Tensor
+from torch import Tensor, cuda
 from torch.nn import Module, Conv2d
 import torch.nn.functional as F
-from ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
-from store_nn import ModuleStorage
-from store_st import StateStorage, State
+from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
+from nn_iface.store_nn import ModuleStorage
+from nn_iface.store_st import StateStorage, State
+from typing import Dict, Optional
 
 
 class TestModel(Module):
@@ -19,12 +20,21 @@ class TestModel(Module):
         return F.relu(self.conv2(x))
 
 
-class DevelopmentTempProject(ProjectInterface):
+class AbstractProject(ProjectInterface):
     def __init__(self):
+        self._actor_key = "actor"
+        self._critic_key = "critic"
+
+
+class DevelopmentTempProject(AbstractProject):
+    def __init__(self):
+        super().__init__()
         self.__model_name: str = "first"
 
-        self.__actor: Module = TestModel()
-        self.__critic: Module = TestModel()
+        # self.__
+
+        self.__actor: Optional[Module] = None
+        self.__critic: Optional[Module] = None
 
         # Хранилища для модуля НС
         self.__load_storage_model: InterfaceStorage = ModuleStorage(self.__model_name)
@@ -38,22 +48,43 @@ class DevelopmentTempProject(ProjectInterface):
 
         self.__training_state: ProcessStateInterface = State()
 
-    def save(self):
-        pass
-        # self.__two_nn.save(self.__save_storage_model_state)
+        # В хранилище состояния процесса сохраняться не будет.
+        self.__device = "cuda:0" if cuda.is_available() else "cpu"
+
+    @property
+    def state(self) -> ProcessStateInterface:
+        return self.__training_state
+
+    def save_nn(self):
+        self.__save_storage_model.save({self._actor_key: self.__actor, self._critic_key: self.__critic})
 
     def save_state(self):
         self.__training_state.save(self.__save_storage_training_state)
 
-    def load(self):
-        # try:
-        #     self.__two_nn.load(self.__load_storage_model)
-        # except FileNotFoundError:
-        #     # Создание нейросетей.
-        #     pass
-
+    def load_nn(self):
         try:
+            # self.__two_nn.load(self.__load_storage_model)
+            actor_and_critic: Dict = self.__load_storage_model.load()
+            self.__actor = actor_and_critic[self._actor_key]
+            self.__critic = actor_and_critic[self._critic_key]
+        except FileNotFoundError:
+            # Создание нейросетей.
+            self.__actor = TestModel()
+            self.__critic = TestModel()
+
+    def load_state(self):
+        try:
+            # # запоминаем дефолтное значение
+            # device_default = self.__training_state.device
+
+            # загружаем состояние из хранилища
             self.__training_state.load(self.__load_storage_training_state)
+
+            # # если в хранилище значение не сохранено.
+            # if self.__training_state.device is None:
+            #     self.__training_state.device = device_default
+
+            self.__training_state.device = ()
         except FileNotFoundError:
             # Задание начальных состояний для параметров испытаний.
             self.__training_state.batch_size = 1
@@ -61,6 +92,10 @@ class DevelopmentTempProject(ProjectInterface):
             self.__training_state.epoch_current = 0
             self.__training_state.epoch_stop = 2
             self.__training_state.prev_q_max = 0
+
+    @property
+    def device(self) -> str:
+        return self.__device
 
     def actor_input_preparation(self):
         pass
@@ -85,4 +120,3 @@ class DevelopmentTempProject(ProjectInterface):
 
     def critic_forward(self) -> Tensor:
         pass
-
