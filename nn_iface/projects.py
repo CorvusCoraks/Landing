@@ -6,6 +6,8 @@ from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInte
 from nn_iface.store_nn import ModuleStorage
 from nn_iface.store_st import StateStorage, State
 from typing import Dict, Optional
+from net import Net
+from tools import Reinforcement, Finish
 
 
 class TestModel(Module):
@@ -21,86 +23,69 @@ class TestModel(Module):
 
 
 class AbstractProject(ProjectInterface):
+    """ Абстрактный класс проекта. Объединяет общие атрибуты и реализации методов. """
     def __init__(self):
         self._actor_key = "actor"
         self._critic_key = "critic"
 
+        self._actor: Optional[Module] = None
+        self._critic: Optional[Module] = None
 
-class DevelopmentTempProject(AbstractProject):
-    def __init__(self):
-        super().__init__()
-        self.__model_name: str = "first"
-
-        # self.__
-
-        self.__actor: Optional[Module] = None
-        self.__critic: Optional[Module] = None
+        self._training_state: Optional[ProcessStateInterface] = None
 
         # Хранилища для модуля НС
-        self.__load_storage_model: InterfaceStorage = ModuleStorage(self.__model_name)
-        self.__save_storage_model: InterfaceStorage = self.__load_storage_model
+        self._load_storage_model: Optional[InterfaceStorage] = None
+        self._save_storage_model: Optional[InterfaceStorage] = None
         # Хранилище для состояния процесса обучения.
-        self.__load_storage_training_state: InterfaceStorage = StateStorage(self.__model_name)
-        self.__save_storage_training_state: InterfaceStorage = self.__load_storage_training_state
+        self._load_storage_training_state: Optional[InterfaceStorage] = None
+        self._save_storage_training_state: Optional[InterfaceStorage] = None
         # Хранилище для состояния НС
-        self.__load_storage_model_state: InterfaceStorage = self.__load_storage_training_state
-        self.__save_storage_model_state: InterfaceStorage = self.__load_storage_training_state
+        self._load_storage_model_state: Optional[InterfaceStorage] = None
+        self._save_storage_model_state: Optional[InterfaceStorage] = None
 
-        self.__training_state: ProcessStateInterface = State()
+        self._device: str = "cpu"
 
-        # В хранилище состояния процесса сохраняться не будет.
-        self.__device = "cuda:0" if cuda.is_available() else "cpu"
+        # Подкрепление.
+        self._reinforcement: Optional[Reinforcement] = None
+
+        # Класс проверки на выход за пределы тестового полигона
+        self._finish: Optional[Finish] = None
 
     @property
     def state(self) -> ProcessStateInterface:
-        return self.__training_state
+        return self._training_state
 
-    def save_nn(self):
-        self.__save_storage_model.save({self._actor_key: self.__actor, self._critic_key: self.__critic})
+    def save_nn(self) -> None:
+        self._save_storage_model.save({self._actor_key: self._actor, self._critic_key: self._critic})
 
-    def save_state(self):
-        self.__training_state.save(self.__save_storage_training_state)
+    def save_state(self) -> None:
+        self._training_state.save(self._save_storage_training_state)
 
-    def load_nn(self):
-        try:
-            # self.__two_nn.load(self.__load_storage_model)
-            actor_and_critic: Dict = self.__load_storage_model.load()
-            self.__actor = actor_and_critic[self._actor_key]
-            self.__critic = actor_and_critic[self._critic_key]
-        except FileNotFoundError:
-            # Создание нейросетей.
-            self.__actor = TestModel()
-            self.__critic = TestModel()
+    def load_nn(self) -> None:
+        actor_and_critic: Dict = self._load_storage_model.load()
+        self._actor = actor_and_critic[self._actor_key]
+        self._critic = actor_and_critic[self._critic_key]
 
-    def load_state(self):
-        try:
-            # # запоминаем дефолтное значение
-            # device_default = self.__training_state.device
-
-            # загружаем состояние из хранилища
-            self.__training_state.load(self.__load_storage_training_state)
-
-            # # если в хранилище значение не сохранено.
-            # if self.__training_state.device is None:
-            #     self.__training_state.device = device_default
-
-            self.__training_state.device = ()
-        except FileNotFoundError:
-            # Задание начальных состояний для параметров испытаний.
-            self.__training_state.batch_size = 1
-            self.__training_state.epoch_start = 0
-            self.__training_state.epoch_current = 0
-            self.__training_state.epoch_stop = 2
-            self.__training_state.prev_q_max = 0
+    def load_state(self) -> None:
+        # загружаем состояние из хранилища
+        self._training_state.load(self._load_storage_training_state)
 
     @property
     def device(self) -> str:
-        return self.__device
+        return self._device
 
-    def actor_input_preparation(self):
+    @property
+    def reinforcement(self) -> Reinforcement:
+        return self._reinforcement
+
+    @property
+    def finish(self) -> Finish:
+        return self._finish
+
+    def actor_input_preparation(self) -> None:
         pass
 
-    def critic_input_preparation(self):
+    def critic_input_preparation(self) -> None:
         pass
 
     def actor_loss(self) -> Tensor:
@@ -109,10 +94,10 @@ class DevelopmentTempProject(AbstractProject):
     def critic_loss(self) -> Tensor:
         pass
 
-    def actor_optimizer(self):
+    def actor_optimizer(self) -> None:
         pass
 
-    def critic_optimaizer(self):
+    def critic_optimaizer(self) -> None:
         pass
 
     def actor_forward(self) -> Tensor:
@@ -120,3 +105,71 @@ class DevelopmentTempProject(AbstractProject):
 
     def critic_forward(self) -> Tensor:
         pass
+
+
+class DevelopmentTempProject(AbstractProject):
+    """ Конкретный проект испытываемой системы управления. Конкретизирующие настроечные параметры тут. """
+    def __init__(self):
+        super().__init__()
+        self.__model_name: str = "first"
+
+        # Хранилища для модуля НС
+        self._load_storage_model = ModuleStorage(self.__model_name)
+        self._save_storage_model = self._load_storage_model
+        # Хранилище для состояния процесса обучения.
+        self._load_storage_training_state = StateStorage(self.__model_name)
+        self._save_storage_training_state = self._load_storage_training_state
+        # Хранилище для состояния НС
+        self._load_storage_model_state = self._load_storage_training_state
+        self._save_storage_model_state = self._load_storage_training_state
+
+        self._training_state = State()
+
+        # В хранилище состояния процесса сохраняться не будет.
+        self._device = "cuda:0" if cuda.is_available() else "cpu"
+
+        self._reinforcement = Reinforcement()
+
+        self._finish = Finish()
+
+    def load_nn(self) -> None:
+        try:
+            super().load_nn()
+        except FileNotFoundError:
+            # Создание нейросетей.
+            #
+            # Актор.
+            # количество входов
+            ac_input = 13
+            # количество нейронов в скрытом слое
+            ac_hidden = ac_input
+            # количество выходов
+            ac_output = 5
+            # количество скрытых слоёв
+            ac_layers = 1
+            self._actor = Net(ac_input, ac_hidden, ac_output, ac_layers, True)
+            #
+            # Критик.
+            # размерность ac_input уже включает в себя размерность входных данных плюс один вход на подкрепление
+            # Но в данном случае, на вход критика уже подаётся подкрепление ставшее результатом данного шага, а не предыдущего.
+            # вход критика = выход актора + вход актора
+            cr_input = ac_output + ac_input
+            cr_hidden = cr_input
+            cr_output = 1
+            cr_layers = 1
+            self._critic = Net(cr_input, cr_hidden, cr_output, cr_layers, True)
+
+    def load_state(self) -> None:
+        try:
+            # # загружаем состояние из хранилища
+            super().load_state()
+        except FileNotFoundError:
+            # Задание начальных состояний для параметров испытаний.
+            self._training_state.batch_size = 1
+            self._training_state.epoch_start = 0
+            self._training_state.epoch_current = 0
+            self._training_state.epoch_stop = 2
+            self._training_state.prev_q_max = 0
+
+
+

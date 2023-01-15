@@ -5,6 +5,7 @@ from torch import device as torch_device
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 from enum import Enum
+from tools import Reinforcement, Finish
 
 
 class DictKey(Enum):
@@ -253,22 +254,22 @@ class ProjectInterface(ABC):
     #     ...
 
     @abstractmethod
-    def save_nn(self):
+    def save_nn(self) -> None:
         """ Сохранить модель нейросети. """
         ...
 
     @abstractmethod
-    def save_state(self):
+    def save_state(self) -> None:
         """ Сохранить состояние нейросети и состояние процесса тренировки. """
         ...
 
     @abstractmethod
-    def load_nn(self):
+    def load_nn(self) -> None:
         """ Загрузить модель нейросети. """
         ...
 
     @abstractmethod
-    def load_state(self):
+    def load_state(self) -> None:
         """ Загрузить состояние нейросети и состояние процесса тренировки. """
         ...
 
@@ -278,13 +279,23 @@ class ProjectInterface(ABC):
         """ Устройство для обсчёта тензоров. Пример: 'cuda:0','cpu' """
         ...
 
+    @property
     @abstractmethod
-    def actor_input_preparation(self):
+    def reinforcement(self) -> Reinforcement:
+        ...
+
+    @property
+    @abstractmethod
+    def finish(self) -> Finish:
+        ...
+
+    @abstractmethod
+    def actor_input_preparation(self) -> None:
         """ Подготовка входных данных для актора. """
         ...
 
     @abstractmethod
-    def critic_input_preparation(self):
+    def critic_input_preparation(self) -> None:
         """ Подготовка входных данных для критика. """
         ...
 
@@ -299,12 +310,12 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def actor_optimizer(self):
+    def actor_optimizer(self) -> None:
         """ Оптимизатор актора ? """
         ...
 
     @abstractmethod
-    def critic_optimaizer(self):
+    def critic_optimaizer(self) -> None:
         """ Оптимизатор критика ? """
         ...
 
