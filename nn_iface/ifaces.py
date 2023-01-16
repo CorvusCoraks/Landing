@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 from enum import Enum
 from tools import Reinforcement, Finish
+from basics import TestId
+from structures import RealWorldStageStatusN
 
 
 class DictKey(Enum):
@@ -290,8 +292,12 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def actor_input_preparation(self) -> None:
-        """ Подготовка входных данных для актора. """
+    def actor_input_preparation(self, batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+        """ Подготовка входных данных для актора.
+
+        :param batch: Запланированный для прохода через актора батч.
+        :return: Входной батч актора в виде тензора.
+        """
         ...
 
     @abstractmethod
@@ -320,7 +326,7 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def actor_forward(self) -> Tensor:
+    def actor_forward(self, actor_input: Tensor) -> Tensor:
         """ Прямой проход актора. """
         ...
 

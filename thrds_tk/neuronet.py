@@ -107,7 +107,7 @@ class NeuronetThread(INeuronet, AYarn):
                 "Container class should be a BioContainer. But now is {}".format(container.__class__)
             test_id, _ = container.get()
             stage_status = container.unpack()
-            # test_id, stage_status = container.get(), container.unpack()
+
             # Пополняем словарь
             batch_dict[test_id] = stage_status
 
@@ -118,34 +118,30 @@ class NeuronetThread(INeuronet, AYarn):
         while True:
             try:
                 # Оставшееся количество запланированных испытаний.
-                remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME, self.__finish_app_checking)
+                remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME,
+                                                                  self.__finish_app_checking)
                 # Если размер планируемого батча больше полного планируемого количества испытаний, то будем формировать
                 # батч размером в полное планируемое количество испытаний.
-                # self._training_state.batch_size = self._training_state.batch_size if self._training_state.batch_size <= remaining_tests else remaining_tests
-                # state: ProcessStateInterface = self.__project.state
-                # bz = state.batch_size
-                # self.__project.state.batch_size = bz if bz <= remaining_tests else remaining_tests
-                self.__project.state.batch_size = self.__project.state.batch_size if self.__project.state.batch_size <= remaining_tests else remaining_tests
+                self.__project.state.batch_size = self.__project.state.batch_size \
+                    if self.__project.state.batch_size <= remaining_tests else remaining_tests
 
                 # Отправляем в модуль физической модели число испытаний, которое хочет получить данный модуль.
                 report_wire = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].get_report_sender()
                 assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
                     'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
                         format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
-                # report_wire.send(Container(cargo=self._training_state.batch_size))
                 report_wire.send(Container(cargo=self.__project.state.batch_size))
 
                 # Сформировать словарь состояний изделия в различных испытаниях.
-                # batch_dict: Dict[TestId, RealWorldStageStatusN] = \
-                #     self.__collect_batch(self.__inbound, SLEEP_TIME,
-                #                          self.__finish_app_checking, self._training_state.batch_size)
                 batch_dict: Dict[TestId, RealWorldStageStatusN] = \
                     self.__collect_batch(self.__inbound, SLEEP_TIME,
                                          self.__finish_app_checking, self.__project.state.batch_size)
 
                 # сформировать батч-тензор для ввода в актора из состояний N испытаний
+                actor_input = self.__project.actor_input_preparation(batch_dict)
 
                 # получить тензор выхода (действий/команд) актора для каждого из N испытаний
+                actor_output = self.__project.actor_forward(actor_input)
 
                 # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний
                 # на входе в актора, V - количество вариантов действий актора (количество вариантов включений двигателей)
