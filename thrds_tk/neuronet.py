@@ -138,10 +138,10 @@ class NeuronetThread(INeuronet, AYarn):
                                          self.__finish_app_checking, self.__project.state.batch_size)
 
                 # сформировать батч-тензор для ввода в актора из состояний N испытаний
-                actor_input = self.__project.actor_input_preparation(batch_dict)
+                medium_rare = self.__project.actor_input_preparation(batch_dict)
 
                 # получить тензор выхода (действий/команд) актора для каждого из N испытаний
-                actor_output = self.__project.actor_forward(actor_input)
+                medium = self.__project.actor_forward(medium_rare)
 
                 # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний
                 # на входе в актора, V - количество вариантов действий актора (количество вариантов включений двигателей)

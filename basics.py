@@ -11,5 +11,14 @@ logger_name: str = 'main_log'
 
 # Время сна, сек.
 SLEEP_TIME: float = 0.001
+COROUTINE_SLEEP_TIME: float = 0.001
 
 TENSOR_DTYPE: dtype = float32
+
+GRAVITY_ACCELERATION_ABS = 9.8067
+
+# Масштаб временной отметки
+# 10 - 0.1 сек.
+# 100 - 0,01 сек.
+# Т. е., чтобы получить время в секундах, умножаем временную отметку на этот масштаб.
+TIME_STAMP_SCALE = 10

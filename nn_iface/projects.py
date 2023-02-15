@@ -5,11 +5,15 @@ import torch.nn.functional as F
 from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
 from nn_iface.store_nn import ModuleStorage
 from nn_iface.store_st import StateStorage, State
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from net import Net
 from tools import Reinforcement, Finish
-from basics import TestId, TENSOR_DTYPE
+from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS
 from structures import RealWorldStageStatusN
+from math import atan, atan2
+from nn_iface.norm import NormalizationInterface, OneValueNormalisationInterface, MinMaxNormalization, MinMaxVectorComplex, ListMinMaxNormalization, MinMax, MinMaxXY
+from math import pi
+from point import VectorComplex
 
 
 class TestModel(Module):
@@ -22,6 +26,28 @@ class TestModel(Module):
     def forward(self, x):
         x = F.relu(self.conv1(x))
         return F.relu(self.conv2(x))
+
+
+# class Norm(NormalizationInterface):
+#     def __init__(self, distanse: MinMaxXY, velocity: MinMaxXY, acceleration: MinMaxXY,
+#                  ang_velocity: MinMax, ang_acceleration: MinMax, time_stamp: MinMax):
+#         self.__distanse: OneValueNormalisationInterface = MinMaxVectorComplex(distanse)
+#         self.__velocity: OneValueNormalisationInterface = MinMaxVectorComplex(velocity)
+#         self.__acceleraton: OneValueNormalisationInterface = MinMaxVectorComplex(acceleration)
+#         self.__orientation: OneValueNormalisationInterface = MinMaxNormalization(MinMax(-pi, pi))
+#         self.__ang_velocity: OneValueNormalisationInterface = MinMaxNormalization(ang_velocity)
+#         self.__ang_acceleration: OneValueNormalisationInterface = MinMaxNormalization(ang_acceleration)
+#         self.__timestamp: OneValueNormalisationInterface = MinMaxNormalization(time_stamp)
+#
+#     def normalization(self, denormalized: List[float]) -> List[float]:
+#         normalized: List = [self.__distanse.norm(denormalized[0]), self.__distanse.norm(denormalized[1]),
+#                             self.__velocity.norm(denormalized[2]), self.__velocity.norm(denormalized[3]),
+#                             self.__acceleraton.norm(denormalized[4]), self.__acceleraton.norm(denormalized[5]),
+#                             self.__orientation.norm(denormalized[6]),
+#                             self.__ang_velocity.norm(denormalized[7]),
+#                             self.__ang_acceleration.norm(denormalized[8]),
+#                             self.__timestamp.norm(denormalized[9])]
+#         return normalized
 
 
 class AbstractProject(ProjectInterface):
@@ -84,34 +110,7 @@ class AbstractProject(ProjectInterface):
     def finish(self) -> Finish:
         return self._finish
 
-    def actor_input_preparation(self, batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
-
-
-        # childrens = self._actor.children()
-        # children_0 = childrens.__next__()
-        # children_0 = childrens.__next__()
-        # params = children_0.parameters(recurse=True)
-        # for param in params:
-        #     print(param)
-        # params_0 = params.__next__()
-        # Список-заготовка входных данных
-        input_list: list =[a for a in range(len(batch))]
-        # Список-заготовка идентификаторов испытаний (Необходим в будущем для состыковки результатов с идентификаторами)
-        test_id_list: list = [a for a in range(len(batch))]
-
-
-        for index, (key, value) in enumerate(batch.items()):
-            # Из словаря данных для батча извлекаем параметры состояний для каждого испытания.
-            input_list[index] = [value.position.x, value.position.y,
-                                 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
-            test_id_list[index] = key
-
-        # Входной тензор.
-        input: Tensor = tensor(input_list, dtype=TENSOR_DTYPE, requires_grad=True)
-
-        return input
-
-    def critic_input_preparation(self) -> None:
+    def critic_input_preparation(self, actor_output: Tensor, environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
         pass
 
     def actor_loss(self) -> Tensor:
@@ -143,13 +142,16 @@ class AbstractProject(ProjectInterface):
         # shape по тензору: [число подтензоров (элементов батча), количество feaches в элементе батча]
         # shape по параметрам: [число нейронов скрытого слоя, число входных нейронов]
         assert second_children_parameters.shape[1] == actor_input.shape[1], \
-            "Width of batch element mismatch of neuron net input feaches count."
+            "Width of raw_batch element ({}) mismatch of neuron net input feaches count ({})." \
+            "May be you change neuron net input width in project, but load old neuron net from storage?".\
+                format(second_children_parameters[1], actor_input.shape[1])
         #
         ### Конец проверки.
 
         return self._actor.forward(actor_input)
+        # return actor_input
 
-    def critic_forward(self) -> Tensor:
+    def critic_forward(self, critic_input: Tensor) -> Tensor:
         pass
 
 
@@ -178,6 +180,17 @@ class DevelopmentTempProject(AbstractProject):
 
         self._finish = Finish()
 
+        # self.__normaliaztion: NormalizationInterface = Norm([0., 100.], [0., 1000.], [])
+        self.__normaliaztion: ListMinMaxNormalization = ListMinMaxNormalization([
+            MinMaxXY(MinMax(-100., 100.), MinMax(-10., 500.)),  # дистанция
+            MinMaxXY(MinMax(-100., 100.), MinMax(-100., 100.)), # линейная скорость
+            MinMaxXY(MinMax(-10 * GRAVITY_ACCELERATION_ABS, 10 * GRAVITY_ACCELERATION_ABS),
+                     MinMax(-10 * GRAVITY_ACCELERATION_ABS, 10 * GRAVITY_ACCELERATION_ABS)),    # лин. ускорение
+            MinMax(-pi, +pi),   # ориентация (угол от вертикали в СКИП)
+            MinMax(-pi/18, +pi/18),   # угловая скорость
+            MinMax(-pi/180, +pi/180)])   # угловое ускорение
+            # MinMax(0, 6000)])   # time_stamp
+
     def load_nn(self) -> None:
         try:
             super().load_nn()
@@ -186,9 +199,9 @@ class DevelopmentTempProject(AbstractProject):
             #
             # Актор.
             # количество входов
-            ac_input = 13
+            ac_input = 9
             # количество нейронов в скрытом слое
-            ac_hidden = ac_input-5
+            ac_hidden = ac_input
             # количество выходов
             ac_output = 5
             # количество скрытых слоёв
@@ -197,7 +210,8 @@ class DevelopmentTempProject(AbstractProject):
             #
             # Критик.
             # размерность ac_input уже включает в себя размерность входных данных плюс один вход на подкрепление
-            # Но в данном случае, на вход критика уже подаётся подкрепление ставшее результатом данного шага, а не предыдущего.
+            # Но в данном случае, на вход критика уже подаётся подкрепление ставшее результатом данного шага,
+            # а не предыдущего.
             # вход критика = выход актора + вход актора
             cr_input = ac_output + ac_input
             cr_hidden = cr_input
@@ -217,5 +231,44 @@ class DevelopmentTempProject(AbstractProject):
             self._training_state.epoch_stop = 2
             self._training_state.prev_q_max = 0
 
+    def actor_input_preparation(self, raw_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+        # Список-заготовка входных данных, список списков, элемент которого является состоянием изделия.
+        rare_list: List[List[Optional[float]]] =[[] for a in range(len(raw_batch))]
+        # Список-заготовка идентификаторов испытаний (Необходим в будущем для состыковки результатов с идентификаторами)
+        test_id_list: List[TestId] = [0 for a in range(len(raw_batch))]
+
+        for index, (key, value) in enumerate(raw_batch.items()):
+            # Из словаря данных для батча извлекаем параметры состояний для каждого испытания.
+
+            # Ориентация изделия (угол отклонения в радианах от оси OY в СКЦМ)
+            orientation_rad: float = 0 if value.orientation.x == 0 else atan2(-value.orientation.x, value.orientation.y)
+
+            # Проверка знака угла для правой и левой координатной полуплоскости
+            # В правой полуплоскости знак угла отрицательный, в левой - положительный (отсчёт от оси OY СКЦМ)
+            assert (value.orientation.x > 0 and orientation_rad < 0) \
+                   or (value.orientation.x < 0 and orientation_rad > 0) \
+                   or (value.orientation.x == 0 and orientation_rad == 0), \
+                "Signs mismatch for angle and vector orientation"
+
+            rare_list[index] = self.__normaliaztion.normalization([value.position, value.velocity, value.acceleration,
+                                                             orientation_rad,
+                                                             value.angular_velocity, value.angular_acceleration])
+
+            test_id_list[index] = key
+
+            rare_float_list: List[float] = []
+            for i, state_element in enumerate(rare_list[index]):
+                if isinstance(state_element, VectorComplex):
+                    rare_float_list.extend([state_element.x, state_element.y])
+                elif isinstance(state_element, float):
+                    rare_float_list.append(state_element)
+                else:
+                    raise TypeError('Wrong type object {} in list'.format(type(state_element)))
+                # rare_float_list
 
 
+
+        # Входной тензор.
+        input: Tensor = tensor([rare_float_list], dtype=TENSOR_DTYPE, requires_grad=True)
+
+        return input

@@ -117,6 +117,7 @@ class RealWorldStageStatusN(CloneInterface, ValueCopyInterface):
         # зачем мне предыщущее значение ускорения??? Для рассчёта ускорения ускорения?
         self.acceleration = acceleration or VectorComplex.get_instance()
         # Ориентация, угловая скорость и угловое ускорение - в СКЦМ
+        # todo с какой целью ориентация в виде вектора?
         self.orientation = orientation or VectorComplex.get_instance()
         self.angular_velocity = angular_velocity
         # Аналогично, зачем мне предыдущее угловое ускорение?

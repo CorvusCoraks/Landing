@@ -12,7 +12,7 @@ from structures import RealWorldStageStatusN
 from con_intr.ifaces import ISocket, IReceiver, ISender, BioEnum
 from tkview.view_chn import ViewParts, ViewData
 from time import sleep
-from basics import FinishAppException, TestId
+from basics import FinishAppException, TestId, SLEEP_TIME
 from con_simp.contain import BioContainer
 
 ViewInbound = Dict[ViewParts, Dict[ViewData, IReceiver]]
@@ -30,7 +30,7 @@ class StageViewWindow(WindowsMSInterface):
         :param stage_scale: масштаб изображения ступени на канве
         """
         # todo время сна перенести в вышестоящий вызов
-        self.__sleep_time = 0.001
+        # self.__sleep_time = 0.001
         self.__stage_size = stage_size
         self.__stage_scale = stage_scale
 
@@ -93,7 +93,7 @@ class StageViewWindow(WindowsMSInterface):
         try:
             # Получение данных для отображения изделия.
             while not self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
-                sleep(self.__sleep_time)
+                sleep(SLEEP_TIME)
                 if self.__states_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                     raise FinishAppException
             else:
@@ -110,7 +110,7 @@ class StageViewWindow(WindowsMSInterface):
             # Визуализация информации
             while self.__info_view is None:
                 # Если визуализатор ещё не создан
-                sleep(self.__sleep_time)
+                sleep(SLEEP_TIME)
                 if self.__states_in[ViewParts.STAGE][ViewData.APP_FINISH].has_incoming():
                     raise FinishAppException
             else:
@@ -126,7 +126,7 @@ class StageViewWindow(WindowsMSInterface):
 
                 # Получить данных из канала связи, поставляющего данные в блок визуализации информации.
                 # На данном этапе проектирования приложения, этот канал поступления данных не используется.
-                test_id, bio, state = self.__info_view.info_block_data(self.__info_view.data_inbound, self.__sleep_time)
+                test_id, bio, state = self.__info_view.info_block_data(self.__info_view.data_inbound, SLEEP_TIME)
 
             # отрисовка нового положения объектов на основании полученных данных из очереди
             if transform is not None:

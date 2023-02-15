@@ -1,6 +1,6 @@
 """ Модуль визуализации происходящего с испытуемым объектом. """
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
 from tkinter import Tk, Canvas
 from typing import Optional, Dict, Tuple
 from stage import BigMap
@@ -66,7 +66,7 @@ class PoligonWindow(WindowsMSInterface):
 
         # todo передать из вышестоящего модуля
         # Время сна в ожидании данных в очереди
-        self.__time_sleep: float = 0.001
+        # self.__time_sleep: float = 0.001
         # Идентификатор испытания предназначенного для отображения.
         self.__test_id_for_view: TestId = 0
         self.__bio: BioEnum = BioEnum.FIN
@@ -115,7 +115,7 @@ class PoligonWindow(WindowsMSInterface):
                 # пока не дошли до визуализируемого испытания
                 while not self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].has_incoming():
                     # ожидаем данные из канала связи
-                    sleep(self.__time_sleep)
+                    sleep(SLEEP_TIME)
                     # Проверка на завершение приложения.
                     if self.__dispatcher_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                         self.__dispatcher_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
@@ -171,7 +171,7 @@ class PoligonWindow(WindowsMSInterface):
             self.__state_dispatcher()
 
             while not self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
-                sleep(self.__time_sleep)
+                sleep(SLEEP_TIME)
                 if self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                     self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
                     raise FinishAppException

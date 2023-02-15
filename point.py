@@ -3,6 +3,7 @@
 from cmath import rect
 from typing import Union, Tuple
 # from torch import float as torch_float
+import unittest
 
 # Тип, означающий число
 NumberType = Union[complex, int, float]
@@ -69,37 +70,6 @@ class VectorComplex:
         #                                                                 dtype=torch_float))
         # result.__origin = origin
         return VectorComplex(VectorComplex.__create_key, complex_number.real, complex_number.imag, origin)
-
-    # def __get_pair(self) -> Tuple[float, float]:
-    #     """ Получить компоненты вектора в виде кортежа двух чисел с плавающей точкой. """
-    #     # return self.__tensor[0][0], self.__tensor[0][1]
-    #     # print(type(self.__tensor[0][0].item()), type(self.__tensor[0][1].item()))
-    #     # return self.__tensor[0][0].item(), self.__tensor[0][1].item()
-    #     return self._x, self._y
-    #
-    # def __set_pair(self, x: float, y: float):
-    #     """ Установить/Изменить компоненты вектора
-    #
-    #     :param x: абцисса конечной точки вектора.
-    #     :param y: ордината конечной точки вектора.
-    #     """
-    #     # self.__tensor[0][0] = x
-    #     # self.__tensor[0][1] = y
-    #     self._x = x
-    #     self._y = y
-
-    # @property
-    # def tensor(self) -> torch_tensor:
-    #     """ Тензорный вид вектора """
-    #     # self.__tensor[0][0] = self.__x
-    #     # self.__tensor[0][1] = self.__y
-    #     # return self.__tensor
-    #     return torch_tensor([[self.__tensor[0][0].item(), self.__tensor[0][1].item()]], dtype=self.__tensor.dtype)
-    #
-    # @tensor.setter
-    # def tensor(self, tnsr: torch_tensor):
-    #     self.__tensor = tnsr
-    #     # self.__setPoint()
 
     @property
     def decart(self) -> Tuple[float, float]:
@@ -246,3 +216,16 @@ class VectorComplex:
     def __abs__(self) -> float:
         """ Модуль вектора """
         return abs(self.cardanus)
+
+    def __eq__(self, other):
+        """ Проверка на равенство двух векторов. """
+        return self.x == other.x and self.y == other.y
+
+
+class VectorTest(unittest.TestCase):
+    def test_equal(self):
+        self.assertTrue(VectorComplex.get_instance(112, 13) == VectorComplex.get_instance(112, 13))
+
+
+if __name__ == '_main_':
+    unittest.main()

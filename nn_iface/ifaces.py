@@ -301,8 +301,13 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def critic_input_preparation(self) -> None:
-        """ Подготовка входных данных для критика. """
+    def critic_input_preparation(self, actor_output: Tensor, environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+        """ Подготовка входных данных для критика.
+
+        :param actor_output: Выход из актора.
+        :param environment_batch: Проведённый через актора батч исходных данных.
+        :return: Входной батч критика в виде тензора.
+        """
         ...
 
     @abstractmethod
@@ -331,7 +336,7 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def critic_forward(self) -> Tensor:
+    def critic_forward(self, critic_input: Tensor) -> Tensor:
         """ Прямой проход критика. """
         ...
 

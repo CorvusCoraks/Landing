@@ -5,6 +5,7 @@ import cmath
 from decart import complexChangeSystemCoordinatesUniversal
 from structures import StageControlCommands, RealWorldStageStatusN
 from tools import math_int
+from basics import GRAVITY_ACCELERATION_ABS
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
 # массой m1 (центр дна ракеты), m2 (средняя точка, центр масс), m3 (верх ступени)
@@ -15,7 +16,7 @@ from tools import math_int
 # Ориентация ступени задаётся углом отклонения вертикального осевого вектора относительно вертикали глобальной
 # системы координат.
 # положение центра масс ступени и направляющий вектор передаются в модуль визуализации
-# На остновании этих данных происходит отрисовка ступени на новом положении.
+# На основании этих данных происходит отрисовка ступени на новом положении.
 
 # Используемые системы координат:
 # - Собственная система координат ступени (СКС): ось ординат совпадает с продольной овсью ступени, начало координат
@@ -34,7 +35,7 @@ from tools import math_int
 # 4. Аналогично п. 2 и п. 3 считаются угловые скорости и ускорения.
 
 # Ускорение свободного падения в СКИП и СКЦМ
-GravitationalAcceleration = VectorComplex.get_instance(0., -9.8067)
+GravitationalAcceleration = VectorComplex.get_instance(0., - GRAVITY_ACCELERATION_ABS)
 
 
 class CheckPeriod:
@@ -213,56 +214,6 @@ class Moving:
         # pass
         return 0.
 
-    # @classmethod
-    # def get_new_status(cls, control_commands: StageControlCommands,
-    #                    previous_status: RealWorldStageStatusN, new_state: RealWorldStageStatusN) -> None:
-    #     """ Возвращает новое состояние ступени
-    #
-    #     :param control_commands: управляющие команды на двигатели изделия
-    #     :param previous_status: предыдущее состояние изделия
-    #     :param new_state: новое состояние изделия
-    #     """
-    #     if control_commands.all_off():
-    #         # Если все двигатели выключены, все силы от двигателей сделать нулевыми
-    #         pass
-    #
-    #     duration = CheckPeriod.set_duration(previous_status.position)
-    #     sec_duration = CheckPeriod.to_sec(duration)
-    #
-    #     line_axeleration = Moving.get_a(Action(fdownup=VectorComplex.get_instance(0., stage.Engine.mainEngineForce)))
-    #     line_velocity = previous_status.velocity + line_axeleration * sec_duration
-    #     line_position = previous_status.position + line_velocity * sec_duration
-    #
-    #     # угловое ускорение
-    #     angular_axeleration = 0.
-    #     # угловая скорость, рад/сек
-    #     angular_velocity = previous_status.angular_velocity + angular_axeleration * sec_duration
-    #     # поворот на угол, рад.
-    #     angle = angular_velocity * sec_duration
-    #     # переводим угол из радианов в форму комплексного числа
-    #     complex_angle = cmath.rect(1., angle)
-    #     # поворот вектора ориентации через перемножение комплексных чисел
-    #     cardanus = previous_status.orientation.cardanus * complex_angle
-    #     # приводим к единичному вектору
-    #     cardanus = cardanus / abs(cardanus)
-    #     # новая ориентация
-    #     orientation = VectorComplex.get_instance_c(cardanus)
-    #
-    #     # new_position = RealWorldStageStatusN(position=line_position, velocity=line_velocity,
-    #     #                                      acceleration=line_axeleration, angular_velocity=angular_velocity,
-    #     #                                      angular_acceleration=angular_axeleration, orientation=orientation)
-    #     # new_position.time_stamp = previous_status.time_stamp + duration
-    #
-    #     new_state.position = line_position
-    #     new_state.velocity = line_velocity
-    #     new_state.acceleration = line_axeleration
-    #     new_state.angular_velocity = angular_velocity
-    #     new_state.angular_acceleration = angular_axeleration
-    #     new_state.orientation = orientation
-    #     new_state.time_stamp = previous_status.time_stamp + duration
-    #
-    #     # return new_position
-
     @classmethod
     def get_new_status(cls, control_commands: StageControlCommands,
                        previous_status: RealWorldStageStatusN) -> RealWorldStageStatusN:
@@ -297,11 +248,6 @@ class Moving:
         cardanus = cardanus / abs(cardanus)
         # новая ориентация
         orientation = VectorComplex.get_instance_c(cardanus)
-
-        # new_position = RealWorldStageStatusN(position=line_position, velocity=line_velocity,
-        #                                      acceleration=line_axeleration, angular_velocity=angular_velocity,
-        #                                      angular_acceleration=angular_axeleration, orientation=orientation)
-        # new_position.time_stamp = previous_status.time_stamp + duration
 
         new_state: RealWorldStageStatusN = RealWorldStageStatusN()
 

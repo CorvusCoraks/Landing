@@ -1,4 +1,4 @@
-from basics import logger_name, TestId, FinishAppException
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
 from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
@@ -81,7 +81,7 @@ class PhysicsThread(IPhysics, AYarn):
         # Генератор начальных состояний.
         self.__initial_states: IInitStates = initial_state
         # Время сна нити в ожидании сообщений в очереди
-        self.__sleep_time = 0.001
+        # self.__sleep_time = 0.001
         # Условие окончания одного конкретного испытания.
         self.__finish_criterion = Finish()
 
@@ -265,7 +265,7 @@ class PhysicsThread(IPhysics, AYarn):
                 logger.debug("Испытаний в плане: {}".format(tests_left))
                 # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
                 requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                                                                 self.__sleep_time, self.__finish_app_checking)
+                                                                 SLEEP_TIME, self.__finish_app_checking)
                 logger.debug("НС готова принять состояний: {}".format(requested_states_count))
 
                 assert tests_left >= requested_states_count, \
@@ -298,7 +298,7 @@ class PhysicsThread(IPhysics, AYarn):
                 # Получение команд из блока нейросети.
                 commands: Dict[TestId, StageControlCommands] = \
                     self.__command_waiting(requested_states_count, self.__incoming,
-                                           self.__sleep_time, self.__finish_app_checking)
+                                           SLEEP_TIME, self.__finish_app_checking)
 
                 assert len(commands) == requested_states_count, \
                     "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \
@@ -354,5 +354,3 @@ class PhysicsThread(IPhysics, AYarn):
             except FinishAppException:
                 logger.info('Поступила команда на завершение приложения. Завершаем нить.')
                 break
-
-
