@@ -1,0 +1,51 @@
+# Файл настроек конкретного проекта
+[ProjectName]
+name="DevelopmentTempProject"
+[NeuronNet]
+    [NeuronNet.Actor.Size]
+        input=9
+        hidden=9
+        layers=1    # Если есть этот параметр, то секция [..Layers] игнорируется.
+        output=5
+    [NeuronNet.Actor.Layers]
+        # Структура нейросети.
+        [NeuronNet.Actor.Layers.Input]
+        # Вход нейросети
+            0 = 'Sigmoid'
+        [NeuronNet.Actor.Layers.Sequenses.0]
+        # Секвенция
+            count = 2       # Количество повторов элементов секвенции
+            0 = 'Linear'    # Первый слой одного элемента секвенции
+            1 = 'Sigmoid'   # Второй слой одного элемента секвенции
+        [NeuronNet.Actor.Layers.Sequenses.1]
+            count = 4
+            0 = 'Linear'
+            1 = 'Sigmoid'
+        [NeuronNet.Actor.Layers.Output]
+        # Выход нейросети
+            0 = 'Linear'
+            1 = 'Sigmoid'
+    [NeuronNet.Critic.Size]
+        # actor_input + actor_output = critic_input
+        input=14
+        hidden=14
+        layers=1
+        output=1
+[Storage]
+    [Storage.File]
+    neuron_net="\\nn.pt"
+    traning_state="\\state.pt"
+[MinMax]
+    [MinMax.Position]
+    x = [-100.0, 100.0]
+    y = [-10.0, 500.0]
+    [MinMax.Velocity]
+    x = [-100.0, 100.0]
+    y = [-100.0, 100.0]
+    [MinMax.Acceleration]
+    x = ['eval:-10 * GRAVITY_ACCELERATION_ABS', 'eval:10 * GRAVITY_ACCELERATION_ABS']
+    y = ['eval:-10 * GRAVITY_ACCELERATION_ABS', 'eval:10 * GRAVITY_ACCELERATION_ABS']
+    [MinMax.Angular]
+    orientation = ['eval:-pi', 'eval:pi']
+    velocity = ['eval:-pi / 18', 'eval:pi / 18']
+    acceleration = ['eval:-pi / 180', 'eval:pi / 180']

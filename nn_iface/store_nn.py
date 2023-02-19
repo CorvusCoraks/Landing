@@ -19,9 +19,12 @@ class TestModel(Module):
 
 class ModuleStorage(Storage):
     """ Хранилище структуры нейросетей (и актора, и критика). """
-    def __init__(self, research_name: str):
-        super().__init__(research_name)
-        self._storage_filename = self._storage_filename.format("_nn")
+    # def __init__(self, research_name: str):
+    #     super().__init__(research_name)
+    def __init__(self, file_name: str):
+        super().__init__(file_name)
+        # self._storage_filename = self._storage_filename.format("_nn")
+        self._storage_filename = file_name
 
 
 class NeuronNet(InterfaceNeuronNet):

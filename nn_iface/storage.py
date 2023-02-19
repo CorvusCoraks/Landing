@@ -13,18 +13,26 @@ class Storage(InterfaceStorage):
     # - гиперпараметры нейросети
     # - параметры оптимизатора
     # и т. п.
-    def __init__(self, research_name: str):
+    # def __init__(self, research_name: str):
+    #     # Имя исследования
+    #     self._research_name = research_name
+    #     # Бланк концовки имени файла (будет испльзоваться в функции format)
+    #     self._filename_ending = "{}.pt"
+    #     # Имя файла-хранилища
+    #     self._storage_filename = research_name + self._filename_ending
+
+    def __init__(self, file_name: str):
         # Имя исследования
-        self._research_name = research_name
+        # self._research_name = research_name
         # Бланк концовки имени файла (будет испльзоваться в функции format)
-        self._filename_ending = "{}.pt"
+        # self._filename_ending = "{}.pt"
         # Имя файла-хранилища
-        self._storage_filename = research_name + self._filename_ending
+        self._storage_filename = file_name
 
     def save(self, any_dict: Dict):
-        if self._storage_filename.endswith(self._filename_ending):
-            # Проверка допустимости имени файла.
-            raise Exception("Don`t use class Storage directly.")
+        # if self._storage_filename.endswith(self._filename_ending):
+        #     # Проверка допустимости имени файла.
+        #     raise Exception("Don`t use class Storage directly.")
         # Словарь данных, которые временно выгружаются из хранилища.
         dict_from: Dict = {}
 
@@ -41,7 +49,7 @@ class Storage(InterfaceStorage):
         save(dict_from, self._storage_filename)
 
     def load(self) -> Dict:
-        if self._storage_filename.endswith(self._filename_ending):
-            # Проверка допустимости имени файла.
-            raise Exception("Don`t use class Storage directly.")
+        # if self._storage_filename.endswith(self._filename_ending):
+        #     # Проверка допустимости имени файла.
+        #     raise Exception("Don`t use class Storage directly.")
         return load(self._storage_filename)

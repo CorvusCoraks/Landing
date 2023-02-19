@@ -17,7 +17,7 @@ from con_simp.wire import ReportWire
 from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, ProjectInterface
 from nn_iface.store_nn import ModuleStorage
 from nn_iface.store_st import StateStorage, State
-from nn_iface.projects import DevelopmentTempProject
+from DevTmpPr.devtmppr import DevelopmentTempProject
 
 logger = getLogger(logger_name+'.neuronet')
 Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
