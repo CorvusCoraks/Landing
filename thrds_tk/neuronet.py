@@ -1,5 +1,6 @@
+import importlib
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
@@ -17,7 +18,12 @@ from con_simp.wire import ReportWire
 from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, ProjectInterface
 from nn_iface.store_nn import ModuleStorage
 from nn_iface.store_st import StateStorage, State
-from DevTmpPr.devtmppr import DevelopmentTempProject
+# from DevTmpPr.project import ProjectMainClass
+
+# project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME))
+# project_class = eval('module.{}'.format(PROJECT_MAIN_CLASS))
+
+# eval('from {}.{} import {}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS))
 
 logger = getLogger(logger_name+'.neuronet')
 Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
@@ -37,7 +43,11 @@ class NeuronetThread(INeuronet, AYarn):
         self.__max_tests = max_tests
 
         # тестируемый проект
-        self.__project: ProjectInterface = DevelopmentTempProject()
+        # self.__project: ProjectInterface = ProjectMainClass()
+        # RunTime импортирование модуля с проектом.
+        project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME))
+        # Создание объекта на основании класса проекта.
+        self.__project: ProjectInterface = eval('project_module.{}()'.format(PROJECT_MAIN_CLASS))
 
         self.__project.load_nn()
 

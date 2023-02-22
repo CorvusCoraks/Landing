@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
 from typing import Dict, Optional, List, Tuple, Any
 from tools import Reinforcement, Finish
-from basics import TestId, PROJECT_TOML_FILENAME
+from basics import TestId, ACTOR_CHAPTER,CRITIC_CHAPTER
 from structures import RealWorldStageStatusN
 import tomli
 from abc import ABC, abstractmethod
@@ -42,8 +42,8 @@ class ConfigInterpreterInterface(ABC):
 class AbstractProject(ProjectInterface):
     """ Абстрактный класс проекта. Объединяет общие атрибуты и реализации методов. """
     def __init__(self):
-        self._actor_key = "actor"
-        self._critic_key = "critic"
+        self._actor_key = ACTOR_CHAPTER
+        self._critic_key = CRITIC_CHAPTER
 
         self._actor: Optional[Module] = None
         self._critic: Optional[Module] = None

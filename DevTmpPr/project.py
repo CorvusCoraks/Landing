@@ -8,7 +8,7 @@ from nn_iface.store_st import StateStorage, State
 from typing import Dict, Optional, List, Tuple, Any, SupportsFloat, Union
 from net import Net
 from tools import Reinforcement, Finish
-from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, PROJECT_TOML_FILENAME, EVAL
+from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, PROJECT_CONFIG_FILE, EVAL
 from structures import RealWorldStageStatusN
 from math import atan, atan2
 from nn_iface.norm import NormalizationInterface, OneValueNormalisationInterface, MinMaxNormalization, MinMaxVectorComplex, ListMinMaxNormalization, MinMax, MinMaxXY
@@ -22,7 +22,7 @@ class ReadConfig(ReadConfigInterface):
     """ Чтение настроек проекта из файла .toml """
     def __init__(self, project_dir: str):
         self.__project_dir = project_dir
-        self.__project_toml = self.__project_dir + PROJECT_TOML_FILENAME
+        self.__project_toml = self.__project_dir + PROJECT_CONFIG_FILE
 
     def load_config(self) -> Dict:
         with open(self.__project_toml, "rb") as toml_fh:
@@ -128,10 +128,11 @@ class InterpretConfig():
                self._mm_orientation, self._mm_ang_velocity, self._mm_ang_acceleration
 
     def get_filenames(self) -> Tuple[str, str]:
+        """ Имена файлов для хранения структуры нейросети и состояния тренировки. """
         return self._storage['neuron_net'], self._storage['traning_state']
 
 
-class DevelopmentTempProject(AbstractProject):
+class ProjectMainClass(AbstractProject):
     """ Конкретный проект испытываемой системы управления. Конкретизирующие настроечные параметры тут. """
     def __init__(self):
         super().__init__()

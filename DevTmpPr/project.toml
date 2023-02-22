@@ -1,6 +1,6 @@
 # Файл настроек конкретного проекта
 [ProjectName]
-name="DevelopmentTempProject"
+    name="DevelopmentTempProject"
 [NeuronNet]
     [NeuronNet.Actor.Size]
         input=9
@@ -13,7 +13,7 @@ name="DevelopmentTempProject"
         # Вход нейросети
             0 = 'Sigmoid'
         [NeuronNet.Actor.Layers.Sequenses.0]
-        # Секвенция
+        # Секвенция, один элемент которой, в данном случае, состоит из двух слоёв.
             count = 2       # Количество повторов элементов секвенции
             0 = 'Linear'    # Первый слой одного элемента секвенции
             1 = 'Sigmoid'   # Второй слой одного элемента секвенции
