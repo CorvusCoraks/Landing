@@ -1,6 +1,6 @@
 """ Конкретный проект (комбинация нейросетей). """
 from torch import Tensor
-from torch.nn import Module, Conv2d
+from torch.nn import Module, Conv2d, Sequential
 import torch.nn.functional as F
 from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
 from typing import Dict, Optional, List, Tuple, Any
@@ -21,6 +21,40 @@ class TestModel(Module):
     def forward(self, x):
         x = F.relu(self.conv1(x))
         return F.relu(self.conv2(x))
+
+
+# class ModelTemplate(Module):
+#     """ Шаблон нейросети. """
+#     def __init__(self, input_sequence: Sequential, hidden_sequence:Sequential, output_sequence: Sequential):
+#         super().__init__()
+#         self.__input = input_sequence
+#         self.__hidden = hidden_sequence
+#         self.__output = output_sequence
+#
+#     def forward(self, x):
+#         x = self.__input(x)
+#         x = self.__hidden(x)
+#         x = self.__output(x)
+#         return x
+#
+#     @classmethod
+#     def _create_sequence(cls, layers_list: List, repeat: int) -> Sequential:
+#         layers = layers_list
+#         for count in range(repeat):
+#             layers = layers.extend(layers_list)
+#         return Sequential(*layers)
+#
+#     @classmethod
+#     def create_input(cls, layers_list: List) -> Sequential:
+#         return ModelTemplate._create_sequence(layers_list, 1)
+#
+#     @classmethod
+#     def create_hidden(cls, layer_list: List, repeat: int = 1):
+#         return ModelTemplate._create_sequence(layer_list, repeat)
+#
+#     @classmethod
+#     def create_output(cls, layer_list: List):
+#         return ModelTemplate._create_sequence(layer_list, 1)
 
 
 class ReadConfigInterface(ABC):

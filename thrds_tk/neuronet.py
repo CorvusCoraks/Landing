@@ -8,7 +8,7 @@ import random
 import structures
 from tools import Finish
 from structures import StageControlCommands, RealWorldStageStatusN
-from torch import device, cuda, tensor, float
+from torch import device, cuda, tensor, float, Tensor
 from net import Net
 from typing import Dict, Any, Optional, Callable
 from time import sleep
@@ -135,11 +135,11 @@ class NeuronetThread(INeuronet, AYarn):
                 self.__project.state.batch_size = self.__project.state.batch_size \
                     if self.__project.state.batch_size <= remaining_tests else remaining_tests
 
-                # Отправляем в модуль физической модели число испытаний, которое хочет получить данный модуль.
-                report_wire = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].get_report_sender()
                 assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
                     'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
                         format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
+                # Отправляем в модуль физической модели число испытаний, которое хочет получить данный модуль.
+                report_wire: ISender = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].get_report_sender()
                 report_wire.send(Container(cargo=self.__project.state.batch_size))
 
                 # Сформировать словарь состояний изделия в различных испытаниях.
@@ -148,9 +148,11 @@ class NeuronetThread(INeuronet, AYarn):
                                          self.__finish_app_checking, self.__project.state.batch_size)
 
                 # сформировать батч-тензор для ввода в актора из состояний N испытаний
-                medium_rare = self.__project.actor_input_preparation(batch_dict)
+                # стейк слабой прожарки (предыдущая прожарка производится в вызываемом методе)
+                medium_rare: Tensor = self.__project.actor_input_preparation(batch_dict)
 
                 # получить тензор выхода (действий/команд) актора для каждого из N испытаний
+                # стейк средней прожарки
                 medium = self.__project.actor_forward(medium_rare)
 
                 # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний

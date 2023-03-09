@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch import tensor, add, sub
+from typing import List
 """
 Нейросети
 """
@@ -114,10 +115,12 @@ from torch import tensor, add, sub
 # и действий исследовательских, то, при неизвестном Qmax, бОльшая часть действий актора будет исследовательской
 # (так как действия, фактически, выбираются случайно)
 
+
 class Net(nn.Module):
-    '''
+    # todo устаревшее
+    """
         Класс нейросети. Один универсальный класс-шаблон на исполнителя и на критика
-    '''
+    """
     # Модель нейросети:
     # Входной слой - слой нейронов
     # Секвенция скрытых слоёв состоящих из последовательных пар: Линейный слой - Нейронный слой
@@ -195,6 +198,58 @@ class Net(nn.Module):
             if isinstance(m, nn.Linear):
                 nn.init.orthogonal_(m.weight)
 
+
+class NetSeq(nn.Module):
+    """ Нейросеть, собираемая из трёх секвенций. """
+    def __init__(self, input: nn.Sequential, hidden: nn.Sequential, output: nn.Sequential,
+                 initMethod=nn.init.orthogonal_, initWeights: bool = False):
+        super(NetSeq, self).__init__()
+
+        self._input = input
+        self._hidden = hidden
+        self._output = output
+        self._initMethod = initMethod
+
+        if initWeights:
+            self.__initializeWeights()
+
+    def forward(self, x):
+        # super().forward()
+        x = self._input(x)
+        x = self._hidden(x)
+        x = self._output(x)
+        return x
+
+    def __initializeWeights(self):
+        """ Start initialization net weights. """
+        for m in self.modules():
+            #todo self.modules() возвращает модули всех секвенций нейросети? И входной, и скрытой, и выходной?
+            if isinstance(m, nn.Linear):
+                self._initMethod(m.weight)
+
+    @classmethod
+    def _create_sequence(cls, layers_list: List, repeat: int) -> nn.Sequential:
+        layers = layers_list
+        for count in range(repeat):
+            layers = layers.extend(layers_list)
+        return nn.Sequential(*layers)
+
+    @classmethod
+    def create_input(cls, layers_list: List) -> nn.Sequential:
+        """ Create input net sequence (one neuron layer) """
+        return NetSeq._create_sequence(layers_list, 1)
+
+    @classmethod
+    def create_hidden(cls, layer_list: List, repeat: int = 1) -> nn.Sequential:
+        """ Create hidden layers sequence """
+        return NetSeq._create_sequence(layer_list, repeat)
+
+    @classmethod
+    def create_output(cls, layer_list: List) -> nn.Sequential:
+        """ Create output layers sequence. """
+        return NetSeq._create_sequence(layer_list, 1)
+
+
 # def tensorLoss(tensorOutput: tensor, tensorGrad: tensor):
 #     """
 #     Искусственное привнесение ошибки в тензор, для возможности обратного прохода.
@@ -214,4 +269,3 @@ class Net(nn.Module):
 #     # с другой стороны через клона (но он оторван от дерева рассчётов)
 #     # и через тензор градиентов (но это тупиковый тензор)
 #     return result
-

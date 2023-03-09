@@ -1,12 +1,12 @@
 """ Модуль конкретного проекта. """
 from torch import Tensor, cuda, tensor, float32
-from torch.nn import Module, Conv2d
+from torch.nn import Module, Conv2d, Sequential, Sigmoid, Linear
 import torch.nn.functional as F
 from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
 from nn_iface.store_nn import ModuleStorage
 from nn_iface.store_st import StateStorage, State
 from typing import Dict, Optional, List, Tuple, Any, SupportsFloat, Union
-from net import Net
+from net import Net, NetSeq
 from tools import Reinforcement, Finish
 from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, PROJECT_CONFIG_FILE, EVAL
 from structures import RealWorldStageStatusN
@@ -16,6 +16,11 @@ from math import pi
 from point import VectorComplex
 import tomli
 from nn_iface.projects import AbstractProject, ConfigInterpreterInterface, ReadConfigInterface
+from cfgconst import *
+from DevTmpPr.cfg_str import *
+
+# if __name__ == '__main__':
+
 
 
 class ReadConfig(ReadConfigInterface):
@@ -35,9 +40,9 @@ class InterpretConfig():
     """ Интерпретация настроек, загруженных из файла .toml """
     def __init__(self, config: Dict):
         self._config: Dict = config
-        self._actor: Dict = config['NeuronNet']['Actor']
-        self._critic: Dict = config['NeuronNet']['Critic']
-        self._storage: Dict = config['Storage']['File']
+        self._actor: Dict = config[R_NEURONNET][ACTOR_BLOCK]
+        self._critic: Dict = config[R_NEURONNET][CRITIC_BLOCK]
+        self._storage: Dict = config[R_STORAGE_BLOCK][STORAGE_FILE_BLOCK]
 
         try:
             self._actor_layers = self._actor['Size']['layers']
@@ -48,14 +53,14 @@ class InterpretConfig():
             # А если ключ есть, то раздел [.Actor.Layers] игнорируем
             self._actor_sec = []
 
-        self._minmax_interpret(config['MinMax'])
+        self._minmax_interpret(config[MINMAX_BLOCK])
 
     def _minmax_interpret(self, minmax: Dict):
         """ Интерпретация словаря настроек диапазонов входных данных актора. """
 
         # Диапазон положения изделия в СКИП.
-        x_min, x_max = (self._eval(value) for value in minmax['Position']['x'])
-        y_min, y_max = (self._eval(value) for value in minmax['Position']['y'])
+        x_min, x_max = (self._eval(value) for value in minmax[POSITION_BLOCK][X_MINMAX_LIST])
+        y_min, y_max = (self._eval(value) for value in minmax[POSITION_BLOCK][Y_MINMAX_LIST])
         self._mm_position: MinMaxXY = MinMaxXY(MinMax(x_min, x_max), MinMax(y_min, y_max))
 
         # Диапазон корости изделия в СКИП.
@@ -79,6 +84,21 @@ class InterpretConfig():
         # Диапазон угловго ускорения.
         x_min, x_max = (self._eval(value) for value in minmax['Angular']['acceleration'])
         self._mm_ang_acceleration: MinMax = MinMax(x_min, x_max)
+
+    def _eval_seq(self, value: str) -> Module:
+        """ Превращение строки в модуль нейросети, если это возможно.
+
+        :param value: Модуль нейросети в виде строки.
+        :return: Модуль нейросети.
+        :exception TypeError:
+        """
+        if len(value) > len(EVAL) and value[:len(EVAL)] == EVAL:
+            # Входящая строка имеет длинну больше, чем маркер строки с вычисляемым выражением
+            # и в начале этой строки, собственно, стоит маркер строки с вычисляемым выражением.
+            return eval(value[len(EVAL):])
+        else:
+            # Вычисляемого выражения в строке нет, возвращаем as is.
+            raise TypeError("Input argument couldn't evaluating.")
 
     def _eval(self, value: Union[str, float, int]) -> Union[float, str]:
         """ Вычисление значения строкового выражения из файла настроек.
@@ -194,7 +214,14 @@ class ProjectMainClass(AbstractProject):
             # # количество скрытых слоёв
             # ac_layers = 1
             # self._actor = Net(ac_input, ac_hidden, ac_output, ac_layers, True)
-            self._actor: Net = Net(*self._config.actor(),True)
+
+            # self._actor: Net = Net(*self._config.actor(),True)
+            # todo Временная заглушка
+            self._actor: Module = NetSeq(Sequential(Sigmoid()),
+                                         Sequential(Linear(9, 9, bias=False), Sigmoid()),
+                                         Sequential(Linear(9, 5, bias=False), Sigmoid()),
+                                         initWeights=True)
+
             #
             # Критик.
             # размерность ac_input уже включает в себя размерность входных данных плюс один вход на подкрепление
@@ -206,7 +233,13 @@ class ProjectMainClass(AbstractProject):
             # cr_output = 1
             # cr_layers = 1
             # self._critic = Net(cr_input, cr_hidden, cr_output, cr_layers, True)
-            self._critic = Net(*self._config.critic(), True)
+
+            # self._critic = Net(*self._config.critic(), True)
+            # todo временная заглушка
+            self._critic: Module = NetSeq(Sequential(Sigmoid()),
+                                          Sequential(Linear(14, 14, bias=False), Sigmoid()),
+                                          Sequential(Linear(14, 1, bias=False), Sigmoid()),
+                                          initWeights=True)
 
     def load_state(self) -> None:
         try:
@@ -221,7 +254,13 @@ class ProjectMainClass(AbstractProject):
             self._training_state.prev_q_max = 0
 
     def actor_input_preparation(self, raw_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
-        # Список-заготовка входных данных, список списков, элемент которого является состоянием изделия.
+        """
+
+        :param raw_batch: raw steak (сырое мясо) - словарь неподготовленных исходных данных
+        :return: входной тензор актора.
+        """
+        # Список-заготовка (rare steak, стейк с кровью) входных данных, список списков,
+        # элемент которого является состоянием изделия.
         rare_list: List[List[Optional[float]]] =[[] for a in range(len(raw_batch))]
         # Список-заготовка идентификаторов испытаний (Необходим в будущем для состыковки результатов с идентификаторами)
         test_id_list: List[TestId] = [0 for a in range(len(raw_batch))]
