@@ -8,7 +8,7 @@ from nn_iface.store_st import StateStorage, State
 from typing import Dict, Optional, List, Tuple, Any, SupportsFloat, Union
 from net import Net, NetSeq
 from tools import Reinforcement, Finish
-from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, PROJECT_CONFIG_FILE, EVAL
+from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH, EVAL
 from structures import RealWorldStageStatusN
 from math import atan, atan2
 from nn_iface.norm import NormalizationInterface, OneValueNormalisationInterface, MinMaxNormalization, MinMaxVectorComplex, ListMinMaxNormalization, MinMax, MinMaxXY
@@ -18,6 +18,7 @@ import tomli
 from nn_iface.projects import AbstractProject, ConfigInterpreterInterface, ReadConfigInterface
 from cfgconst import *
 from DevTmpPr.cfg_str import *
+from os import getcwd
 
 # if __name__ == '__main__':
 
@@ -30,6 +31,7 @@ class ReadConfig(ReadConfigInterface):
         self.__project_toml = self.__project_dir + PROJECT_CONFIG_FILE
 
     def load_config(self) -> Dict:
+        # temp = getcwd()
         with open(self.__project_toml, "rb") as toml_fh:
             config_dict = tomli.load(toml_fh)
 
@@ -157,13 +159,13 @@ class ProjectMainClass(AbstractProject):
     def __init__(self):
         super().__init__()
         # self.__model_name: str = "first"
-        self.__project_dir: str = '.\DevTmpPr'
+        # self.__project_dir: str = PROJECT_DIRECTORY_PATH
 
         # config_dict: Dict = ReadConfig('.\DevTmpPr').load_config()
-        self._config: InterpretConfig = InterpretConfig(ReadConfig(self.__project_dir).load_config())
+        self._config: InterpretConfig = InterpretConfig(ReadConfig(PROJECT_DIRECTORY_PATH).load_config())
 
         nn_filename, state_filename = self._config.get_filenames()
-        nn_filename, state_filename = self.__project_dir + nn_filename, self.__project_dir + state_filename
+        nn_filename, state_filename = PROJECT_DIRECTORY_PATH + nn_filename, PROJECT_DIRECTORY_PATH + state_filename
 
         # Хранилища для модуля НС
         # self._load_storage_model = ModuleStorage(self.__model_name)
