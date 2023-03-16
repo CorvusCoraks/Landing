@@ -1,6 +1,6 @@
 import importlib
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
@@ -19,7 +19,7 @@ from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProcessStateIn
 from nn_iface.store_nn import ModuleStorage
 from nn_iface.store_st import StateStorage, State
 # from DevTmpPr.project import ProjectMainClass
-
+from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
 # project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME))
 # project_class = eval('module.{}'.format(PROJECT_MAIN_CLASS))
 

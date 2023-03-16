@@ -1,4 +1,5 @@
 """ Общие константы приложения. """
+
 from torch import float32, dtype
 
 
@@ -12,6 +13,7 @@ log_file_name: str = 'app.log'
 logger_name: str = 'main_log'
 
 # Маркер вычисляемой строки в файле настроек проекта.
+# todo удалить после удаления текстовых файлов настроек
 EVAL = 'eval:'
 
 # Время сна, сек.
@@ -36,10 +38,10 @@ ACTOR_CHAPTER = 'actor'
 CRITIC_CHAPTER = 'critic'
 
 # Файлы рабочего проекта
-PROJECT_DIRECTORY_PATH = './DevTmpPr'
-PROJECT_DIRECTORY_NAME = PROJECT_DIRECTORY_PATH[2:]
-PROJECT_PY_FILE = '/project.py'
-PROJECT_PY_NAME = PROJECT_PY_FILE[1:8]
-PROJECT_CONFIG_FILE = '/project.toml'
-PROJECT_MAIN_CLASS = 'ProjectMainClass'
-PROJECT_CONFIG_KEYS = '/config.py'
+# PROJECT_DIRECTORY_PATH = './DevTmpPr'
+# PROJECT_DIRECTORY_NAME = PROJECT_DIRECTORY_PATH[2:]
+# PROJECT_PY_FILE = '/project.py'
+# PROJECT_PY_NAME = PROJECT_PY_FILE[1:8]
+# PROJECT_CONFIG_FILE = '/project.toml'
+# PROJECT_MAIN_CLASS = 'ProjectMainClass'
+# PROJECT_CONFIG_KEYS = '/config.py'

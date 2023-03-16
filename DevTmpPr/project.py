@@ -8,7 +8,7 @@ from nn_iface.store_st import StateStorage, State
 from typing import Dict, Optional, List, Tuple, Any, SupportsFloat, Union
 from net import Net, NetSeq
 from tools import Reinforcement, Finish
-from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH, EVAL
+from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, EVAL
 from structures import RealWorldStageStatusN
 from math import atan, atan2
 from nn_iface.norm import NormalizationInterface, OneValueNormalisationInterface, MinMaxNormalization, MinMaxVectorComplex, ListMinMaxNormalization, MinMax, MinMaxXY
@@ -19,6 +19,9 @@ from nn_iface.projects import AbstractProject, ConfigInterpreterInterface, ReadC
 from cfgconst import *
 from DevTmpPr.cfg_str import *
 from os import getcwd
+from app_cfg import PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH
+from DevTmpPr.cfg import ACTOR_INPUT, ACTOR_HIDDEN, ACTOR_OUTPUT, ACTOR_OPTIONS
+from DevTmpPr.cfg import CRITIC_INPUT, CRITIC_HIDDEN, CRITIC_OUTPUT, CRITIC_OPTIONS
 
 # if __name__ == '__main__':
 
@@ -219,10 +222,14 @@ class ProjectMainClass(AbstractProject):
 
             # self._actor: Net = Net(*self._config.actor(),True)
             # todo Временная заглушка
-            self._actor: Module = NetSeq(Sequential(Sigmoid()),
-                                         Sequential(Linear(9, 9, bias=False), Sigmoid()),
-                                         Sequential(Linear(9, 5, bias=False), Sigmoid()),
-                                         initWeights=True)
+            # self._actor: Module = NetSeq(Sequential(Sigmoid()),
+            #                              Sequential(Linear(9, 9, bias=False), Sigmoid()),
+            #                              Sequential(Linear(9, 5, bias=False), Sigmoid()),
+            #                              initWeights=True)
+            inp: Sequential = Sequential(*ACTOR_INPUT)
+            hid: Sequential = Sequential(*ACTOR_HIDDEN)
+            out: Sequential = Sequential(*ACTOR_OUTPUT)
+            self._actor: Module = NetSeq(inp, hid, out, **ACTOR_OPTIONS)
 
             #
             # Критик.
@@ -238,10 +245,14 @@ class ProjectMainClass(AbstractProject):
 
             # self._critic = Net(*self._config.critic(), True)
             # todo временная заглушка
-            self._critic: Module = NetSeq(Sequential(Sigmoid()),
-                                          Sequential(Linear(14, 14, bias=False), Sigmoid()),
-                                          Sequential(Linear(14, 1, bias=False), Sigmoid()),
-                                          initWeights=True)
+            # self._critic: Module = NetSeq(Sequential(Sigmoid()),
+            #                               Sequential(Linear(14, 14, bias=False), Sigmoid()),
+            #                               Sequential(Linear(14, 1, bias=False), Sigmoid()),
+            #                               initWeights=True)
+            inp: Sequential = Sequential(*CRITIC_INPUT)
+            hid: Sequential = Sequential(*CRITIC_HIDDEN)
+            out: Sequential = Sequential(*CRITIC_OUTPUT)
+            self._critic: Module = NetSeq(inp, hid, out, **CRITIC_OPTIONS)
 
     def load_state(self) -> None:
         try:
