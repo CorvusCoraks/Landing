@@ -4,7 +4,7 @@ from typing import Dict
 from torch import save, load
 
 
-class Storage(InterfaceStorage):
+class TorchFileStorage(InterfaceStorage):
     """ *.pt хранилище """
     # Отдельный файл под структуру нейросети (так как она грузится один раз на запуске тренировки,
     # и один раз сохраняется на завершении тренировки). И критик, и актор: словарь с двумя элементами.
@@ -32,7 +32,7 @@ class Storage(InterfaceStorage):
     def save(self, any_dict: Dict):
         # if self._storage_filename.endswith(self._filename_ending):
         #     # Проверка допустимости имени файла.
-        #     raise Exception("Don`t use class Storage directly.")
+        #     raise Exception("Don`t use class TorchFileStorage directly.")
         # Словарь данных, которые временно выгружаются из хранилища.
         dict_from: Dict = {}
 
@@ -51,5 +51,5 @@ class Storage(InterfaceStorage):
     def load(self) -> Dict:
         # if self._storage_filename.endswith(self._filename_ending):
         #     # Проверка допустимости имени файла.
-        #     raise Exception("Don`t use class Storage directly.")
+        #     raise Exception("Don`t use class TorchFileStorage directly.")
         return load(self._storage_filename)

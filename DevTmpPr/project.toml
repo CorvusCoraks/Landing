@@ -31,8 +31,8 @@
         hidden=14
         layers=1
         output=1
-[Storage]
-    [Storage.File]
+[TorchFileStorage]
+    [TorchFileStorage.File]
     neuron_net="\\nn.pt"
     traning_state="\\state.pt"
 [MinMax]

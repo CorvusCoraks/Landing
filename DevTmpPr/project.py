@@ -1,24 +1,21 @@
 """ Модуль конкретного проекта. """
-from torch import Tensor, cuda, tensor, float32
-from torch.nn import Module, Conv2d, Sequential, Sigmoid, Linear
-import torch.nn.functional as F
-from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
-from nn_iface.store_nn import ModuleStorage
-from nn_iface.store_st import StateStorage, State
-from typing import Dict, Optional, List, Tuple, Any, SupportsFloat, Union
-from net import Net, NetSeq
+from torch import Tensor, cuda, tensor
+from torch.nn import Module, Sequential
+from fl_store.store_nn import ModuleStorage
+from state import State
+from fl_store.store_st import StateStorage
+from typing import Dict, Optional, List, Tuple, Union
+from net import NetSeq
 from tools import Reinforcement, Finish
-from basics import TestId, TENSOR_DTYPE, GRAVITY_ACCELERATION_ABS, EVAL
+from basics import TestId, TENSOR_DTYPE, EVAL, GRAVITY_ACCELERATION_ABS
 from structures import RealWorldStageStatusN
-from math import atan, atan2
-from nn_iface.norm import NormalizationInterface, OneValueNormalisationInterface, MinMaxNormalization, MinMaxVectorComplex, ListMinMaxNormalization, MinMax, MinMaxXY
-from math import pi
+from math import atan2, pi
+from nn_iface.norm import ListMinMaxNormalization, MinMax, MinMaxXY
 from point import VectorComplex
 import tomli
-from nn_iface.projects import AbstractProject, ConfigInterpreterInterface, ReadConfigInterface
+from nn_iface.projects import AbstractProject, ReadConfigInterface
 from cfgconst import *
 from DevTmpPr.cfg_str import *
-from os import getcwd
 from app_cfg import PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH
 from DevTmpPr.cfg import ACTOR_INPUT, ACTOR_HIDDEN, ACTOR_OUTPUT, ACTOR_OPTIONS
 from DevTmpPr.cfg import CRITIC_INPUT, CRITIC_HIDDEN, CRITIC_OUTPUT, CRITIC_OPTIONS
@@ -163,6 +160,8 @@ class ProjectMainClass(AbstractProject):
         super().__init__()
         # self.__model_name: str = "first"
         # self.__project_dir: str = PROJECT_DIRECTORY_PATH
+
+        # nn_fn: str = PROJECT_DIRECTORY_PATH +
 
         # config_dict: Dict = ReadConfig('.\DevTmpPr').load_config()
         self._config: InterpretConfig = InterpretConfig(ReadConfig(PROJECT_DIRECTORY_PATH).load_config())

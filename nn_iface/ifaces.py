@@ -114,54 +114,6 @@ class InterfaceSaveLoad(ABC):
         ...
 
 
-# class InterfaceACCombo(InterfaceSaveLoad):
-#     """ Интерфейс работы с актором и с критиком. """
-#
-#     @property
-#     @abstractmethod
-#     def actor(self) -> Module:
-#         """
-#
-#         :return: Нейросеть.
-#         """
-#         ...
-#
-#     @actor.setter
-#     @abstractmethod
-#     def actor(self, value: Module) -> None:
-#         """
-#
-#         :param value: Нейросеть.
-#         """
-#         ...
-#
-#     @property
-#     @abstractmethod
-#     def critic(self) -> Module:
-#         """
-#
-#         :return: Нейросеть.
-#         """
-#         ...
-#
-#     @critic.setter
-#     @abstractmethod
-#     def critic(self, value: Module) -> None:
-#         """
-#
-#         :param value: Нейросеть.
-#         """
-#         ...
-#
-#     @abstractmethod
-#     def save(self, storage: InterfaceStorage) -> None:
-#         ...
-#
-#     @abstractmethod
-#     def load(self, storage: InterfaceStorage) -> None:
-#         ...
-
-
 class ProcessStateInterface(InterfaceSaveLoad):
     """ Состояние процесса обучения. """
     @abstractmethod

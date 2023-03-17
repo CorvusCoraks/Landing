@@ -1,6 +1,8 @@
 """ Фабрика выдачи различных хранилищ. """
+# todo модуль-заготовка
 from nn_iface.ifaces import InterfaceStorage
-from nn_iface.store_nn import Storage
+from fl_store.store_nn import TorchFileStorage
+
 
 def storage_fabrica(fabrica_type: str, name: str) -> InterfaceStorage:
     if fabrica_type == "sql_db":
@@ -12,4 +14,4 @@ def storage_fabrica(fabrica_type: str, name: str) -> InterfaceStorage:
     else:
         # Стандартное хранилище pytorch в *.pth-файл.
         # fabrica_type == "pth"
-        return Storage(name)
+        return TorchFileStorage(name)

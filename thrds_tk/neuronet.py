@@ -6,18 +6,14 @@ from thrds_tk.threads import AYarn
 import random
 # import shelve
 import structures
-from tools import Finish
 from structures import StageControlCommands, RealWorldStageStatusN
-from torch import device, cuda, tensor, float, Tensor
-from net import Net
+from torch import device, tensor, float, Tensor
 from typing import Dict, Any, Optional, Callable
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
-from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProcessStateInterface, ProjectInterface
-from nn_iface.store_nn import ModuleStorage
-from nn_iface.store_st import StateStorage, State
+from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProjectInterface
 # from DevTmpPr.project import ProjectMainClass
 from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
 # project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME))

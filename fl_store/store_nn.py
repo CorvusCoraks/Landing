@@ -1,10 +1,11 @@
 """ Реализация хранилища нейросетей. """
 from torch.nn import Module, Conv2d
 import torch.nn.functional as F
-from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet
-from nn_iface.storage import Storage
+from nn_iface.ifaces import InterfaceNeuronNet
+from fl_store.storage import TorchFileStorage
 
 
+# todo здесь этому классу не место. Удалить.
 class TestModel(Module):
     """ Фиктивная нейросеть для технического временного использования в процессе разработки реализации. """
     def __init__(self):
@@ -17,7 +18,7 @@ class TestModel(Module):
         return F.relu(self.conv2(x))
 
 
-class ModuleStorage(Storage):
+class ModuleStorage(TorchFileStorage):
     """ Хранилище структуры нейросетей (и актора, и критика). """
     # def __init__(self, research_name: str):
     #     super().__init__(research_name)
@@ -27,6 +28,7 @@ class ModuleStorage(Storage):
         self._storage_filename = file_name
 
 
+# todo Класс не используется. Удалить?
 class NeuronNet(InterfaceNeuronNet):
     def create(self) -> None:
         pass
@@ -47,18 +49,3 @@ class NeuronNet(InterfaceNeuronNet):
     def backward(self) -> None:
         pass
 
-
-# class ActorAndCritic(InterfaceACCombo):
-#     @property
-#     def actor(self) -> Module:
-#         return TestModel()
-#
-#     @property
-#     def critic(self) -> Module:
-#         return TestModel()
-#
-#     def save(self, storage: InterfaceStorage) -> bool:
-#         pass
-#
-#     def load(self, storage: InterfaceStorage) -> bool:
-#         pass
