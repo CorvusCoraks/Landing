@@ -2,7 +2,7 @@
 from torch.nn import Module, Conv2d
 import torch.nn.functional as F
 from nn_iface.ifaces import InterfaceNeuronNet
-from fl_store.storage import TorchFileStorage
+from fl_store.pt_store import TorchFileStorage
 
 
 # todo здесь этому классу не место. Удалить.

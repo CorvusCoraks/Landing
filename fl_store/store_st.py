@@ -8,7 +8,7 @@ from threading import Thread
 from queue import Queue
 from time import sleep
 from basics import SLEEP_TIME
-from fl_store.storage import TorchFileStorage
+from fl_store.pt_store import TorchFileStorage
 
 
 class StateStorage(TorchFileStorage, Thread):
