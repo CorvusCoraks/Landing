@@ -4,10 +4,15 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from typing import TypeVar, Dict, AnyStr, List
 from enum import Enum
+from basics import ZeroOne
+from random import random
 
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
 
+# ZeroOne = float
+# Тип имеющий только два значения: 0 или 1. Потомок int
+Bit = int
 
 class Reinforcement:
     """
@@ -225,11 +230,12 @@ def math_int(value: float)->int:
 
 
 class ZeroOrOne(Enum):
+    # todo Оно надо:?
     ZERO: int = 0
     ONE: int = 1
 
 
-def zo(value: float) -> float:
+def zo(value: float) -> ZeroOne:
     """ Метод контроля величины числа. Входная величина должна быть в диапазоне от 0 до 1. """
     if 0 < value < 1:
         return value
@@ -317,7 +323,7 @@ def ones_and_zeros_variants_f(vector_length: int, start_position: int)->List[Lis
     return result
 
 
-def action_variants(list_length: int) -> List[List]:
+def action_variants(list_length: int) -> List[List[Bit]]:
     """ Множество всех вариантов действий актора. Метод: растущее бинарное дерево.
 
     :param list_length: длина вектора возможных действий актора
@@ -355,5 +361,11 @@ def action_variants(list_length: int) -> List[List]:
     return result
 
 
+def q_est_init() -> ZeroOne:
+    """ Инициализация начального значения фунции оценки ценности Q. """
+    return zo(random())
+
+
+
 if __name__ == '__main__':
-    print(action_variants(2))
+    print(len(action_variants(5)))

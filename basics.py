@@ -9,6 +9,9 @@ class FinishAppException(Exception):
 
 TestId = int
 
+# 0..1
+ZeroOne = float
+
 log_file_name: str = 'app.log'
 logger_name: str = 'main_log'
 

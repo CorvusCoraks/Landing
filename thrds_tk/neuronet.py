@@ -1,6 +1,6 @@
 import importlib
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, ZeroOne
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
@@ -8,26 +8,29 @@ import random
 import structures
 from structures import StageControlCommands, RealWorldStageStatusN
 from torch import device, tensor, float, Tensor
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable, List
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProjectInterface
 # from DevTmpPr.project import ProjectMainClass
+from tools import q_est_init
 from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
+
 # project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME))
 # project_class = eval('module.{}'.format(PROJECT_MAIN_CLASS))
 
 # eval('from {}.{} import {}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS))
 
-logger = getLogger(logger_name+'.neuronet')
+logger = getLogger(logger_name + '.neuronet')
 Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
 Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
+
     def __init__(self, name: str, data_socket: ISocket, max_tests: int,
                  batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar',
                  criticCheckPointFile='critic.pth.tar'):
@@ -56,8 +59,14 @@ class NeuronetThread(INeuronet, AYarn):
 
         self.__previous_state_time_stamp = 0
 
-        # logger.debug('{} || {}'.format(self.__actorCheckPointFile, self.__criticCheckPointFile))
+        # Q_estimate - предыдущая оценка ф-ции ценности действия
+        self.__q_est: Dict[TestId, ZeroOne] = {}
 
+        # Список, порядок которого соответствует порядку векторов во входном тензоре актора.
+        # (Так как порядок элементов в словарях непредсказуем)
+        # self.__s_order: List[TestId] = []
+
+        # logger.debug('{} || {}'.format(self.__actorCheckPointFile, self.__criticCheckPointFile))
 
         # очередное состояние окружающей среды
         # self.__environmentStatus: RealWorldStageStatusN = RealWorldStageStatusN()
@@ -84,7 +93,8 @@ class NeuronetThread(INeuronet, AYarn):
             raise FinishAppException
         # return False
 
-    def __get_remaining_tests(self, inbound: Inbound, sleep_time: float, finish_app_checking: Callable[[Inbound], None]) -> int:
+    def __get_remaining_tests(self, inbound: Inbound, sleep_time: float,
+                              finish_app_checking: Callable[[Inbound], None]) -> int:
         """ Получить оставшееся количество запланированных испытаний. """
         while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].has_incoming():
             # Пока в канале нет сообщений, крутимся в цикле ожидания.
@@ -121,6 +131,46 @@ class NeuronetThread(INeuronet, AYarn):
 
         return batch_dict
 
+    def _q_est_actual(self, s: Dict[TestId, RealWorldStageStatusN], q_est: Dict[TestId, ZeroOne]) \
+            -> Dict[TestId, ZeroOne]:
+        """ Метод актуализации словаря предыдущих оценок ф-ции ценности действий Q.
+
+        :param s: Словарь состояний
+        :param q_est: Словарь оценок функции ценности действий.
+        :return: Словарь оценок функции ценности, согласованный со словарём состояний (вх. данные актора)
+        """
+        """
+            Если в словаре оценок нет оценки для какого либо испытания, то считаем, что это испытание только начинается,
+            и, значит, просто генерируем начальную оценку функции ценности.
+            Если в словаре состояний нет испытания, для которого присутствует оценка в словаре оценок, то считаем это
+            испытание завершившимся, а оценку не нужно. Значит удаляем её из словаря оценок.
+        """
+
+        # Копируем исходный словарь оценок
+        q = q_est.copy()
+        # Проверка словаря оценок на наличие в нём оценок ценности действий испытаний из словаря состояний.
+        for key in s.keys():
+            # Обходим по ключу словарь состояний.
+            if key not in q.keys():
+                # Если в словаре оценок нет элемента с данным ключом, то инициализируем и добавляем его в словарь
+                q[key] = q_est_init()
+
+        # Проверка словаря состояний на наличие в нём испытаний, оценки действий которых хранятся в словаре оценок.
+        # Список оценок функции ценности подлежащих удалению.
+        should_be_deleted: List[TestId] = []
+        for key in q.keys():
+            # Обходим по ключу словарь оценок ценности
+            if key not in s.keys():
+                # Если в словаре состояний нет такого ключа, то заносим его в список на удаление.
+                should_be_deleted.append(key)
+
+        # Удаляем поочерёдно ключи из основного словаря оценок функции ценности.
+        for key in should_be_deleted:
+            q.pop(key)
+
+        # Возвращаем словарь очищенный от ненужных оценок.
+        return q
+
     def _yarn_run(self, *args, **kwargs) -> None:
         # Вечный цикл. Выход из него по команде на завершение приложения.
         while True:
@@ -134,13 +184,15 @@ class NeuronetThread(INeuronet, AYarn):
                 self.__project.state.batch_size = self.__project.state.batch_size \
                     if self.__project.state.batch_size <= remaining_tests else remaining_tests
 
-                value_function: Dict[TestId, float] = ...
+                # Q_estimate
+                # q_est: Dict[TestId, float] = ...
 
                 assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
-                    'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
+                    'Data wire for remaining tests info should be a ReportWire class. But now is {}'. \
                         format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
                 # Отправляем в модуль физической модели число испытаний, которое хочет получить данный модуль.
-                report_wire: ISender = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].get_report_sender()
+                report_wire: ISender = self.__inbound[AppModulesEnum.PHYSICS][
+                    DataTypeEnum.REMANING_TESTS].get_report_sender()
                 report_wire.send(Container(cargo=self.__project.state.batch_size))
 
                 # Сформировать словарь состояний изделия в различных испытаниях.
@@ -148,18 +200,28 @@ class NeuronetThread(INeuronet, AYarn):
                     self.__collect_batch(self.__inbound, SLEEP_TIME,
                                          self.__finish_app_checking, self.__project.state.batch_size)
 
-                # сформировать батч-тензор для ввода в актора из состояний N испытаний
+                # Фиксируем порядок испытаний.
+                s_order: List[TestId] = []
+                for key in batch_dict:
+                    s_order.append(key)
+
+                # Актуализировать словарь предыдущих оценок функции ценности действий.
+                self.__q_est = self._q_est_actual(batch_dict, self.__q_est)
+
+                # сформировать батч-тензор для ввода в актора состояний N испытаний
                 # стейк слабой прожарки (предыдущая прожарка производится в вызываемом методе)
-                medium_rare: Tensor = self.__project.actor_input_preparation(batch_dict)
+                medium_rare = self.__project.actor_input_preparation(batch_dict, s_order)
 
                 # получить тензор выхода (действий/команд) актора для каждого из N испытаний
                 # стейк средней прожарки
                 medium = self.__project.actor_forward(medium_rare)
 
-                # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний
+                # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний/состояний
                 # на входе в актора, V - количество вариантов действий актора (количество вариантов включений двигателей)
                 # Если батч-тензор на входе в актора состоит из 10 испытаний, количество вариантов
-                # включения двигателей - 20, то на вход в критика пойдёт тензор размером 10 х 20, т. е. 200 векторов
+                # включения двигателей - 32 (2^5), то на вход в критика пойдёт тензор размером 10 х 32, т. е. 320 векторов
+
+                # medium_cr = self.__project.critic_input_preparation(medium, batch_dict)
 
                 # Получить тензор значений функции ценности на выходе из критика размерностью NхV
 
@@ -191,10 +253,12 @@ class NeuronetThread(INeuronet, AYarn):
                     random.seed()
                     if random.choice([0, 1]):
                         # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(Container(key, StageControlCommands(0)))
+                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
+                            Container(key, StageControlCommands(0)))
                     else:
                         # Нейросеть актора даёт команду
-                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(Container(key, StageControlCommands(1)))
+                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
+                            Container(key, StageControlCommands(1)))
 
                 # Рассчитать ошибку на основании выбранных N максимальных значений функции ценности
                 # и N полученных подкреплений.
@@ -340,39 +404,38 @@ class NeuronetThread(INeuronet, AYarn):
         #     })
 
 
-def load_nn(nn: InterfaceNeuronNet, storage: InterfaceStorage):
-    pass
+# def load_nn(nn: InterfaceNeuronNet, storage: InterfaceStorage):
+#     pass
 
 
-def actorInputTensor(environment: RealWorldStageStatusN):
-    """
-    Формирует тензор входных параметров актора
-
-    :param environment:
-    :return:
-    """
-    return tensor([[0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0.]], dtype=float)
-
-def criticInputTensor(environment: RealWorldStageStatusN, actorAction: tensor):
-    """
-    Формирует тензор входныx параметров критика.
-
-    :param environment:
-    :param actorOutputVariants:
-    :return: [[Состояние ОС, Вариант действия 1],[Состояние ОС, Вариант действия 2],[Состояние ОС, Вариант действия 3]]
-    """
-
-    return tensor([[0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 1., 0., 1., 0., 1., 0.,],
-                   [0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 1., 0., 1., 0., 1., 0.,]],
-                  dtype=float)
-
-def actorGradsFromCritic():
-    """
-    Метод выделяет градиенты актора с входных параметров критика (после обратного прохода по критику)
-
-    :return:
-    """
-    return tensor([[0., 1., 0., 1., 0.]], dtype=float)
+# def actorInputTensor(environment: RealWorldStageStatusN):
+#     """
+#     Формирует тензор входных параметров актора
+#
+#     :param environment:
+#     :return:
+#     """
+#     return tensor([[0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0.]], dtype=float)
 
 
+# def criticInputTensor(environment: RealWorldStageStatusN, actorAction: tensor):
+#     """
+#     Формирует тензор входныx параметров критика.
+#
+#     :param environment:
+#     :param actorOutputVariants:
+#     :return: [[Состояние ОС, Вариант действия 1],[Состояние ОС, Вариант действия 2],[Состояние ОС, Вариант действия 3]]
+#     """
+#
+#     return tensor([[0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 1., 0., 1., 0., 1., 0., ],
+#                    [0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 0., 1., 1., 0., 1., 0., 1., 0., ]],
+#                   dtype=float)
 
+
+# def actorGradsFromCritic():
+#     """
+#     Метод выделяет градиенты актора с входных параметров критика (после обратного прохода по критику)
+#
+#     :return:
+#     """
+#     return tensor([[0., 1., 0., 1., 0.]], dtype=float)

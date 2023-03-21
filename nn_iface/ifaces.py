@@ -3,7 +3,7 @@ from torch.nn import Module
 from torch import Tensor
 from torch import device as torch_device
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple, List
 from enum import Enum
 from tools import Reinforcement, Finish
 from basics import TestId
@@ -244,18 +244,21 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def actor_input_preparation(self, batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+    def actor_input_preparation(self, batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
+            -> Tensor:
         """ Подготовка входных данных для актора.
 
         :param batch: Запланированный для прохода через актора батч.
-        :return: Входной батч актора в виде тензора.
+        :return: Входной батч актора в виде тензора и список с идентификаторами испытаний.
         """
         ...
 
     @abstractmethod
-    def critic_input_preparation(self, actor_output: Tensor, environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+    def critic_input_preparation(self, actor_input: Tensor, actor_output: Tensor,
+                                 environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
         """ Подготовка входных данных для критика.
 
+        :param actor_input: Вход в актора.
         :param actor_output: Выход из актора.
         :param environment_batch: Проведённый через актора батч исходных данных.
         :return: Входной батч критика в виде тензора.

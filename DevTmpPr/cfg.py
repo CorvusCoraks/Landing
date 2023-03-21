@@ -28,3 +28,6 @@ ANGULAR_ACCELERATION_MINMAX: MinMax = MinMax(-pi / 180, pi / 180)
 
 NN_STORAGE_FILENAME: str = '/nn.pt'
 STATE_STORAGE_FILENAME: str = '/state.pt'
+
+# Количество реактивных двигателей изделия.
+JETS_COUNT = 5
