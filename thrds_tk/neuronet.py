@@ -28,7 +28,9 @@ Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
-    def __init__(self, name: str, data_socket: ISocket, max_tests: int, batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar', criticCheckPointFile='critic.pth.tar'):
+    def __init__(self, name: str, data_socket: ISocket, max_tests: int,
+                 batch_size: int, savePath='.\\', actorCheckPointFile='actor.pth.tar',
+                 criticCheckPointFile='critic.pth.tar'):
         AYarn.__init__(self, name)
 
         logger.info('Конструктор класса нити нейросети. {}.__init__'.format(self.__class__.__name__))
@@ -126,10 +128,13 @@ class NeuronetThread(INeuronet, AYarn):
                 # Оставшееся количество запланированных испытаний.
                 remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME,
                                                                   self.__finish_app_checking)
-                # Если размер планируемого батча больше полного планируемого количества испытаний, то будем формировать
+                # Если размер планируемого батча на входе актора больше полного планируемого количества испытаний,
+                # то будем формировать
                 # батч размером в полное планируемое количество испытаний.
                 self.__project.state.batch_size = self.__project.state.batch_size \
                     if self.__project.state.batch_size <= remaining_tests else remaining_tests
+
+                value_function: Dict[TestId, float] = ...
 
                 assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
                     'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
@@ -160,8 +165,20 @@ class NeuronetThread(INeuronet, AYarn):
 
                 # Для каждого из N испытаний выбрать максимальное значение функции ценности из соответствующих V вариантов.
 
-                # Варианты действий актора, которые соответствуют выбранным максимальным N значениям функции ценности,
-                # принять к исполнению и получить подкрепление на выбранные действия.
+                # Выбрать варианты действий актора,
+                # которые соответствуют выбранным максимальным N значениям функции ценности.
+
+                # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
+
+                # На основании подкреплений, рассчитать целевые фунции ценности для каждого из N испытаний.
+
+                # На основании функций ценности из критика и рассчитанных целевых, посчитать N ошибок.
+
+                # Усреднить N ошибок в одну, среднюю avrErr.
+
+                # Произвести обратный проход по критику и актору на основании avrErr.
+
+                # Оптимизировать критика и актора.
 
                 # # Отправка команды, согласно максимального значения функции ценности
                 # # Пока случайным образом в тестовых целях, чтобы работало.
@@ -326,6 +343,7 @@ class NeuronetThread(INeuronet, AYarn):
 def load_nn(nn: InterfaceNeuronNet, storage: InterfaceStorage):
     pass
 
+
 def actorInputTensor(environment: RealWorldStageStatusN):
     """
     Формирует тензор входных параметров актора
@@ -356,14 +374,5 @@ def actorGradsFromCritic():
     """
     return tensor([[0., 1., 0., 1., 0.]], dtype=float)
 
-def default() -> Dict[str, Any]:
-    """ Значения по умолчанию. """
-    # todo убрать за ненадобностью
-    default_dict: Optional[Dict[str, Any]] = {}
-    default_dict['start_epoch'] = 0
-    default_dict['current_epoch'] = 0
-    default_dict['stop_epoch'] = 2
-    default_dict['previous_q_max'] = 0
-    return default_dict
 
 

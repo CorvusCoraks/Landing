@@ -37,11 +37,5 @@ ACTOR_CHAPTER = 'actor'
 # Имя раздела (в хранилище) содержащее нейросеть критика
 CRITIC_CHAPTER = 'critic'
 
-# Файлы рабочего проекта
-# PROJECT_DIRECTORY_PATH = './DevTmpPr'
-# PROJECT_DIRECTORY_NAME = PROJECT_DIRECTORY_PATH[2:]
-# PROJECT_PY_FILE = '/project.py'
-# PROJECT_PY_NAME = PROJECT_PY_FILE[1:8]
-# PROJECT_CONFIG_FILE = '/project.toml'
-# PROJECT_MAIN_CLASS = 'ProjectMainClass'
-# PROJECT_CONFIG_KEYS = '/config.py'
+CUDA0 = 'cuda:0'
+CPU = 'cpu'

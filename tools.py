@@ -228,7 +228,17 @@ class ZeroOrOne(Enum):
     ZERO: int = 0
     ONE: int = 1
 
+
+def zo(value: float) -> float:
+    """ Метод контроля величины числа. Входная величина должна быть в диапазоне от 0 до 1. """
+    if 0 < value < 1:
+        return value
+    else:
+        raise ValueError("Argument object should be float in 0..1 diapason, but now: {}".format(value))
+
+
 def ones_and_zeros_variants_f(vector_length: int, start_position: int)->List[List[ZeroOrOne]]:
+    # todo метод коряв и нечитабелен. Удалить.
     """ Функция возвращает ВСЕ варианты размещения (все комбинации) из множества [0; 1] в векторе длиной *vectorLength*
 
 
@@ -307,3 +317,43 @@ def ones_and_zeros_variants_f(vector_length: int, start_position: int)->List[Lis
     return result
 
 
+def action_variants(list_length: int) -> List[List]:
+    """ Множество всех вариантов действий актора. Метод: растущее бинарное дерево.
+
+    :param list_length: длина вектора возможных действий актора
+    :retutn: список вида [[0, 1, 1], [0, 0, 1]]
+    """
+    def fork(vector: list):
+        """ Разветвление узла на две ветки. """
+        vector_copy: List = vector.copy()
+        vector.append(0)
+        vector_copy.append(1)
+        return vector, vector_copy
+
+    # if list_length == 0:
+    #     return [[]]
+    # elif list_length == 1:
+    #     return [[0], [1]]
+    #
+    # print(fork([0]))
+
+    # корень дерева
+    start = [[]]
+    # конечные листья дерева на одном проходе по его наращиванию
+    temp = []
+    result = []
+
+    for i in range(list_length):
+        for value in start:
+            # Покрытие листьями дерева.
+            temp.extend(fork(value))
+        # переход к следующему уровню дерева.
+        start = temp
+        result = temp
+        temp = []
+
+    return result
+
+
+if __name__ == '__main__':
+    print(action_variants(2))

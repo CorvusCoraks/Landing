@@ -57,20 +57,20 @@ class TestModel(Module):
 #         return ModelTemplate._create_sequence(layer_list, 1)
 
 
-class ReadConfigInterface(ABC):
-    """ Интерфейс чтения конфигурации проекта из хранилища (файл, БД, удалённый сервер). """
-    @abstractmethod
-    def load_config(self) -> Dict:
-        """ Загрузить настройки проекта в словарь. """
-        ...
-
-
-class ConfigInterpreterInterface(ABC):
-    """ Интерфейс-интерпретатор. Интерпретирует загруженные настройки проекта. """
-    @abstractmethod
-    def interpret(self, config: Dict) -> Tuple[Dict, Any]:
-        """ Преобразовать загруженные настройки из словаря в список. """
-        ...
+# class ReadConfigInterface(ABC):
+#     """ Интерфейс чтения конфигурации проекта из хранилища (файл, БД, удалённый сервер). """
+#     @abstractmethod
+#     def load_config(self) -> Dict:
+#         """ Загрузить настройки проекта в словарь. """
+#         ...
+#
+#
+# class ConfigInterpreterInterface(ABC):
+#     """ Интерфейс-интерпретатор. Интерпретирует загруженные настройки проекта. """
+#     @abstractmethod
+#     def interpret(self, config: Dict) -> Tuple[Dict, Any]:
+#         """ Преобразовать загруженные настройки из словаря в список. """
+#         ...
 
 
 class AbstractProject(ProjectInterface):

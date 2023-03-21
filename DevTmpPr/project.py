@@ -7,15 +7,12 @@ from fl_store.store_st import StateStorage
 from typing import Dict, Optional, List, Tuple, Union
 from net import NetSeq
 from tools import Reinforcement, Finish
-from basics import TestId, TENSOR_DTYPE, EVAL, GRAVITY_ACCELERATION_ABS
+from basics import TestId, TENSOR_DTYPE, EVAL, GRAVITY_ACCELERATION_ABS, CUDA0, CPU
 from structures import RealWorldStageStatusN
 from math import atan2, pi
 from nn_iface.norm import ListMinMaxNormalization, MinMax, MinMaxXY
 from point import VectorComplex
-import tomli
-from nn_iface.projects import AbstractProject, ReadConfigInterface
-# from cfgconst import *
-# from DevTmpPr.cfg_str import *
+from nn_iface.projects import AbstractProject
 from app_cfg import PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH
 from DevTmpPr.cfg import ACTOR_INPUT, ACTOR_HIDDEN, ACTOR_OUTPUT, ACTOR_OPTIONS
 from DevTmpPr.cfg import CRITIC_INPUT, CRITIC_HIDDEN, CRITIC_OUTPUT, CRITIC_OPTIONS
@@ -45,7 +42,7 @@ class ProjectMainClass(AbstractProject):
         self._training_state = State()
 
         # В хранилище состояния процесса сохраняться не будет.
-        self._device = "cuda:0" if cuda.is_available() else "cpu"
+        self._device = CUDA0 if cuda.is_available() else CPU
 
         self._reinforcement = Reinforcement()
 
