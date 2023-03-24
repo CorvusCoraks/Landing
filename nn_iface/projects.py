@@ -134,7 +134,8 @@ class AbstractProject(ProjectInterface):
         return self._finish
 
     def critic_input_preparation(self, actor_input: Tensor, actor_output: Tensor,
-                                 environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+                                 environment_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
+            -> Tensor:
         pass
 
     def actor_loss(self) -> Tensor:

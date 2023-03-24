@@ -255,12 +255,14 @@ class ProjectInterface(ABC):
 
     @abstractmethod
     def critic_input_preparation(self, actor_input: Tensor, actor_output: Tensor,
-                                 environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+                                 environment_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
+            -> Tensor:
         """ Подготовка входных данных для критика.
 
         :param actor_input: Вход в актора.
         :param actor_output: Выход из актора.
         :param environment_batch: Проведённый через актора батч исходных данных.
+        :param s_order: список, содержащий порядок испытаний во входрном тензоре актора.
         :return: Входной батч критика в виде тензора.
         """
         ...

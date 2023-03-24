@@ -1,5 +1,5 @@
 """ Модуль конкретного проекта. """
-from torch import Tensor, cuda, tensor
+from torch import Tensor, cuda, tensor, zeros, repeat_interleave, tile, scatter
 from torch.nn import Module, Sequential
 from fl_store.store_nn import ModuleStorage
 from state import State
@@ -7,7 +7,7 @@ from fl_store.store_st import StateStorage
 from typing import Dict, Optional, List, Tuple, Union
 from net import NetSeq
 from tools import Reinforcement, Finish, action_variants, Bit, zo
-from basics import TestId, TENSOR_DTYPE, EVAL, GRAVITY_ACCELERATION_ABS, CUDA0, CPU, ZeroOne
+from basics import TestId, TENSOR_DTYPE, TENSOR_INDEX_DTYPE, EVAL, GRAVITY_ACCELERATION_ABS, CUDA0, CPU, ZeroOne
 from structures import RealWorldStageStatusN
 from math import atan2, pi
 from nn_iface.norm import ListMinMaxNormalization, MinMax, MinMaxXY
@@ -143,46 +143,51 @@ class ProjectMainClass(AbstractProject):
 
         return input_tensor
 
-        # for index, (key, value) in enumerate(raw_batch.items()):
-        #     # Из словаря данных для батча извлекаем параметры состояний для каждого испытания.
-        #
-        #     # Ориентация изделия (угол отклонения в радианах от оси OY в СКЦМ)
-        #     orientation_rad: float = 0 if value.orientation.x == 0 else atan2(-value.orientation.x, value.orientation.y)
-        #
-        #     # Проверка знака угла для правой и левой координатной полуплоскости
-        #     # В правой полуплоскости знак угла отрицательный, в левой - положительный (отсчёт от оси OY СКЦМ)
-        #     assert (value.orientation.x > 0 and orientation_rad < 0) \
-        #            or (value.orientation.x < 0 and orientation_rad > 0) \
-        #            or (value.orientation.x == 0 and orientation_rad == 0), \
-        #         "Signs mismatch for angle and vector orientation"
-        #
-        #     rare_list[index] = self.__normaliaztion.normalization([value.position, value.velocity, value.acceleration,
-        #                                                      orientation_rad,
-        #                                                      value.angular_velocity, value.angular_acceleration])
-        #
-        #     test_id_list[index] = key
-        #
-        #     rare_float_list: List[float] = []
-        #     for i, state_element in enumerate(rare_list[index]):
-        #         if isinstance(state_element, VectorComplex):
-        #             rare_float_list.extend([state_element.x, state_element.y])
-        #         elif isinstance(state_element, float):
-        #             rare_float_list.append(state_element)
-        #         else:
-        #             raise TypeError('Wrong type object {} in list'.format(type(state_element)))
-        #         # rare_float_list
-        #
-        # # Входной тензор.
-        # input: Tensor = tensor([rare_float_list], dtype=TENSOR_DTYPE, requires_grad=True)
-        #
-        # return input
-
     def critic_input_preparation(self, actor_input: Tensor, actor_output: Tensor,
-                                 environment_batch: Dict[TestId, RealWorldStageStatusN]) -> Tensor:
+                                 environment_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
+            -> Tensor:
+
+        # Список возможных действий актора.
         action_var: List[List[Bit]] = action_variants(JETS_COUNT)
-        result: List[List[ZeroOne]] = []
-        for test in environment_batch:
-            pass
+
+        # Подготовка целевого тезнора.
+        # Клонируем вход актора,
+        critic_in = actor_input.clone()
+        # затем расширяем первое измерение клона на размер первого измерения списка возможных действий актора
+        # Список повторений каждого элемента по горизонтали.
+        # Все элементы повторяются 1 раз, ...
+        rep = [1 for a in critic_in[0]]
+        # ... кроме последнего элемента, который повторяясь задаёт место под будущие варианты действий актора.
+        rep[len(rep)-1] = len(action_var[0]) + 1
+        rep = tensor(rep)
+        # Повтороение элементов линейного тензора, согласно ранее созданного тензора повторений.
+        # Задаётся место под будущее размещение действий актора (пока тензор-вектор)
+        critic_in = repeat_interleave(critic_in, rep, dim=1)
+        # Увеличиваем нулевое измерение, дублируя каждую строку столько раз, сколько вариантов действий есть у актора
+        # (разворачиваем тензор-вектор в тензор-матрицу).
+        critic_in = repeat_interleave(critic_in, len(action_var), dim=0)
+
+        # Подготовка тензора индексов.
+        # Стартовая позиция (по dim=1) действий актора во входном тензоре критика.
+        st = actor_input.size(dim=1)
+        # Индексный вектор
+        action_index: List = [[st + i for i in range(len(action_var[0]))]]
+        index_tensor: Tensor = tensor(action_index, dtype=TENSOR_INDEX_DTYPE)
+        # Превращение индексного вектора в индексную матрицу, путём копирования нулевой строки тензора.
+        index_tensor = index_tensor.repeat(critic_in.size(dim=0), 1)
+
+        # Подготовка тензора действий актора.
+        # Создание заготовки тензора-вектора вариантов действий актора
+        action_tensor: Tensor = tensor(action_var, dtype=TENSOR_DTYPE)
+        # Создание большого тензора вариантов действий путём размножения заготовки
+        # (разворачивание тензора-вектора в тензор-матрицу путём копирования одной строки)
+        action_tensor = tile(action_tensor, (actor_input.size(dim=0), 1))
+
+        # Слияние целевого тензора и тензора действий.
+        result: Tensor = critic_in.scatter_(1, index_tensor, action_tensor)
+
+        return result
+
 
 
 

@@ -1,6 +1,6 @@
 """ Общие константы приложения. """
 
-from torch import float32, dtype
+from torch import float32, uint8, dtype, int64
 
 
 class FinishAppException(Exception):
@@ -24,6 +24,7 @@ SLEEP_TIME: float = 0.001
 COROUTINE_SLEEP_TIME: float = 0.001
 
 TENSOR_DTYPE: dtype = float32
+TENSOR_INDEX_DTYPE: dtype = int64
 
 GRAVITY_ACCELERATION_ABS = 9.8067
 
