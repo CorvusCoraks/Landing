@@ -226,17 +226,20 @@ class NeuronetThread(INeuronet, AYarn):
                 # Если батч-тензор на входе в актора состоит из 10 испытаний, количество вариантов
                 # включения двигателей - 32 (2^5), то на вход в критика пойдёт тензор размером 10 х 32, т. е. 320 векторов
 
-                # medium_cr = self.__project.critic_input_preparation(medium, batch_dict)
+                medium_in_critic = self.__project.critic_input_preparation(medium_rare, medium, batch_dict, s_order)
 
-                debug = self.__project.critic_input_preparation(
-                    tensor([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
-                    tensor([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]),
-                    {0: RealWorldStageStatusN(), 1: RealWorldStageStatusN()},
-                    [1, 0])
+                # debug = self.__project.critic_input_preparation(
+                #     tensor([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
+                #     tensor([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]),
+                #     {0: RealWorldStageStatusN(), 1: RealWorldStageStatusN()},
+                #     [1, 0])
 
                 # Получить тензор значений функции ценности на выходе из критика размерностью NхV
+                q_est_next = self.__project.critic_forward(medium_in_critic)
 
                 # Для каждого из N испытаний выбрать максимальное значение функции ценности из соответствующих V вариантов.
+                max_q_est_next: List[List[ZeroOne | int]] = self.__project.max_in_q_est(q_est_next)
+
 
                 # Выбрать варианты действий актора,
                 # которые соответствуют выбранным максимальным N значениям функции ценности.

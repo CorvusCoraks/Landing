@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, List
 from enum import Enum
 from tools import Reinforcement, Finish
-from basics import TestId
+from basics import TestId, ZeroOne
 from structures import RealWorldStageStatusN
 
 
@@ -295,6 +295,22 @@ class ProjectInterface(ABC):
     @abstractmethod
     def critic_forward(self, critic_input: Tensor) -> Tensor:
         """ Прямой проход критика. """
+        ...
+
+    # @abstractmethod
+    # def action_variants(self) -> int:
+    #     """ Количество вариантов действий актора. """
+    #     ...
+
+    @abstractmethod
+    def max_in_q_est(self, q_est_next: Tensor) -> List[List[ZeroOne | int]]:
+        """
+
+        :param q_est_next: Тензор оценок функции ценности по всем испытаниям (выход критика)
+        :return: Список максимальных оценок функции ценности (по каждому испытанию в батче).
+        [Значение Q_est, индекс в батче выхода критика по конкретному испытанию.]
+        """
+
         ...
 
 

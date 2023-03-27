@@ -1,5 +1,5 @@
 """ Конкретный проект (комбинация нейросетей). """
-from torch import Tensor
+from torch import Tensor, Size
 from torch.nn import Module, Conv2d, Sequential
 import torch.nn.functional as F
 from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
@@ -150,11 +150,21 @@ class AbstractProject(ProjectInterface):
     def critic_optimaizer(self) -> None:
         pass
 
-    def actor_forward(self, actor_input: Tensor) -> Tensor:
-        ### Проверка на совпадение количества входных параметров, размерности feaches нейронной сети.
+    def _features_examine(self, net_name: str, net_input: Tensor, net: Module) -> None:
+        """ Проверка на совпадение количества входных параметров и размерности features нейронной сети.
+
+        :param net_name: Имя (идентификатор проверяемой нейросети)
+        :param net_input: Проверяемый входной тензор.
+        :param net: Объект проверяемой нейросети.
+        """
+        # У входного тензора должно быть два измерения.
+        if len(net_input.size()) != 2:
+            raise ValueError("Input tensor dimensions count is wrong. Current count is {}, but should be 2."
+                             .format(len(net_input.size())))
+        ### Проверка на совпадение количества входных параметров, размерности features нейронной сети.
         #
         # Итератор по слоям актора.
-        childrens_iter = self._actor.children()
+        childrens_iter = net.children()
         # Первый слой - слой входных нейронов.
         first_children = childrens_iter.__next__()
         # Второй слой - линейный слой. По нему считаем количество и входных нейронов.
@@ -166,15 +176,43 @@ class AbstractProject(ProjectInterface):
         # Число входных параметров должно соответствовать числу входных нейронов.
         # shape по тензору: [число подтензоров (элементов батча), количество feaches в элементе батча]
         # shape по параметрам: [число нейронов скрытого слоя, число входных нейронов]
-        assert second_children_parameters.shape[1] == actor_input.shape[1], \
-            "Width of raw_batch element ({}) mismatch of neuron net input feaches count ({})." \
+        assert second_children_parameters.shape[1] == net_input.shape[1], \
+            "Width of raw_batch element ({}) mismatch of neuron net input features count ({})." \
             "May be you change neuron net input width in project, but load old neuron net from storage?".\
-                format(second_children_parameters[1], actor_input.shape[1])
-        #
-        ### Конец проверки.
+                format(second_children_parameters[1], net_input.shape[1])
 
+        if second_children_parameters.shape[1] != net_input.shape[1]:
+            raise ValueError("Width of raw_batch element ({}) mismatch of neuron net ({}) input features count ({}). "
+                             "May be you change neuron net input width in project, "
+                             "but load old neuron net from storage?".
+                             format(second_children_parameters[1], net_name, net.net_input.shape[1]))
+
+    def actor_forward(self, actor_input: Tensor) -> Tensor:
+        # ### Проверка на совпадение количества входных параметров, размерности features нейронной сети.
+        # #
+        # # Итератор по слоям актора.
+        # childrens_iter = self._actor.children()
+        # # Первый слой - слой входных нейронов.
+        # first_children = childrens_iter.__next__()
+        # # Второй слой - линейный слой. По нему считаем количество и входных нейронов.
+        # second_children = childrens_iter.__next__()
+        # # Итератор по параметрам второго, линейного слоя.
+        # second_children_parameters_iter = second_children.parameters(recurse=True)
+        # # Параметры второго, линейного слоя.
+        # second_children_parameters = second_children_parameters_iter.__next__()
+        # # Число входных параметров должно соответствовать числу входных нейронов.
+        # # shape по тензору: [число подтензоров (элементов батча), количество feaches в элементе батча]
+        # # shape по параметрам: [число нейронов скрытого слоя, число входных нейронов]
+        # assert second_children_parameters.shape[1] == actor_input.shape[1], \
+        #     "Width of raw_batch element ({}) mismatch of neuron net input feaches count ({})." \
+        #     "May be you change neuron net input width in project, but load old neuron net from storage?".\
+        #         format(second_children_parameters[1], actor_input.shape[1])
+        # #
+        # ### Конец проверки.
+        self._features_examine('actor', actor_input, self._actor)
         return self._actor.forward(actor_input)
         # return actor_input
 
     def critic_forward(self, critic_input: Tensor) -> Tensor:
-        pass
+        self._features_examine('critic', critic_input, self._critic)
+        return self._critic.forward(critic_input)

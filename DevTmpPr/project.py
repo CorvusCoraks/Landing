@@ -1,5 +1,5 @@
 """ Модуль конкретного проекта. """
-from torch import Tensor, cuda, tensor, zeros, repeat_interleave, tile, scatter
+from torch import Tensor, cuda, tensor, zeros, repeat_interleave, tile, scatter, split, max, int64
 from torch.nn import Module, Sequential
 from fl_store.store_nn import ModuleStorage
 from state import State
@@ -53,6 +53,9 @@ class ProjectMainClass(AbstractProject):
             POSITION_MINMAX, LINE_VELOCITY_MINMAX, LINE_ACCELERATION_MINMAX,
             ORIENTATION_MINMAX, ANGULAR_VELOCITY_MINMAX, ANGULAR_ACCELERATION_MINMAX
         ])
+
+        # Список возможных действий актора.
+        self.__action_var: List[List[Bit]] = action_variants(JETS_COUNT)
 
     def load_nn(self) -> None:
         try:
@@ -188,6 +191,27 @@ class ProjectMainClass(AbstractProject):
 
         return result
 
+    # def action_variants(self) -> int:
+    #     return len(self.__action_var)
 
+    def max_in_q_est(self, q_est_next: Tensor) -> List[List[ZeroOne | int]]:
+        # Клонирование тензора (используемый метод поиска максимального значения
+        # не поддерживает автоматическое дифференцирование и отказывается работать
+        # если градиент у одного из тензоров активирован)
+        tensors: Tensor = q_est_next.clone().detach()
+        # Преобразование общего тензора оценок ф-ции ценности (выход критика) в список тензоров.
+        # Каждый тензор соответствует набору оценок функции ценности по одному испытанию из батча.
+        tensors: List[Tensor] = split(tensors, len(self.__action_var), dim=0)
 
+        # Результирующий список максимальных оценок фунции ценности.
+        max_q_est: List[List[ZeroOne | int]] = []
+        # Выходной кортеж для функции поиска максимума в тензоре.
+        max_from: Tuple[Tensor, Tensor] = (zeros(0), zeros(0, dtype=int64))
+        # Обход списка тензоров
+        for one_tensor in tensors:
+            # Нахождение максимума в тензоре.
+            max(one_tensor, dim=0, out=max_from)
+            # Пополнение списка результатов.
+            max_q_est.append([max_from[0].item(), max_from[1].item()])
 
+        return max_q_est
