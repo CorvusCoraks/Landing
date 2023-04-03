@@ -221,7 +221,6 @@ class Moving:
 
         :param control_commands: управляющие команды на двигатели изделия
         :param previous_status: предыдущее состояние изделия
-        :param new_state: новое состояние изделия
         """
         if control_commands.all_off():
             # Если все двигатели выключены, все силы от двигателей сделать нулевыми

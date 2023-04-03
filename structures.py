@@ -145,6 +145,7 @@ class ReinforcementValue(CloneInterface, ValueCopyInterface):
     Класс величины подкрепления для передачи через очередь между нитями
     """
     def __init__(self, time_stamp: int, reinforcement: float):
+        # todo атрибут time_stamp не нужен?
         self.time_stamp = time_stamp
         self.reinforcement = reinforcement
 

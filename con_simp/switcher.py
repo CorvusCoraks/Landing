@@ -1,7 +1,7 @@
 """ Общий объект агрегирующий каналы передачи данных. """
 from con_intr.ifaces import ISwitchboard, IReceiver, ISender, ISocket, A, D, IWire
 from con_simp.wire import Wire
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Type
 
 
 class Switchboard(ISwitchboard):
@@ -88,3 +88,4 @@ class Socket(ISocket):
             # то записываем новый элемент в "словарь-в-словаре" по этому ключу.
             outgoing[key][isender.get_sending_type()] = isender
         return outgoing
+

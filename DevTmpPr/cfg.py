@@ -31,3 +31,8 @@ STATE_STORAGE_FILENAME: str = '/state.pt'
 
 # Количество реактивных двигателей изделия.
 JETS_COUNT = 5
+
+# Постоянный шаг.
+ALPHA = 0.001
+# Коэф. приведения 0<=gamma<=1
+GAMMA = 0.001

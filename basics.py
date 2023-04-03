@@ -11,6 +11,8 @@ TestId = int
 
 # 0..1
 ZeroOne = float
+# Тип имеющий только два значения: 0 или 1. Потомок int
+Bit = int
 
 log_file_name: str = 'app.log'
 logger_name: str = 'main_log'
@@ -43,3 +45,18 @@ CRITIC_CHAPTER = 'critic'
 
 CUDA0 = 'cuda:0'
 CPU = 'cpu'
+
+QUEUE_OBJECT_TYPE_ERROR = "From queue object class ({}) doesn't match expected class {}."
+
+Q_EST_NEXT = 'q_est_next'
+INDEX_IN_TEST = 'index'
+# Possible two values see above.
+Dict_key = str
+
+# Types for typing hints
+# Оценка функции ценности
+Q_est_value = ZeroOne
+# Индекс максимальной оценки функции ценности в списке ВСЕХ оценок для данного испытания.
+Index_value = int
+
+

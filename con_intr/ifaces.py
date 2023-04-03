@@ -1,7 +1,7 @@
 """ ISwitchboard - интерфейс объекта очередей сообщений приложения. """
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Tuple, Optional, overload, Dict, TypeVar
+from typing import Any, Tuple, Optional, overload, Dict, TypeVar, Type
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
@@ -170,7 +170,7 @@ class IReceiver(ABC):
     def get_receiving_type(self) -> D:
         """ Какой тип данных?
 
-        :return: Тип данных, заключённых в контейнер.
+        :return: Тип данных (класс ``DataTypeEnum``), передаваемый по данному каналу
         """
         pass
 

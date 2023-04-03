@@ -1,12 +1,13 @@
 import importlib
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, ZeroOne
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, ZeroOne, QUEUE_OBJECT_TYPE_ERROR
+from basics import Dict_key, Q_est_value, Index_value
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import random
 # import shelve
 import structures
-from structures import StageControlCommands, RealWorldStageStatusN
+from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue
 from torch import device, tensor, float, Tensor
 from typing import Dict, Any, Optional, Callable, List
 from time import sleep
@@ -40,6 +41,7 @@ class NeuronetThread(INeuronet, AYarn):
 
         self.__inbound: Inbound = data_socket.get_in_dict()
         self.__outbound: Outbound = data_socket.get_out_dict()
+        # self.__type_match: Callable[]
 
         self.__max_tests = max_tests
 
@@ -173,6 +175,33 @@ class NeuronetThread(INeuronet, AYarn):
         # Возвращаем словарь очищенный от ненужных оценок.
         return q
 
+    def __get_reinforcement(self, inbound: Inbound, waiting_count: int, sleep_time: float,
+                              finish_app_checking: Callable[[Inbound], None]) -> Dict[TestId, ZeroOne]:
+        """ Получить подкрепления.
+
+        :param waiting_count: количество ожидаемых подкреплений.
+        """
+        result: Dict[TestId, ZeroOne] = {}
+        for i in range(waiting_count):
+            while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REINFORCEMENT].has_incoming():
+                # Пока в канале нет сообщений, крутимся в цикле ожидания.
+                sleep(sleep_time)
+                finish_app_checking(inbound)
+
+            # Дождались сообщения
+            container = inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REINFORCEMENT].receive()
+            # buffer_value = container.unpack()
+            # if not isinstance(buffer_value, ReinforcementValue)
+            reinforcement: ReinforcementValue = container.unpack()
+            # test_id: TestId = container.get()
+            _, reinf = reinforcement.get_reinforcement()
+            result[container.get()] = reinf
+
+        return result
+
+    # def q_est_by_test(self, q_est: List[List[ZeroOne, int]], s_order: List[TestId]):
+
+
     def _yarn_run(self, *args, **kwargs) -> None:
         # Вечный цикл. Выход из него по команде на завершение приложения.
         while True:
@@ -215,18 +244,18 @@ class NeuronetThread(INeuronet, AYarn):
 
                 # сформировать батч-тензор для ввода в актора состояний N испытаний
                 # стейк слабой прожарки (предыдущая прожарка производится в вызываемом методе)
-                medium_rare = self.__project.actor_input_preparation(batch_dict, s_order)
+                medium_rare: Tensor = self.__project.actor_input_preparation(batch_dict, s_order)
 
                 # получить тензор выхода (действий/команд) актора для каждого из N испытаний
                 # стейк средней прожарки
-                medium = self.__project.actor_forward(medium_rare)
+                medium: Tensor = self.__project.actor_forward(medium_rare)
 
                 # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний/состояний
                 # на входе в актора, V - количество вариантов действий актора (количество вариантов включений двигателей)
                 # Если батч-тензор на входе в актора состоит из 10 испытаний, количество вариантов
                 # включения двигателей - 32 (2^5), то на вход в критика пойдёт тензор размером 10 х 32, т. е. 320 векторов
 
-                medium_in_critic = self.__project.critic_input_preparation(medium_rare, medium, batch_dict, s_order)
+                medium_in_critic: Tensor = self.__project.critic_input_preparation(medium_rare, medium, batch_dict, s_order)
 
                 # debug = self.__project.critic_input_preparation(
                 #     tensor([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
@@ -235,18 +264,33 @@ class NeuronetThread(INeuronet, AYarn):
                 #     [1, 0])
 
                 # Получить тензор значений функции ценности на выходе из критика размерностью NхV
-                q_est_next = self.__project.critic_forward(medium_in_critic)
+                q_est_next: Tensor = self.__project.critic_forward(medium_in_critic)
 
                 # Для каждого из N испытаний выбрать максимальное значение функции ценности из соответствующих V вариантов.
-                max_q_est_next: List[List[ZeroOne | int]] = self.__project.max_in_q_est(q_est_next)
-
+                # max_q_est_next: List[List[ZeroOne | int]] = self.__project.max_in_q_est(q_est_next, s_order)
+                max_q_est_next: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]] = self.__project.max_in_q_est(q_est_next, s_order)
 
                 # Выбрать варианты действий актора,
                 # которые соответствуют выбранным максимальным N значениям функции ценности.
+                commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action(max_q_est_next)
+
+                # Отправка команд (планируемых действий), согласно максимального значения функции ценности
+                for test_id, command_t in commands.items():
+                    # Проходимся по словарю команд
+
+                    # Преобразование данных тензора в список
+                    command: List = command_t.tolist()[0]
+
+                    # Отправка желаемых действий для каждого испытания в модуль физической модели.
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
+                        Container(test_id, StageControlCommands(0, 0, *command))
+                    )
 
                 # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
+                reinforcement = self.__get_reinforcement(self.__inbound, len(commands), SLEEP_TIME, self.__finish_app_checking)
 
-                # На основании подкреплений, рассчитать целевые фунции ценности для каждого из N испытаний.
+                # На основании подкреплений, рассчёт ошибки целевой функции ценности для каждого из N испытаний.
+                err = self.__project.correction(reinforcement, self.__q_est, max_q_est_next)
 
                 # На основании функций ценности из критика и рассчитанных целевых, посчитать N ошибок.
 
@@ -256,23 +300,23 @@ class NeuronetThread(INeuronet, AYarn):
 
                 # Оптимизировать критика и актора.
 
-                # # Отправка команды, согласно максимального значения функции ценности
-                # # Пока случайным образом в тестовых целях, чтобы работало.
-                for key in batch_dict:
-                    # Проходимся по словарю/массиву/тензору комманд
-                    # И отправляем их поочерёдно в модуль физической модели.
-                    #
-                    # Пока вот выбрано случайным образом в тестовых целях, чтобы работало.
-                    # И вместо реальных команд нолик и единица.
-                    random.seed()
-                    if random.choice([0, 1]):
-                        # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
-                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
-                            Container(key, StageControlCommands(0)))
-                    else:
-                        # Нейросеть актора даёт команду
-                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
-                            Container(key, StageControlCommands(1)))
+                # # # Отправка команды, согласно максимального значения функции ценности
+                # # # Пока случайным образом в тестовых целях, чтобы работало.
+                # for key in batch_dict:
+                #     # Проходимся по словарю/массиву/тензору комманд
+                #     # И отправляем их поочерёдно в модуль физической модели.
+                #     #
+                #     # Пока вот выбрано случайным образом в тестовых целях, чтобы работало.
+                #     # И вместо реальных команд нолик и единица.
+                #     random.seed()
+                #     if random.choice([0, 1]):
+                #         # Нейросеть не дала определённого вывода. Команды нет. Двигатели не включать, пропуск такта
+                #         self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
+                #             Container(key, StageControlCommands(0)))
+                #     else:
+                #         # Нейросеть актора даёт команду
+                #         self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
+                #             Container(key, StageControlCommands(1)))
 
                 # Рассчитать ошибку на основании выбранных N максимальных значений функции ценности
                 # и N полученных подкреплений.

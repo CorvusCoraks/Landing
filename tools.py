@@ -4,15 +4,15 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from typing import TypeVar, Dict, AnyStr, List
 from enum import Enum
-from basics import ZeroOne
+from basics import ZeroOne, Bit
 from random import random
 
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
 
 # ZeroOne = float
-# Тип имеющий только два значения: 0 или 1. Потомок int
-Bit = int
+# # Тип имеющий только два значения: 0 или 1. Потомок int
+# Bit = int
 
 class Reinforcement:
     """
