@@ -2,8 +2,10 @@
 from torch.nn import Sequential, Sigmoid, Linear
 from typing import List, Dict, Any
 from nn_iface.norm import MinMaxXY, MinMax, MinFloat, MaxFloat
+from nn_iface.ifaces import LossCriticInterface
 from basics import GRAVITY_ACCELERATION_ABS
 from math import pi
+from nn_iface.projects import MSE_RLLoss, MSELoss
 
 ACTOR_INPUT: List = [Sigmoid()]
 ACTOR_HIDDEN: List = [Linear(9, 9, bias=False), Sigmoid()]
@@ -36,3 +38,8 @@ JETS_COUNT = 5
 ALPHA = 0.001
 # Коэф. приведения 0<=gamma<=1
 GAMMA = 0.001
+
+# Класс ошибки актора
+ACTOR_LOSS = MSELoss
+# Класс ошибки критика.
+CRITIC_LOSS = MSE_RLLoss

@@ -1,40 +1,34 @@
 """ Конкретный проект (комбинация нейросетей). """
-from torch import Tensor, Size, zeros, tensor, add, mul, neg
-from torch.nn import Module, Conv2d, Sequential, MSELoss
+from torch import Tensor, Size, zeros, tensor, add, mul, neg, max, split, int64
+# from torch.nn import Conv2d, Sequential
+import torch.nn
 import torch.nn.functional as F
-from torch.nn.modules.loss import _Loss
-from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
+# from torch.nn.modules.loss import _Loss
+from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface, LossCriticInterface, LossActorInterface
 from typing import Dict, Optional, List, Tuple, Any
 from tools import Reinforcement, Finish
-from basics import TestId, ACTOR_CHAPTER,CRITIC_CHAPTER, ZeroOne
+from basics import TestId, ACTOR_CHAPTER,CRITIC_CHAPTER, ZeroOne, Bit
 from structures import RealWorldStageStatusN
-import tomli
-from abc import ABC, abstractmethod
+# import tomli
+# from abc import ABC, abstractmethod
 
 
-class TestModel(Module):
+class TestModel(torch.nn.Module):
     """ Фиктивная нейросеть для технического временного использования в процессе разработки реализации. """
     def __init__(self):
         super().__init__()
-        self.conv1 = Conv2d(1, 20, 5)
-        self.conv2 = Conv2d(20, 20, 5)
+        self.conv1 = torch.nn.Conv2d(1, 20, 5)
+        self.conv2 = torch.nn.Conv2d(20, 20, 5)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
         return F.relu(self.conv2(x))
 
 
-class LossInterface:
-    """ Интерфейс класса функции потерь. """
-    @abstractmethod
-    def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
-                   max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
-        ...
-
-class MSE_RLLoss(LossInterface, MSELoss):
+class MSE_RLLoss(LossCriticInterface, torch.nn.MSELoss):
     """ Класс функции потерь среднего квадратичного отклонения. """
     def __init__(self, gamma:float=0.001, reduction:str='mean'):
-        super().__init__(reduction)
+        torch.nn.MSELoss.__init__(self, reduction)
         self._gamma = gamma
 
     def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
@@ -56,58 +50,16 @@ class MSE_RLLoss(LossInterface, MSELoss):
         q_est_target: Tensor = add(rf, mul(max_q_est_next, self._gamma))
 
         # input, target = zeros(1, 1), zeros(1, 1)
-        return MSELoss.__call__(self, q_est_input, q_est_target)
+        return torch.nn.MSELoss.__call__(self, q_est_input, q_est_target)
 
 
-# class ModelTemplate(Module):
-#     """ Шаблон нейросети. """
-#     def __init__(self, input_sequence: Sequential, hidden_sequence:Sequential, output_sequence: Sequential):
-#         super().__init__()
-#         self.__input = input_sequence
-#         self.__hidden = hidden_sequence
-#         self.__output = output_sequence
-#
-#     def forward(self, x):
-#         x = self.__input(x)
-#         x = self.__hidden(x)
-#         x = self.__output(x)
-#         return x
-#
-#     @classmethod
-#     def _create_sequence(cls, layers_list: List, repeat: int) -> Sequential:
-#         layers = layers_list
-#         for count in range(repeat):
-#             layers = layers.extend(layers_list)
-#         return Sequential(*layers)
-#
-#     @classmethod
-#     def create_input(cls, layers_list: List) -> Sequential:
-#         return ModelTemplate._create_sequence(layers_list, 1)
-#
-#     @classmethod
-#     def create_hidden(cls, layer_list: List, repeat: int = 1):
-#         return ModelTemplate._create_sequence(layer_list, repeat)
-#
-#     @classmethod
-#     def create_output(cls, layer_list: List):
-#         return ModelTemplate._create_sequence(layer_list, 1)
+class MSELoss(LossActorInterface, torch.nn.MSELoss):
+    """ Просто MSE."""
+    def __init__(self, reduction:str='mean'):
+        torch.nn.MSELoss.__init__(self, reduction)
 
-
-# class ReadConfigInterface(ABC):
-#     """ Интерфейс чтения конфигурации проекта из хранилища (файл, БД, удалённый сервер). """
-#     @abstractmethod
-#     def load_config(self) -> Dict:
-#         """ Загрузить настройки проекта в словарь. """
-#         ...
-#
-#
-# class ConfigInterpreterInterface(ABC):
-#     """ Интерфейс-интерпретатор. Интерпретирует загруженные настройки проекта. """
-#     @abstractmethod
-#     def interpret(self, config: Dict) -> Tuple[Dict, Any]:
-#         """ Преобразовать загруженные настройки из словаря в список. """
-#         ...
-
+    def __call__(self, output: Tensor, target: Tensor):
+        return torch.nn.MSELoss.__call__(self, output, target)
 
 class AbstractProject(ProjectInterface):
     """ Абстрактный класс проекта. Объединяет общие атрибуты и реализации методов. """
@@ -115,8 +67,8 @@ class AbstractProject(ProjectInterface):
         self._actor_key = ACTOR_CHAPTER
         self._critic_key = CRITIC_CHAPTER
 
-        self._actor: Optional[Module] = None
-        self._critic: Optional[Module] = None
+        self._actor: Optional[torch.nn.Module] = None
+        self._critic: Optional[torch.nn.Module] = None
 
         self._training_state: Optional[ProcessStateInterface] = None
 
@@ -174,11 +126,11 @@ class AbstractProject(ProjectInterface):
             -> Tensor:
         pass
 
-    def actor_loss(self) -> Tensor:
-        pass
+    def actor_target(self, s_order: List[TestId], commands: Dict[TestId, Tensor]) -> Tensor:
+        list_for_tensor: List = [commands[test_id][0].tolist() for test_id in s_order]
 
-    def critic_loss(self) -> Tensor:
-        pass
+        return tensor(list_for_tensor, requires_grad=False)
+
 
     def actor_optimizer(self) -> None:
         pass
@@ -186,7 +138,7 @@ class AbstractProject(ProjectInterface):
     def critic_optimaizer(self) -> None:
         pass
 
-    def _features_examine(self, net_name: str, net_input: Tensor, net: Module) -> None:
+    def _features_examine(self, net_name: str, net_input: Tensor, net: torch.nn.Module) -> None:
         """ Проверка на совпадение количества входных параметров и размерности features нейронной сети.
 
         :param net_name: Имя (идентификатор проверяемой нейросети)
@@ -224,27 +176,6 @@ class AbstractProject(ProjectInterface):
                              format(second_children_parameters[1], net_name, net.net_input.shape[1]))
 
     def actor_forward(self, actor_input: Tensor) -> Tensor:
-        # ### Проверка на совпадение количества входных параметров, размерности features нейронной сети.
-        # #
-        # # Итератор по слоям актора.
-        # childrens_iter = self._actor.children()
-        # # Первый слой - слой входных нейронов.
-        # first_children = childrens_iter.__next__()
-        # # Второй слой - линейный слой. По нему считаем количество и входных нейронов.
-        # second_children = childrens_iter.__next__()
-        # # Итератор по параметрам второго, линейного слоя.
-        # second_children_parameters_iter = second_children.parameters(recurse=True)
-        # # Параметры второго, линейного слоя.
-        # second_children_parameters = second_children_parameters_iter.__next__()
-        # # Число входных параметров должно соответствовать числу входных нейронов.
-        # # shape по тензору: [число подтензоров (элементов батча), количество feaches в элементе батча]
-        # # shape по параметрам: [число нейронов скрытого слоя, число входных нейронов]
-        # assert second_children_parameters.shape[1] == actor_input.shape[1], \
-        #     "Width of raw_batch element ({}) mismatch of neuron net input feaches count ({})." \
-        #     "May be you change neuron net input width in project, but load old neuron net from storage?".\
-        #         format(second_children_parameters[1], actor_input.shape[1])
-        # #
-        # ### Конец проверки.
         self._features_examine('actor', actor_input, self._actor)
         return self._actor.forward(actor_input)
         # return actor_input
@@ -252,3 +183,4 @@ class AbstractProject(ProjectInterface):
     def critic_forward(self, critic_input: Tensor) -> Tensor:
         self._features_examine('critic', critic_input, self._critic)
         return self._critic.forward(critic_input)
+

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, List
 from enum import Enum
 from tools import Reinforcement, Finish
-from basics import TestId, ZeroOne
+from basics import TestId, ZeroOne, Bit
 from structures import RealWorldStageStatusN
 from dataclasses import dataclass
 from basics import ZeroOne
@@ -35,6 +35,21 @@ class DictKey(Enum):
 #     index: int
 #     # Значение максимальной оценки функции ценности
 #     max_q_est: ZeroOne
+
+
+class LossCriticInterface(ABC):
+    """ Интерфейс класса функции потерь. """
+    @abstractmethod
+    def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
+                   max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
+        ...
+
+
+class LossActorInterface(ABC):
+    """ Интерфейс класса функции потерь актора. """
+    @abstractmethod
+    def __call__(self, output: Tensor, target: Tensor) -> Tensor:
+        ...
 
 
 class InterfaceNeuronNet(ABC):
@@ -279,12 +294,29 @@ class ProjectInterface(ABC):
         ...
 
     @abstractmethod
-    def actor_loss(self) -> Tensor:
+    def critic_output_transformation(self, all_q_est: Tensor, s_order: List[TestId], max_q_est_index: Dict[TestId, int]) -> Tensor:
+        """ Преобразование выходного тензора критика,
+        содержащего ВСЕ оценки ф-ции ценности по ВСЕМ вариантам действий ВСЕХ испытаний в батче,
+        в тензор, содержащий только макс. оценки ф-ции ценности по каждому испытанию в батче.
+
+        :param all_q_est: выход критика
+        :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
+        :param max_q_est_index: Словарь,
+        содержащий индексы максимальных оценок функции ценности для каждого испытания в батче.
+        """
+        ...
+
+    # todo не испльзуется?
+    @property
+    @abstractmethod
+    def actor_loss(self) -> LossActorInterface:
         """ Функция потерь актора. """
         ...
 
+    # todo Не используется?
+    @property
     @abstractmethod
-    def critic_loss(self) -> Tensor:
+    def critic_loss(self) -> LossCriticInterface:
         """ Функция потерь критика. """
         ...
 
@@ -308,22 +340,38 @@ class ProjectInterface(ABC):
         """ Прямой проход критика. """
         ...
 
-    # @abstractmethod
-    # def action_variants(self) -> int:
-    #     """ Количество вариантов действий актора. """
-    #     ...
-
     @abstractmethod
-    def max_in_q_est(self, q_est_next: Tensor) -> List[List[ZeroOne | int]]:
-        """
+    def max_in_q_est(self, q_est_next: Tensor, s_order: List[TestId]) -> Dict[TestId, int]:
+        """ Метод выбора максимального значения оценки функции ценности.
 
-        :param q_est_next: Тензор оценок функции ценности по всем испытаниям (выход критика)
-        :return: Список максимальных оценок функции ценности (по каждому испытанию в батче).
-        [Значение Q_est; Индекс в батче выхода критика по конкретному испытанию.]
+        :param q_est_next: Тензор оценок функции ценности для всех возможных действий актора (ВЫХОД критика)
+        :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
+        :return: Словарь индексов максимальных значений оценки функции ценности (индекс соответствует индексу действия)
         """
 
         ...
 
+    @abstractmethod
+    def choose_max_q_action(self, s_order: List[TestId], max_q_index: Dict[TestId, int]) -> \
+            Dict[TestId, Tensor]:
+        """ Выбор действия актора (для каждого испытания в батче), отвечающего максимальной оценке функции ценности.
+
+        :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
+        :param max_q_est_index: Словарь,
+        содержащий индексы максимальных оценок функции ценности для каждого испытания в батче.
+        :return: Словарь вида: идентификатор испытания - тензор действия актора.
+        """
+        ...
+
+    @abstractmethod
+    def actor_target(self, s_order: List[TestId], commands: Dict[TestId, Tensor]) -> Tensor:
+        """ Целевой выход актора (зависит от распределения максимальных оценок функции ценности по батчу).
+
+        :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
+        :param commands: Словарь команд (желаемых действий актора), как следствие выбранных максимальных оценок ФЦ.
+        :return: Тензор целевого выхода актора.
+        """
+        ...
 
 if __name__ == "__main__":
     pass

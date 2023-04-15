@@ -12,7 +12,7 @@ from basics import Q_est_value, Index_value, Dict_key
 from structures import RealWorldStageStatusN
 from math import atan2, pi
 from nn_iface.norm import ListMinMaxNormalization, MinMax, MinMaxXY
-# from nn_iface.ifaces import MaxQEst
+from nn_iface.ifaces import LossCriticInterface, LossActorInterface
 from point import VectorComplex
 from nn_iface.projects import AbstractProject
 from app_cfg import PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH
@@ -21,7 +21,7 @@ from DevTmpPr.cfg import CRITIC_INPUT, CRITIC_HIDDEN, CRITIC_OUTPUT, CRITIC_OPTI
 from DevTmpPr.cfg import POSITION_MINMAX, LINE_VELOCITY_MINMAX, LINE_ACCELERATION_MINMAX
 from DevTmpPr.cfg import ORIENTATION_MINMAX, ANGULAR_VELOCITY_MINMAX, ANGULAR_ACCELERATION_MINMAX
 from DevTmpPr.cfg import NN_STORAGE_FILENAME, STATE_STORAGE_FILENAME
-from DevTmpPr.cfg import JETS_COUNT, ALPHA, GAMMA
+from DevTmpPr.cfg import JETS_COUNT, ALPHA, GAMMA, CRITIC_LOSS, ACTOR_LOSS
 
 
 class ProjectMainClass(AbstractProject):
@@ -152,9 +152,6 @@ class ProjectMainClass(AbstractProject):
                                  environment_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
             -> Tensor:
 
-        # Список возможных действий актора.
-        # action_var: List[List[Bit]] = action_variants(JETS_COUNT)
-
         # Подготовка целевого тезнора.
         # Клонируем вход актора,
         critic_in = actor_input.clone()
@@ -193,57 +190,7 @@ class ProjectMainClass(AbstractProject):
 
         return result
 
-    # def action_variants(self) -> int:
-    #     return len(self.__action_var)
-
-    # def max_in_q_est(self, q_est_next: Tensor, s_order: List[TestId]) -> List[List[ZeroOne | int]]:
-    # def max_in_q_est(self, q_est_next: Tensor, s_order: List[TestId]) -> Dict[TestId, List[ZeroOne | int]]:
-    def max_in_q_est(self, q_est_next: Tensor, s_order: List[TestId]) -> Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]]:
-        """
-        Элементами возвращаемого словаря являются словари из двух пар ключ-значение:
-        значение максимальной оценки функции ценности,
-        индекс данного максимального значения в списке ВСЕХ значений оценки функции ценности по данному испытанию.
-        {Test_id:
-            {
-                Ключ оценки функции ценности: Само значение оценки,
-                Ключ индекса оценки: Сам индекс оценки (совпадает с индексом соответствующего действия актора.)
-            }
-        }
-        """
-        # Клонирование тензора (используемый метод ``tensor.max()`` поиска максимального значения
-        # не поддерживает автоматическое дифференцирование и отказывается работать
-        # если градиент у одного из тензоров активирован)
-        tensors: Tensor = q_est_next.clone().detach()
-        # Преобразование общего тензора оценок ф-ции ценности (выход критика) в список тензоров.
-        # Каждый тензор соответствует набору оценок функции ценности по одному испытанию из батча.
-        tensors: List[Tensor] = split(tensors, len(self.__action_var), dim=0)
-
-        # Результирующий список максимальных оценок фунции ценности.
-        # max_q_est: List[List[ZeroOne | int]] = []
-        # by_test_id: Dict[TestId, List[ZeroOne | int]] = {}
-        by_test_id: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]] = {}
-        # Выходной кортеж для функции поиска максимума в тензоре.
-        max_from: Tuple[Tensor, Tensor] = (zeros(0), zeros(0, dtype=int64))
-        # Обход списка тензоров
-        for i, one_tensor in enumerate(tensors):
-            # Нахождение максимума в тензоре.
-            max(one_tensor, dim=0, out=max_from)
-            # Пополнение списка результатов.
-            # max_q_est.append([max_from[0].item(), max_from[1].item()])
-            # Индекс испытания в списке тензоров и индекс испытания в списке идентификаторов испытаний совпадают
-            # by_test_id[s_order[i]] = [max_from[0].item(), max_from[1].item()]
-            by_test_id[s_order[i]] = {Q_EST_NEXT: max_from[0].item(), INDEX_IN_TEST: max_from[1].item()}
-
-        # return max_q_est
-        return by_test_id
-
-    def max_in_q_est_2(self, q_est_next: Tensor, s_order: List[TestId]) -> Dict[TestId, int]:
-        """ Метод выбора максимального значения оценки функции ценности.
-
-        :param q_est_next: Тензор оценок функции ценности для всех возможных действий актора (ВЫХОД критика)
-        :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
-        :return: Словарь индексов максимальных значений оценки функции ценности (индекс соответствует индексу действия)
-        """
+    def max_in_q_est(self, q_est_next: Tensor, s_order: List[TestId]) -> Dict[TestId, int]:
         # Клонирование тензора (используемый метод ``tensor.max()`` [источник?] поиска максимального значения
         # не поддерживает автоматическое дифференцирование и отказывается работать
         # если градиент у одного из тензоров активирован)
@@ -273,39 +220,7 @@ class ProjectMainClass(AbstractProject):
         # return max_q_est
         return result
 
-    # def max_q_est_next_3(self, all_q_est_next: Tensor, s_order: List[TestId], max_q_est_next_index: Dict[TestId, int]) -> Tensor:
-    #     """ Метод выбора максимального значения оценки функции ценности.
-    #
-    #     :param q_est_next: Тензор оценок функции ценности для всех возможных действий актора (ВЫХОД критика)
-    #     :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
-    #     :return: Словарь индексов максимальных значений оценки функции ценности (индекс соответствует индексу действия)
-    #     """
-    #     # Клонирование тензора (используемый метод ``tensor.max()`` [источник?] поиска максимального значения
-    #     # не поддерживает автоматическое дифференцирование и отказывается работать
-    #     # если градиент у одного из тензоров активирован)
-    #     tensors: Tensor = all_q_est_next.clone().detach()
-    #     # Преобразование общего тензора оценок ф-ции ценности (выход критика) в список тензоров.
-    #     # Каждый тензор соответствует набору оценок функции ценности по одному испытанию из батча.
-    #     tensors: List[Tensor] = split(tensors, len(self.__action_var), dim=0)
-    #
-    #     # Результирующий список максимальных оценок фунции ценности.
-    #     result: Dict[TestId, int] = {}
-    #     # Выходной кортеж для функции поиска максимума в тензоре.
-    #     max_from: Tuple[Tensor, Tensor] = (zeros(0), zeros(0, dtype=int64))
-    #     # Обход списка тензоров
-    #     for i, one_tensor in enumerate(tensors):
-    #         # Нахождение максимума в тензоре.
-    #         max(one_tensor, dim=0, out=max_from)
-    #         # Индекс испытания в списке тензоров и индекс испытания в списке идентификаторов испытаний совпадают
-    #         result[s_order[i]] = max_from[1].item()
-    #
-    #     return result
-
-
-    def transform_critic_output(self, all_q_est: Tensor, s_order: List[TestId], max_q_est_index: Dict[TestId, int]) -> Tensor:
-        """ Преобразование выходного тензора критика,
-        содержащего ВСЕ оценки ф-ции ценности по ВСЕМ вариантам действий ВСЕХ испытаний в батче,
-        в тензор, содержащий только макс. оценки ф-ции ценности по каждому испытанию в батче. """
+    def critic_output_transformation(self, all_q_est: Tensor, s_order: List[TestId], max_q_est_index: Dict[TestId, int]) -> Tensor:
 
         # По ключевым точкам проверено: grad_fn - present, requires_grad == True
 
@@ -333,97 +248,24 @@ class ProjectMainClass(AbstractProject):
 
         return matrix_view
 
-    # def choose_max_q_action(self, max_q_est: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]]) -> Dict[TestId, Tensor]:
-    #     """ Выбор действия актора, отвечающего максимальной оценке функции ценности.
-    #
-    #     :param max_q_est: словарь максимальных оценок функции ценности для всех испытаний.
-    #     :return: Словарь вида: идентификатор испытания - тензор действия актора, максимальная оценка функции ценности.
-    #     """
-    #
-    #     # if len(max_q_est) != len(s_order):
-    #     #     # Проверка на совпадение длин двух списков.
-    #     #     raise ValueError("Length of first argument not equal length of second argument: {} != {}".
-    #     #                      format(len(max_q_est), len(s_order)))
-    #
-    #     result: Dict[TestId, Tensor] = {}
-    #     # for i, test_id in enumerate(s_order):
-    #     #     action_index = max_q_est[i][1]
-    #     #     result[test_id] = tensor([self.__action_var[action_index]], dtype=TENSOR_DTYPE)
-    #
-    #     for test_id, value in max_q_est.items():
-    #         # action_index = value[1]
-    #         action_index = value[INDEX_IN_TEST]
-    #         # result[test_id] = tensor([self.__action_var[action_index]], dtype=TENSOR_DTYPE)
-    #         result[test_id] = tensor([self.__action_var[action_index]], dtype=TENSOR_DTYPE)
-    #
-    #     return result
-
-    def choose_max_q_action_2(self, s_order: List[TestId], max_q_index: Dict[TestId, int]) -> \
+    def choose_max_q_action(self, s_order: List[TestId], max_q_index: Dict[TestId, int]) -> \
             Dict[TestId, Tensor]:
-        """ Выбор действия актора (для каждого испытания в батче), отвечающего максимальной оценке функции ценности.
 
-        :param q_est_next: Тензор оценок фукции ценности (выход критика)
-        :return: Словарь вида: идентификатор испытания - тензор действия актора.
-        """
         result: Dict[TestId, Tensor] = {}
-
-        # Тензора оценок функции ценности в двумерном виде. Измерение 1 содержит оценки сгруппированные по испытаниям.
-        # by_test_id: Tensor = q_est_next.unfold(0, len(self.__action_var), len(self.__action_var))
 
         for test_id in s_order:
             result[test_id] = tensor([self.__action_var[max_q_index[test_id]]], dtype=TENSOR_DTYPE)
 
-        # for test_id, value in max_q_est.items():
-        #     action_index = value[INDEX_IN_TEST]
-        #     result[test_id] = tensor([self.__action_var[action_index]], dtype=TENSOR_DTYPE)
-
         return result
 
-    # def correction(self, reinf: Dict[TestId, ZeroOne],
-    #                max_q_est: Dict[TestId, ZeroOne],
-    #                max_q_est_next: Dict[TestId, ZeroOne]) -> Dict[TestId, ZeroOne]:
-    #     q_err: Dict[TestId, float] = {}
-    #     for test_id, rf in reinf.items():
-    #         # q_err[test_id] = ALPHA * (rf + GAMMA * max_q_est_next[test_id] - max_q_est[test_id])
-    #         q_err[test_id] = rf + GAMMA * max_q_est_next[test_id][0] - max_q_est[test_id]
-    #
-    #     return q_err
+    @property
+    def actor_loss(self) -> LossActorInterface:
+        return ACTOR_LOSS()
 
-    # def correction_2(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
-    #                max_q_est: Dict[TestId, ZeroOne], q_est_next: Tensor,
-    #                max_q_next_index: Dict[TestId, int]) -> Dict[TestId, float]:
-    #
-    #     q_err: Dict[TestId, ZeroOne] = {}
-    #
-    #     # Тензоры оценок функции ценности в двумерном виде. Измерение 1 содержит оценки сгруппированные по испытаниям.
-    #     # by_test_id: Tensor = q_est_next.unfold(0, len(self.__action_var), len(self.__action_var))
-    #     view_by_test_id: Tensor = q_est_next.view(len(s_order), len(self.__action_var))
-    #     # grad_fn у тензора присутствует. Значит возможен обратный проход?
-    #
-    #     for test_index, test_id in enumerate(s_order):
-    #         q_err[test_id] = reinf[test_id] + GAMMA * view_by_test_id[test_index][max_q_next_index[test_id]] - max_q_est[test_id]
-    #
-    #     return q_err
+    @property
+    def critic_loss(self) -> LossCriticInterface:
+        return CRITIC_LOSS()
 
-    # def loss(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
-    #                max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
-    #     """ Функция потерь. """
-    #
-    #     # Список предыдущих максимальных оценок функции ценности
-    #     q_est: List[List[ZeroOne]] = [[max_q_est[test_id]] for test_id in s_order]
-    #     # Тензор предыдущих максимальных оценок функции ценности
-    #     q_est: Tensor = tensor(q_est, requires_grad=False)
-    #
-    #     # Список подкреплений
-    #     rf: List[List[ZeroOne]] = [[reinf[test_id]] for test_id in s_order]
-    #     # Тензор подкреплений
-    #     rf: Tensor = tensor(rf, requires_grad=False)
-    #
-    #     # Ошибка оценки функции ценности.
-    #     # return rf + GAMMA * max_q_est_next - q_est
-    #     return add(rf, add(mul(max_q_est_next, GAMMA), neg(q_est)))
-
-    # def loss(self) -> :
 
 if __name__ == '__main__':
     pass

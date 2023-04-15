@@ -14,8 +14,8 @@ from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
-from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProjectInterface
-from nn_iface.projects import LossInterface, MSE_RLLoss
+from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProjectInterface, LossCriticInterface, LossActorInterface
+# from nn_iface.projects import LossCriticInterface, MSE_RLLoss, torLoss
 # from DevTmpPr.project import ProjectMainClass
 from tools import q_est_init
 from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
@@ -279,15 +279,15 @@ class NeuronetThread(INeuronet, AYarn):
                 # И т. д.
                 # max_q_est_next: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]] = self.__project.max_in_q_est(q_est_next, s_order)
                 # Индексы максимальных значений оценки функции ценности.
-                max_q_est_next_index: Dict[TestId, int] = self.__project.max_in_q_est_2(q_est_next, s_order)
+                max_q_est_next_index: Dict[TestId, int] = self.__project.max_in_q_est(q_est_next, s_order)
 
                 # Тензор максимальных оценок функции ценности.
-                max_q_est_next: Tensor = self.__project.transform_critic_output(q_est_next, s_order, max_q_est_next_index)
+                max_q_est_next: Tensor = self.__project.critic_output_transformation(q_est_next, s_order, max_q_est_next_index)
 
                 # Выбрать варианты действий актора,
                 # которые соответствуют выбранным максимальным N значениям функции ценности.
                 # commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action(max_q_est_next)
-                commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action_2(s_order, max_q_est_next_index)
+                commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action(s_order, max_q_est_next_index)
 
 
                 # Отправка команд (планируемых действий), согласно максимального значения функции ценности
@@ -303,21 +303,29 @@ class NeuronetThread(INeuronet, AYarn):
                     )
 
                 # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
-                reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound, len(commands), SLEEP_TIME, self.__finish_app_checking)
+                reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound, len(commands),
+                                                                                SLEEP_TIME, self.__finish_app_checking)
 
-                # На основании подкреплений, рассчёт ошибки целевой функции ценности для каждого из N испытаний.
-                # err = self.__project.correction(reinforcement, self.__q_est, max_q_est_next)
-                # err = self.__project.correction_2(s_order, reinforcement, self.__q_est, q_est_next, max_q_est_next_index)
-                # todo перенсети конкретизацию функции потерь в класс проекта
-                loss_fn: LossInterface = MSE_RLLoss()
-                # loss: Tensor = self.__project.loss(s_order, reinforcement, self.__q_est, max_q_est_next)
+                # Объект функции потерь критика.
+                critic_loss_fn: LossCriticInterface = self.__project.critic_loss
                 # todo протестировать работу
-                loss: Tensor = loss_fn(s_order, reinforcement, self.__q_est, max_q_est_next)
+                # Ошибка критика
+                crititc_loss: Tensor = critic_loss_fn(s_order, reinforcement, self.__q_est, max_q_est_next)
 
-                # Усреднить N ошибок в одну, среднюю avrErr.
+                # Произвести обратный проход по критику
+                crititc_loss.backward()
 
+                # Объект функции потерь актора
+                actor_loss_fn: LossActorInterface = self.__project.actor_loss
 
-                # Произвести обратный проход по критику и актору на основании avrErr.
+                # Целевой тензор актора.
+                actor_target: Tensor = self.__project.actor_target(s_order, commands)
+
+                # Ошибка актора
+                actor_loss: Tensor = actor_loss_fn(medium, actor_target)
+
+                # Обратный проход по актору.
+                actor_loss.backward()
 
                 # Оптимизировать критика и актора.
 
