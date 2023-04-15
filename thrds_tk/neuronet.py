@@ -15,6 +15,7 @@ from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTyp
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProjectInterface
+from nn_iface.projects import LossInterface, MSE_RLLoss
 # from DevTmpPr.project import ProjectMainClass
 from tools import q_est_init
 from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
@@ -237,7 +238,7 @@ class NeuronetThread(INeuronet, AYarn):
                     s_order.append(key)
 
                 # Актуализировать словарь предыдущих оценок функции ценности действий.
-                self.__q_est = self._q_est_actual(batch_dict, self.__q_est)
+                self.__q_est: Dict[TestId, ZeroOne] = self._q_est_actual(batch_dict, self.__q_est)
 
                 # debug = self._q_est_actual({0: RealWorldStageStatusN(), 1: RealWorldStageStatusN()},
                 #                             {0: 12.0, 2: 13.0, 3: 14.0})
@@ -264,15 +265,30 @@ class NeuronetThread(INeuronet, AYarn):
                 #     [1, 0])
 
                 # Получить тензор значений функции ценности на выходе из критика размерностью NхV
+                # Нужно понимать, что первые V оценок в выходном тензоре критика относяться к первому испытанию.
+                # Вторые V оценок относятся ко второму испытанию.
+                # Третьи V оценок к третьему.
+                # И т. д.
                 q_est_next: Tensor = self.__project.critic_forward(medium_in_critic)
 
-                # Для каждого из N испытаний выбрать максимальное значение функции ценности из соответствующих V вариантов.
-                # max_q_est_next: List[List[ZeroOne | int]] = self.__project.max_in_q_est(q_est_next, s_order)
-                max_q_est_next: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]] = self.__project.max_in_q_est(q_est_next, s_order)
+                # Для каждого из N испытаний на выходе из критика
+                # выбрать максимальное значение функции ценности из соответствующих V вариантов.
+                # То есть, из первых V оценок надо выбрать максимальную, и это будет максимальная оценка для первого испытания.
+                # Из вторых V оценок надо выбрать максимальную, и это будет максимальная оценка для второго испытания.
+                # Из третьих V оценок надо выбрать максимальную, и это будет максимальная оценка для третьего.
+                # И т. д.
+                # max_q_est_next: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]] = self.__project.max_in_q_est(q_est_next, s_order)
+                # Индексы максимальных значений оценки функции ценности.
+                max_q_est_next_index: Dict[TestId, int] = self.__project.max_in_q_est_2(q_est_next, s_order)
+
+                # Тензор максимальных оценок функции ценности.
+                max_q_est_next: Tensor = self.__project.transform_critic_output(q_est_next, s_order, max_q_est_next_index)
 
                 # Выбрать варианты действий актора,
                 # которые соответствуют выбранным максимальным N значениям функции ценности.
-                commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action(max_q_est_next)
+                # commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action(max_q_est_next)
+                commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action_2(s_order, max_q_est_next_index)
+
 
                 # Отправка команд (планируемых действий), согласно максимального значения функции ценности
                 for test_id, command_t in commands.items():
@@ -287,14 +303,19 @@ class NeuronetThread(INeuronet, AYarn):
                     )
 
                 # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
-                reinforcement = self.__get_reinforcement(self.__inbound, len(commands), SLEEP_TIME, self.__finish_app_checking)
+                reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound, len(commands), SLEEP_TIME, self.__finish_app_checking)
 
                 # На основании подкреплений, рассчёт ошибки целевой функции ценности для каждого из N испытаний.
-                err = self.__project.correction(reinforcement, self.__q_est, max_q_est_next)
-
-                # На основании функций ценности из критика и рассчитанных целевых, посчитать N ошибок.
+                # err = self.__project.correction(reinforcement, self.__q_est, max_q_est_next)
+                # err = self.__project.correction_2(s_order, reinforcement, self.__q_est, q_est_next, max_q_est_next_index)
+                # todo перенсети конкретизацию функции потерь в класс проекта
+                loss_fn: LossInterface = MSE_RLLoss()
+                # loss: Tensor = self.__project.loss(s_order, reinforcement, self.__q_est, max_q_est_next)
+                # todo протестировать работу
+                loss: Tensor = loss_fn(s_order, reinforcement, self.__q_est, max_q_est_next)
 
                 # Усреднить N ошибок в одну, среднюю avrErr.
+
 
                 # Произвести обратный проход по критику и актору на основании avrErr.
 

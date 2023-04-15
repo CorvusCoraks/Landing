@@ -1,11 +1,12 @@
 """ Конкретный проект (комбинация нейросетей). """
-from torch import Tensor, Size
-from torch.nn import Module, Conv2d, Sequential
+from torch import Tensor, Size, zeros, tensor, add, mul, neg
+from torch.nn import Module, Conv2d, Sequential, MSELoss
 import torch.nn.functional as F
+from torch.nn.modules.loss import _Loss
 from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface
 from typing import Dict, Optional, List, Tuple, Any
 from tools import Reinforcement, Finish
-from basics import TestId, ACTOR_CHAPTER,CRITIC_CHAPTER
+from basics import TestId, ACTOR_CHAPTER,CRITIC_CHAPTER, ZeroOne
 from structures import RealWorldStageStatusN
 import tomli
 from abc import ABC, abstractmethod
@@ -21,6 +22,41 @@ class TestModel(Module):
     def forward(self, x):
         x = F.relu(self.conv1(x))
         return F.relu(self.conv2(x))
+
+
+class LossInterface:
+    """ Интерфейс класса функции потерь. """
+    @abstractmethod
+    def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
+                   max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
+        ...
+
+class MSE_RLLoss(LossInterface, MSELoss):
+    """ Класс функции потерь среднего квадратичного отклонения. """
+    def __init__(self, gamma:float=0.001, reduction:str='mean'):
+        super().__init__(reduction)
+        self._gamma = gamma
+
+    def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
+                   max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
+
+        # Список предыдущих максимальных оценок функции ценности
+        q_est_input: List[List[ZeroOne]] = [[max_q_est[test_id]] for test_id in s_order]
+        # Тензор предыдущих максимальных оценок функции ценности
+        q_est_input: Tensor = tensor(q_est_input, requires_grad=False)
+
+        # Список подкреплений
+        rf: List[List[ZeroOne]] = [[reinf[test_id]] for test_id in s_order]
+        # Тензор подкреплений
+        rf: Tensor = tensor(rf, requires_grad=False)
+
+        # Ошибка оценки функции ценности.
+        # return rf + GAMMA * max_q_est_next - q_est
+        # add(rf, add(mul(max_q_est_next, self._gamma), neg(q_est)))
+        q_est_target: Tensor = add(rf, mul(max_q_est_next, self._gamma))
+
+        # input, target = zeros(1, 1), zeros(1, 1)
+        return MSELoss.__call__(self, q_est_input, q_est_target)
 
 
 # class ModelTemplate(Module):

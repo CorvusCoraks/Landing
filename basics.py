@@ -48,15 +48,19 @@ CPU = 'cpu'
 
 QUEUE_OBJECT_TYPE_ERROR = "From queue object class ({}) doesn't match expected class {}."
 
+# todo удалить
 Q_EST_NEXT = 'q_est_next'
+# todo удалить
 INDEX_IN_TEST = 'index'
 # Possible two values see above.
+# todo удалить
 Dict_key = str
 
 # Types for typing hints
 # Оценка функции ценности
 Q_est_value = ZeroOne
 # Индекс максимальной оценки функции ценности в списке ВСЕХ оценок для данного испытания.
+# todo удалить
 Index_value = int
 
 

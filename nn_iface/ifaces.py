@@ -8,6 +8,8 @@ from enum import Enum
 from tools import Reinforcement, Finish
 from basics import TestId, ZeroOne
 from structures import RealWorldStageStatusN
+from dataclasses import dataclass
+from basics import ZeroOne
 
 
 class DictKey(Enum):
@@ -24,6 +26,15 @@ class DictKey(Enum):
     PREV_Q_MAX = "previous_q_max"
     # DEVICE = "device"
     TEMP_FOR_TEST = "temp_for_test"
+
+
+# @dataclass
+# class MaxQEst:
+#     """ Элемент словаря на выходе из метода выявления максимальных оценок ф-ции ценности. """
+#     # Индекс максимальной оценки функции ценности == Индексу соответствующего действием актора
+#     index: int
+#     # Значение максимальной оценки функции ценности
+#     max_q_est: ZeroOne
 
 
 class InterfaceNeuronNet(ABC):
