@@ -1,47 +1,21 @@
 """ Интерфейсы модуля нейросети. """
 from torch.nn import Module
 from torch import Tensor
-from torch import device as torch_device
+import torch.optim
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Tuple, List
-from enum import Enum
+from typing import Dict, List
+from nn_iface.if_state import ProcessStateInterface
 from tools import Reinforcement, Finish
-from basics import TestId, ZeroOne, Bit
+from basics import TestId
 from structures import RealWorldStageStatusN
-from dataclasses import dataclass
 from basics import ZeroOne
-
-
-class DictKey(Enum):
-    # Ключи в словаре моделей нейросетей
-    ACTOR_MODEL = "actor_model"
-    CRITIC_MODEL = "critic_model"
-    # Ключи в словаре состояний нейросетей
-    ACTOR_STATE = "actor_state"
-    CRITIC_STATE = "critic_state"
-    # Ключи в словаре состояния процесса тренировки
-    OPTIMIZER_STATE = "optimizer_state"
-    BATCH_SIZE = "batch_size"
-    EPOCH = "epoch_array"               # Начальная эпоха, текущая эпоха, последняя эпоха
-    PREV_Q_MAX = "previous_q_max"
-    # DEVICE = "device"
-    TEMP_FOR_TEST = "temp_for_test"
-
-
-# @dataclass
-# class MaxQEst:
-#     """ Элемент словаря на выходе из метода выявления максимальных оценок ф-ции ценности. """
-#     # Индекс максимальной оценки функции ценности == Индексу соответствующего действием актора
-#     index: int
-#     # Значение максимальной оценки функции ценности
-#     max_q_est: ZeroOne
 
 
 class LossCriticInterface(ABC):
     """ Интерфейс класса функции потерь. """
     @abstractmethod
     def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
-                   max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
+                 max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
         ...
 
 
@@ -98,126 +72,6 @@ class InterfaceNeuronNet(ABC):
         ...
 
 
-class InterfaceStorage(ABC):
-    """ Интерфейс хранилища. """
-    @abstractmethod
-    def __init__(self, name: str):
-        """
-
-        :param name: Имя сохранения (используется в качестве имени файла с сохранением, имени записи в БД и т. д.)
-        """
-        ...
-
-    # 1. Сохранение идёт словарями.
-    # 2. Содержимое словаря определяется ключом/описанием
-    @abstractmethod
-    def save(self, any_dict: Dict):
-        ...
-
-    @abstractmethod
-    def load(self) -> Dict:
-        ...
-
-
-class InterfaceSaveLoad(ABC):
-    """ Интерфейс сохранения и загрузки данных в/из хранилища. """
-    @abstractmethod
-    def save(self, storage: InterfaceStorage) -> None:
-        """ Сохрнить в хранилище.
-
-        :param storage: Хранилище.
-        :return: Если True, то прошло успешно.
-        """
-        ...
-
-    @abstractmethod
-    def load(self, storage: InterfaceStorage) -> None:
-        """ Загрузить из хранилища.
-
-        :param storage: Хранилище.
-        :return: Если True, то прошло успешно.
-        """
-        ...
-
-
-class ProcessStateInterface(InterfaceSaveLoad):
-    """ Состояние процесса обучения. """
-    @abstractmethod
-    def save(self, storage: InterfaceStorage) -> None:
-        ...
-
-    @abstractmethod
-    def load(self, storage: InterfaceStorage) -> None:
-        ...
-
-    @property
-    @abstractmethod
-    def batch_size(self) -> int:
-        """
-
-        :return: Размер батча.
-        """
-        ...
-
-    @batch_size.setter
-    @abstractmethod
-    def batch_size(self, value: int) -> None:
-        """
-
-        :param value: Размер батча.
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def epoch_start(self) -> int:
-        ...
-
-    @epoch_start.setter
-    @abstractmethod
-    def epoch_start(self, value: int) -> None:
-        ...
-
-    @property
-    @abstractmethod
-    def epoch_current(self) -> int:
-        ...
-
-    @epoch_current.setter
-    @abstractmethod
-    def epoch_current(self, value: int) -> None:
-        ...
-
-    @property
-    @abstractmethod
-    def epoch_stop(self) -> int:
-        ...
-
-    @epoch_stop.setter
-    @abstractmethod
-    def epoch_stop(self, value: int) -> None:
-        ...
-
-    @property
-    @abstractmethod
-    def prev_q_max(self) -> float:
-        ...
-
-    @prev_q_max.setter
-    @abstractmethod
-    def prev_q_max(self, value) -> None:
-        ...
-
-    # @property
-    # @abstractmethod
-    # def device(self) -> Optional[str]:
-    #     ...
-    #
-    # @device.setter
-    # @abstractmethod
-    # def device(self, value: str) -> None:
-    #     ...
-
 class ProjectInterface(ABC):
     """ Интерфейс тестируемого варианта системы актор-критик. """
     # Взаимодействие потока обучения должно происходить исключительно с этим интерфейсом,
@@ -227,11 +81,6 @@ class ProjectInterface(ABC):
     def state(self) -> ProcessStateInterface:
         """ Состояние процесса тренировки. """
         ...
-
-    # @state.setter
-    # @abstractmethod
-    # def state(self):
-    #     ...
 
     @abstractmethod
     def save_nn(self) -> None:
@@ -262,11 +111,13 @@ class ProjectInterface(ABC):
     @property
     @abstractmethod
     def reinforcement(self) -> Reinforcement:
+        """ Объект подкрепления. """
         ...
 
     @property
     @abstractmethod
     def finish(self) -> Finish:
+        """ Объект окончания конкретного испытания. """
         ...
 
     @abstractmethod
@@ -275,6 +126,7 @@ class ProjectInterface(ABC):
         """ Подготовка входных данных для актора.
 
         :param batch: Запланированный для прохода через актора батч.
+        :param s_order: список, содержащий порядок испытаний во входном тензоре актора.
         :return: Входной батч актора в виде тензора и список с идентификаторами испытаний.
         """
         ...
@@ -288,13 +140,14 @@ class ProjectInterface(ABC):
         :param actor_input: Вход в актора.
         :param actor_output: Выход из актора.
         :param environment_batch: Проведённый через актора батч исходных данных.
-        :param s_order: список, содержащий порядок испытаний во входрном тензоре актора.
+        :param s_order: список, содержащий порядок испытаний во входном тензоре актора.
         :return: Входной батч критика в виде тензора.
         """
         ...
 
     @abstractmethod
-    def critic_output_transformation(self, all_q_est: Tensor, s_order: List[TestId], max_q_est_index: Dict[TestId, int]) -> Tensor:
+    def critic_output_transformation(self, all_q_est: Tensor, s_order: List[TestId],
+                                     max_q_est_index: Dict[TestId, int]) -> Tensor:
         """ Преобразование выходного тензора критика,
         содержащего ВСЕ оценки ф-ции ценности по ВСЕМ вариантам действий ВСЕХ испытаний в батче,
         в тензор, содержащий только макс. оценки ф-ции ценности по каждому испытанию в батче.
@@ -306,28 +159,28 @@ class ProjectInterface(ABC):
         """
         ...
 
-    # todo не испльзуется?
     @property
     @abstractmethod
     def actor_loss(self) -> LossActorInterface:
         """ Функция потерь актора. """
         ...
 
-    # todo Не используется?
     @property
     @abstractmethod
     def critic_loss(self) -> LossCriticInterface:
         """ Функция потерь критика. """
         ...
 
+    @property
     @abstractmethod
-    def actor_optimizer(self) -> None:
-        """ Оптимизатор актора ? """
+    def actor_optimizer(self) -> torch.optim.Optimizer:
+        """ Оптимайзер актора. """
         ...
 
+    @property
     @abstractmethod
-    def critic_optimaizer(self) -> None:
-        """ Оптимизатор критика ? """
+    def critic_optimizer(self) -> torch.optim.Optimizer:
+        """ Оптимайзер критика. """
         ...
 
     @abstractmethod
@@ -357,8 +210,10 @@ class ProjectInterface(ABC):
         """ Выбор действия актора (для каждого испытания в батче), отвечающего максимальной оценке функции ценности.
 
         :param s_order: Список идентификаторов тестов, соответсвующих порядку тестов в тензоре входа актора
-        :param max_q_est_index: Словарь,
-        содержащий индексы максимальных оценок функции ценности для каждого испытания в батче.
+        :param max_q_index: Словарь, содержащий индексы максимальных оценок функции ценности
+        для КАЖДОГО испытания в батче. Каждое испытание в батче имеет несколько оценок функции ценности
+        (по числу возможных действий актора). Одна запись словаря содержит индекс максимальной оценки
+        в массиве этих вариантов.
         :return: Словарь вида: идентификатор испытания - тензор действия актора.
         """
         ...
@@ -372,6 +227,7 @@ class ProjectInterface(ABC):
         :return: Тензор целевого выхода актора.
         """
         ...
+
 
 if __name__ == "__main__":
     pass

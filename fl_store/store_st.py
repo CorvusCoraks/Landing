@@ -1,9 +1,5 @@
 """ Реализация файлового хранилища состояния обучения. """
 from typing import Dict
-
-# from torch import device as torch_device
-
-from nn_iface.ifaces import InterfaceStorage, ProcessStateInterface, DictKey
 from threading import Thread
 from queue import Queue
 from time import sleep
@@ -18,18 +14,13 @@ class StateStorage(TorchFileStorage, Thread):
         Thread.__init__(self)
         # Нить-демон (чтобы автоматом завершилась по завершению приложения)
         self.daemon = True
-        # имя файла-хранилища
-        self._storage_filename = self._storage_filename.format("_st")
-        # print(self._storage_filename)
         # Очередь с данными на сохранение
         self.__dict_queue: Queue[Dict] = Queue()
         # Очередь сообщений, подтверждающих, что произведено сохранение данных в хранилище.
         # Необходима для того, чтобы очередная порция данных отправлялась на сохранение только после записи предыдущей.
         self.__report_queue: Queue[bool] = Queue()
-        # self.__was_running: bool = False
 
     def run(self) -> None:
-        # self.__was_running = True
         while True:
             if not self.__dict_queue.empty():
                 # Если очередь с данными на сохранение не пуста.
@@ -84,9 +75,3 @@ class StateStorage(TorchFileStorage, Thread):
                 # А если репорта о завершении предыдущего сохранения ещё нет - ничего не сохраняем.
                 # Пропускаем действие, чтобы не создавать очередь в очереди.
                 pass
-
-    # def load(self) -> Dict:
-    #     pass
-
-
-

@@ -1,46 +1,26 @@
 """ Реализация состояния. """
-from typing import Dict
-from nn_iface.ifaces import InterfaceStorage, ProcessStateInterface, DictKey
+from typing import Dict, Optional
+from nn_iface.if_state import DictKey, InterfaceStorage, ProcessStateInterface
 
 
 class State(ProcessStateInterface):
     """ Класс состояния процесса обучения. """
     def __init__(self):
         # Словарь с данными.
+        # Приложение хранит данные (и изменяет их) во время исполнения в этом словаре.
         self.__proxy_dict: Dict = {DictKey.BATCH_SIZE: -1,
                                    DictKey.EPOCH: [0, 0, 0],
                                    DictKey.PREV_Q_MAX: 0.,
+                                   DictKey.ACTOR_OPTIMIZER_STATE: None,
+                                   DictKey.CRITIC_OPTIMIZER_STATE: None,
                                    DictKey.TEMP_FOR_TEST: 0}
 
     def save(self, storage: InterfaceStorage) -> None:
         self.__proxy_dict[DictKey.TEMP_FOR_TEST] += 1
-        # # Полученный объект должен быть потомком класса-нити
-        # if not isinstance(storage, StateStorage):
-        #     raise TypeError("Input argument is wrong class: {}. It should be a object of StateStorage class".
-        #                     format(storage.__class__))
 
         storage.save(self.__proxy_dict)
-        # if not storage.is_alive():
-        #     # Если нить ещё не запущена
-        #     # Запускаем её
-        #     storage.start()
-        #     # И отправляем данные на сохранение.
-        #     storage.save_queue.put(self.__proxy_dict)
-        # else:
-        #     # Если нить уже запущена
-        #     if not storage.report_queue.empty():
-        #         # И если есть сообщение, что завершено предыдущее сохранение
-        #         # Забираем элемент из очереди репортов.
-        #         storage.report_queue.get()
-        #         # Отправляем список состояния на сохранение.
-        #         storage.save_queue.put(self.__proxy_dict)
-        #     else:
-        #         # А если репорта о завершении предыдущего сохранения ещё нет - ничего не сохраняем.
-        #         # Пропускаем действие, чтобы не создавать очередь в очереди.
-        #         pass
 
     def load(self, storage: InterfaceStorage) -> None:
-        # self.__dict_loaded = True
         self.__proxy_dict: Dict = storage.load()
 
     @property
@@ -82,3 +62,19 @@ class State(ProcessStateInterface):
     @prev_q_max.setter
     def prev_q_max(self, value) -> None:
         self.__proxy_dict[DictKey.PREV_Q_MAX] = value
+
+    @property
+    def actor_optim_state(self) -> dict:
+        return self.__proxy_dict[DictKey.ACTOR_OPTIMIZER_STATE]
+
+    @actor_optim_state.setter
+    def actor_optim_state(self, optim_state: dict) -> None:
+        self.__proxy_dict[DictKey.ACTOR_OPTIMIZER_STATE] = optim_state
+
+    @property
+    def critic_optim_state(self) -> dict:
+        return self.__proxy_dict[DictKey.CRITIC_OPTIMIZER_STATE]
+
+    @critic_optim_state.setter
+    def critic_optim_state(self, optim_state: dict) -> None:
+        self.__proxy_dict[DictKey.CRITIC_OPTIMIZER_STATE] = optim_state

@@ -1,6 +1,6 @@
 """ Фабрика выдачи различных хранилищ. """
 # todo модуль-заготовка
-from nn_iface.ifaces import InterfaceStorage
+from nn_iface.if_state import InterfaceStorage
 from fl_store.store_nn import TorchFileStorage
 
 

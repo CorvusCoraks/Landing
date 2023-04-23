@@ -1,27 +1,30 @@
 """ Модуль конкретного проекта. """
-from torch import Tensor, cuda, tensor, zeros, repeat_interleave, tile, scatter, split, max, int64, sum, mul, neg, add, matmul, transpose
+from torch import Tensor, cuda, tensor, zeros, repeat_interleave, tile, split, max, int64, sum, matmul, transpose
 from torch.nn import Module, Sequential
+import torch.optim
 from fl_store.store_nn import ModuleStorage
 from state import State
 from fl_store.store_st import StateStorage
-from typing import Dict, Optional, List, Tuple, Union
+from typing import Dict, Optional, List, Tuple
 from net import NetSeq
-from tools import Reinforcement, Finish, action_variants, Bit, zo
-from basics import TestId, TENSOR_DTYPE, TENSOR_INDEX_DTYPE, EVAL, GRAVITY_ACCELERATION_ABS, CUDA0, CPU, ZeroOne, Bit, Q_EST_NEXT, INDEX_IN_TEST
-from basics import Q_est_value, Index_value, Dict_key
+from tools import Reinforcement, Finish, action_variants, zo
+from basics import TestId, TENSOR_DTYPE, TENSOR_INDEX_DTYPE, CUDA0, CPU, ZeroOne, Bit
 from structures import RealWorldStageStatusN
-from math import atan2, pi
-from nn_iface.norm import ListMinMaxNormalization, MinMax, MinMaxXY
+from math import atan2
+from nn_iface.norm import ListMinMaxNormalization
 from nn_iface.ifaces import LossCriticInterface, LossActorInterface
 from point import VectorComplex
 from nn_iface.projects import AbstractProject
-from app_cfg import PROJECT_CONFIG_FILE, PROJECT_DIRECTORY_PATH
+from app_cfg import PROJECT_DIRECTORY_PATH
 from DevTmpPr.cfg import ACTOR_INPUT, ACTOR_HIDDEN, ACTOR_OUTPUT, ACTOR_OPTIONS
 from DevTmpPr.cfg import CRITIC_INPUT, CRITIC_HIDDEN, CRITIC_OUTPUT, CRITIC_OPTIONS
 from DevTmpPr.cfg import POSITION_MINMAX, LINE_VELOCITY_MINMAX, LINE_ACCELERATION_MINMAX
 from DevTmpPr.cfg import ORIENTATION_MINMAX, ANGULAR_VELOCITY_MINMAX, ANGULAR_ACCELERATION_MINMAX
 from DevTmpPr.cfg import NN_STORAGE_FILENAME, STATE_STORAGE_FILENAME
-from DevTmpPr.cfg import JETS_COUNT, ALPHA, GAMMA, CRITIC_LOSS, ACTOR_LOSS
+from DevTmpPr.cfg import JETS_COUNT
+from DevTmpPr.cfg import CRITIC_LOSS, ACTOR_LOSS
+from DevTmpPr.cfg import ACTOR_OPTIMIZER, ACTOR_OPTIMIZER_LR, ACTOR_OPTIMIZER_MOMENTUM
+from DevTmpPr.cfg import CRITIC_OPTIMIZER, CRITIC_OPTIMIZER_LR, CRITIC_OPTIMIZER_MOMENTUM
 
 
 class ProjectMainClass(AbstractProject):
@@ -59,6 +62,15 @@ class ProjectMainClass(AbstractProject):
         # Список возможных действий актора.
         self.__action_var: List[List[Bit]] = action_variants(JETS_COUNT)
 
+    def _create_optimizers(self, actor: Module, critic:Module) -> tuple[torch.optim.Optimizer, torch.optim.Optimizer]:
+        """ Подпрограмма создания оптимизаторов. """
+        actor_optimizer = ACTOR_OPTIMIZER(actor.parameters(), lr=ACTOR_OPTIMIZER_LR,
+                                          momentum=ACTOR_OPTIMIZER_MOMENTUM)
+        critic_optimizer = CRITIC_OPTIMIZER(critic.parameters(), lr=CRITIC_OPTIMIZER_LR,
+                                            momentum=CRITIC_OPTIMIZER_MOMENTUM)
+
+        return actor_optimizer, critic_optimizer
+
     def load_nn(self) -> None:
         try:
             super().load_nn()
@@ -83,6 +95,16 @@ class ProjectMainClass(AbstractProject):
             self._critic: Module = NetSeq(inp, hid, out, **CRITIC_OPTIONS)
 
     def load_state(self) -> None:
+        # Если актор или критик ещё None, то создать оптимизаторы не получится.
+        foo = None
+        if self._actor is None or self._critic is None:
+            raise ValueError("{} Could`t create optimizers. ".format(
+                "Actor is None." if self._actor is None else "Critic is None." if self._critic is None else foo
+            ))
+
+        # Создание оптимизаторов
+        self._actor_optimizer, self._critic_optimizer = self._create_optimizers(self._actor, self._critic)
+
         try:
             # # загружаем состояние из хранилища
             super().load_state()
@@ -96,16 +118,13 @@ class ProjectMainClass(AbstractProject):
 
     def actor_input_preparation(self, raw_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
             -> Tensor:
-        """
 
-        :param raw_batch: raw steak (сырое мясо) - словарь неподготовленных исходных данных
-        :return: входной тензор актора, и список идентификаторов теста, соответствующий порядку элементов в тензоре.
-        """
         # Список-заготовка (rare steak, стейк с кровью) входных данных, список списков,
         # элемент которого является состоянием изделия.
-        rare_list: List[List[Optional[ZeroOne]]] = [[] for a in range(len(raw_batch))]
-        # Список-заготовка идентификаторов испытаний (Необходим в будущем для состыковки результатов с идентификаторами)
-        # test_id_list: List[TestId] = [0 for a in range(len(raw_batch))]
+        rare_list: List[List[Optional[ZeroOne]]] = [[] for _ in range(len(raw_batch))]
+
+        # Список, который пойдёт в конструктор тензора.
+        rare_float_list: List[float] = []
 
         for index, test_id in enumerate(s_order):
             # Из списка идентификаторов тестов по очерёдно извлекаем индексы и идентификаторы.
@@ -118,7 +137,7 @@ class ProjectMainClass(AbstractProject):
             # В правой полуплоскости знак угла отрицательный, в левой - положительный (отсчёт от оси OY СКЦМ)
             assert (raw_batch[test_id].orientation.x > 0 and orientation_rad < 0) \
                    or (raw_batch[test_id].orientation.x < 0 and orientation_rad > 0) \
-                   or (raw_batch[test_id].orientation.x == 0 and orientation_rad == 0), \
+                   or (raw_batch[test_id].orientation.x == 0 and orientation_rad == 0),\
                 "Signs mismatch for angle and vector orientation"
 
             # Нормализация входных данных. VectorComplex возвращается как VectorComplex.
@@ -128,9 +147,6 @@ class ProjectMainClass(AbstractProject):
                                                                    orientation_rad,
                                                                    raw_batch[test_id].angular_velocity,
                                                                    raw_batch[test_id].angular_acceleration])
-
-            # Список, который дальше пойдёт в конструктор тензора.
-            rare_float_list: List[float] = []
 
             for i, state_element in enumerate(rare_list[index]):
                 # Заполнение итогового списка (будет состоять из float)
@@ -158,7 +174,7 @@ class ProjectMainClass(AbstractProject):
         # затем расширяем первое измерение клона на размер первого измерения списка возможных действий актора
         # Список повторений каждого элемента по горизонтали.
         # Все элементы повторяются 1 раз, ...
-        rep = [1 for a in critic_in[0]]
+        rep = [1 for _ in critic_in[0]]
         # ... кроме последнего элемента, который повторяясь задаёт место под будущие варианты действий актора.
         rep[len(rep)-1] = len(self.__action_var[0]) + 1
         rep = tensor(rep)
@@ -200,9 +216,6 @@ class ProjectMainClass(AbstractProject):
         tensors: List[Tensor] = split(tensors, len(self.__action_var), dim=0)
 
         # Результирующий список максимальных оценок фунции ценности.
-        # max_q_est: List[List[ZeroOne | int]] = []
-        # by_test_id: Dict[TestId, List[ZeroOne | int]] = {}
-        # by_test_id: Dict[TestId, Dict[Dict_key, Q_est_value | Index_value]] = {}
         result: Dict[TestId, int] = {}
         # Выходной кортеж для функции поиска максимума в тензоре.
         max_from: Tuple[Tensor, Tensor] = (zeros(0), zeros(0, dtype=int64))
@@ -210,17 +223,13 @@ class ProjectMainClass(AbstractProject):
         for i, one_tensor in enumerate(tensors):
             # Нахождение максимума в тензоре.
             max(one_tensor, dim=0, out=max_from)
-            # Пополнение списка результатов.
-            # max_q_est.append([max_from[0].item(), max_from[1].item()])
-            # Индекс испытания в списке тензоров и индекс испытания в списке идентификаторов испытаний совпадают
-            # by_test_id[s_order[i]] = [max_from[0].item(), max_from[1].item()]
-            # by_test_id[s_order[i]] = {Q_EST_NEXT: max_from[0].item(), INDEX_IN_TEST: max_from[1].item()}
+            # Пополнение словаря результатов.
             result[s_order[i]] = max_from[1].item()
 
-        # return max_q_est
         return result
 
-    def critic_output_transformation(self, all_q_est: Tensor, s_order: List[TestId], max_q_est_index: Dict[TestId, int]) -> Tensor:
+    def critic_output_transformation(self, all_q_est: Tensor, s_order: List[TestId],
+                                     max_q_est_index: Dict[TestId, int]) -> Tensor:
 
         # По ключевым точкам проверено: grad_fn - present, requires_grad == True
 

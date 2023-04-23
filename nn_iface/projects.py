@@ -1,16 +1,15 @@
 """ Конкретный проект (комбинация нейросетей). """
-from torch import Tensor, Size, zeros, tensor, add, mul, neg, max, split, int64
-# from torch.nn import Conv2d, Sequential
+from torch import Tensor, tensor, add, mul
 import torch.nn
 import torch.nn.functional as F
-# from torch.nn.modules.loss import _Loss
-from nn_iface.ifaces import ProjectInterface, InterfaceStorage, ProcessStateInterface, LossCriticInterface, LossActorInterface
-from typing import Dict, Optional, List, Tuple, Any
+import torch.optim
+from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInterface
+from nn_iface.if_state import InterfaceStorage, ProcessStateInterface
+from typing import Dict, Optional, List
 from tools import Reinforcement, Finish
-from basics import TestId, ACTOR_CHAPTER,CRITIC_CHAPTER, ZeroOne, Bit
+from basics import TestId, ACTOR_CHAPTER, CRITIC_CHAPTER, ZeroOne
 from structures import RealWorldStageStatusN
-# import tomli
-# from abc import ABC, abstractmethod
+from abc import ABC
 
 
 class TestModel(torch.nn.Module):
@@ -27,12 +26,12 @@ class TestModel(torch.nn.Module):
 
 class MSE_RLLoss(LossCriticInterface, torch.nn.MSELoss):
     """ Класс функции потерь среднего квадратичного отклонения. """
-    def __init__(self, gamma:float=0.001, reduction:str='mean'):
+    def __init__(self, gamma:float = 0.001, reduction:str = 'mean'):
         torch.nn.MSELoss.__init__(self, reduction)
         self._gamma = gamma
 
     def __call__(self, s_order: List[TestId], reinf: Dict[TestId, ZeroOne],
-                   max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
+                 max_q_est: Dict[TestId, ZeroOne], max_q_est_next: Tensor) -> Tensor:
 
         # Список предыдущих максимальных оценок функции ценности
         q_est_input: List[List[ZeroOne]] = [[max_q_est[test_id]] for test_id in s_order]
@@ -44,24 +43,22 @@ class MSE_RLLoss(LossCriticInterface, torch.nn.MSELoss):
         # Тензор подкреплений
         rf: Tensor = tensor(rf, requires_grad=False)
 
-        # Ошибка оценки функции ценности.
-        # return rf + GAMMA * max_q_est_next - q_est
-        # add(rf, add(mul(max_q_est_next, self._gamma), neg(q_est)))
+        # Целевая оценка функции ценности.
         q_est_target: Tensor = add(rf, mul(max_q_est_next, self._gamma))
 
-        # input, target = zeros(1, 1), zeros(1, 1)
         return torch.nn.MSELoss.__call__(self, q_est_input, q_est_target)
 
 
 class MSELoss(LossActorInterface, torch.nn.MSELoss):
     """ Просто MSE."""
-    def __init__(self, reduction:str='mean'):
+    def __init__(self, reduction:str = 'mean'):
         torch.nn.MSELoss.__init__(self, reduction)
 
     def __call__(self, output: Tensor, target: Tensor):
         return torch.nn.MSELoss.__call__(self, output, target)
 
-class AbstractProject(ProjectInterface):
+
+class AbstractProject(ProjectInterface, ABC):
     """ Абстрактный класс проекта. Объединяет общие атрибуты и реализации методов. """
     def __init__(self):
         self._actor_key = ACTOR_CHAPTER
@@ -90,6 +87,11 @@ class AbstractProject(ProjectInterface):
         # Класс проверки на выход за пределы тестового полигона
         self._finish: Optional[Finish] = None
 
+        # Оптимайзер актора
+        self._actor_optimizer: Optional[torch.optim.Optimizer] = None
+        # Оптимайзер критика
+        self._critic_optimizer: Optional[torch.optim.Optimizer] = None
+
     @property
     def state(self) -> ProcessStateInterface:
         return self._training_state
@@ -98,6 +100,11 @@ class AbstractProject(ProjectInterface):
         self._save_storage_model.save({self._actor_key: self._actor, self._critic_key: self._critic})
 
     def save_state(self) -> None:
+        # фиксируем состояние оптимизатора актора в прокси-словаре
+        self._training_state.actor_optim_state = self._actor_optimizer.state_dict()
+        # фиксируем состояние оптимизатора критика в прокси-словаре
+        self._training_state.critic_optim_state = self._critic_optimizer.state_dict()
+        # сохраняем промежуточное состояние процесса обучения.
         self._training_state.save(self._save_storage_training_state)
 
     def load_nn(self) -> None:
@@ -108,6 +115,10 @@ class AbstractProject(ProjectInterface):
     def load_state(self) -> None:
         # загружаем состояние из хранилища
         self._training_state.load(self._load_storage_training_state)
+        # Восстанавливаем состояние оптимизатора актора
+        self._actor_optimizer.load_state_dict(self._training_state.actor_optim_state)
+        # Восстанавливаем состояние оптимизатора критика
+        self._critic_optimizer.load_state_dict(self._training_state.critic_optim_state)
 
     @property
     def device(self) -> str:
@@ -121,22 +132,10 @@ class AbstractProject(ProjectInterface):
     def finish(self) -> Finish:
         return self._finish
 
-    def critic_input_preparation(self, actor_input: Tensor, actor_output: Tensor,
-                                 environment_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
-            -> Tensor:
-        pass
-
     def actor_target(self, s_order: List[TestId], commands: Dict[TestId, Tensor]) -> Tensor:
         list_for_tensor: List = [commands[test_id][0].tolist() for test_id in s_order]
 
         return tensor(list_for_tensor, requires_grad=False)
-
-
-    def actor_optimizer(self) -> None:
-        pass
-
-    def critic_optimaizer(self) -> None:
-        pass
 
     def _features_examine(self, net_name: str, net_input: Tensor, net: torch.nn.Module) -> None:
         """ Проверка на совпадение количества входных параметров и размерности features нейронной сети.
@@ -167,7 +166,7 @@ class AbstractProject(ProjectInterface):
         assert second_children_parameters.shape[1] == net_input.shape[1], \
             "Width of raw_batch element ({}) mismatch of neuron net input features count ({})." \
             "May be you change neuron net input width in project, but load old neuron net from storage?".\
-                format(second_children_parameters[1], net_input.shape[1])
+            format(second_children_parameters[1], net_input.shape[1])
 
         if second_children_parameters.shape[1] != net_input.shape[1]:
             raise ValueError("Width of raw_batch element ({}) mismatch of neuron net ({}) input features count ({}). "
@@ -178,9 +177,15 @@ class AbstractProject(ProjectInterface):
     def actor_forward(self, actor_input: Tensor) -> Tensor:
         self._features_examine('actor', actor_input, self._actor)
         return self._actor.forward(actor_input)
-        # return actor_input
 
     def critic_forward(self, critic_input: Tensor) -> Tensor:
         self._features_examine('critic', critic_input, self._critic)
         return self._critic.forward(critic_input)
 
+    @property
+    def actor_optimizer(self) -> torch.optim.Optimizer:
+        return self._actor_optimizer
+
+    @property
+    def critic_optimizer(self) -> torch.optim.Optimizer:
+        return self._critic_optimizer

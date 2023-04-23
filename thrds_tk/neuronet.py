@@ -14,7 +14,8 @@ from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
-from nn_iface.ifaces import InterfaceStorage, InterfaceNeuronNet, ProjectInterface, LossCriticInterface, LossActorInterface
+from nn_iface.ifaces import InterfaceNeuronNet, ProjectInterface, LossCriticInterface, LossActorInterface
+from nn_iface.if_state import InterfaceStorage
 # from nn_iface.projects import LossCriticInterface, MSE_RLLoss, torLoss
 # from DevTmpPr.project import ProjectMainClass
 from tools import q_est_init
@@ -328,6 +329,8 @@ class NeuronetThread(INeuronet, AYarn):
                 actor_loss.backward()
 
                 # Оптимизировать критика и актора.
+                self.__project.actor_optimizer.step()
+                self.__project.critic_optimizer.step()
 
                 # # # Отправка команды, согласно максимального значения функции ценности
                 # # # Пока случайным образом в тестовых целях, чтобы работало.
