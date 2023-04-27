@@ -20,7 +20,7 @@ class DictKey(Enum):
     # OPTIMIZER_STATE = "optimizer_state"
     BATCH_SIZE = "batch_size"
     EPOCH = "epoch_array"               # Начальная эпоха, текущая эпоха, последняя эпоха
-    PREV_Q_MAX = "previous_q_max"
+    # PREV_Q_MAX = "previous_q_max"
     # DEVICE = "device"
     TEMP_FOR_TEST = "temp_for_test_"
 
@@ -152,15 +152,15 @@ class ProcessStateDataInterface(ABC):
     def epoch_stop(self, value: int) -> None:
         ...
 
-    @property
-    @abstractmethod
-    def prev_q_max(self) -> float:
-        ...
-
-    @prev_q_max.setter
-    @abstractmethod
-    def prev_q_max(self, value) -> None:
-        ...
+    # @property
+    # @abstractmethod
+    # def prev_q_max(self) -> float:
+    #     ...
+    #
+    # @prev_q_max.setter
+    # @abstractmethod
+    # def prev_q_max(self, value) -> None:
+    #     ...
 
 
 class ProcessStateInterface(StateInterfaceSaveLoad, ProcessStateDataInterface, OptimizerStateInterface, ABC):

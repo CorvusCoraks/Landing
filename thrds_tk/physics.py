@@ -51,7 +51,7 @@ class PhysicsThread(IPhysics, AYarn):
     # def __init__(self, name: str, data_socket: ISocket,
     #              initial_state: InitialStatusAbstract, max_tests: int, batch_size=1):
     def __init__(self, name: str, data_socket: ISocket,
-                 initial_state: IInitStates, max_tests: int, batch_size=1):
+                 initial_state: IInitStates, max_tests: int):
         """
 
         :param name: Имя нити.
@@ -69,7 +69,7 @@ class PhysicsThread(IPhysics, AYarn):
         # self.__kill = kill
         self.__max_tests = max_tests
         # todo Зачем здесь размер батча? Это параметр блока нейросети! Убрать!
-        self.__batch_size = batch_size
+        # self.__batch_size = batch_size
 
         self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = self.__data_socket.get_in_dict()
         logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.format(self.__class__.__name__, self.__data_socket, self.__data_socket.get_all_in(), self.__incoming))

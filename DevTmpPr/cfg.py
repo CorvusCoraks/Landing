@@ -52,3 +52,6 @@ ACTOR_OPTIMIZER_MOMENTUM: float = 0.9
 CRITIC_OPTIMIZER: type[torch.optim.Optimizer] = torch.optim.SGD
 CRITIC_OPTIMIZER_LR: float = 0.001
 CRITIC_OPTIMIZER_MOMENTUM: float = 0.9
+
+# Начальные значения
+START_VALUES: Dict = {'batch_size': 1, 'epoch_start': 0, 'epoch_current': 0, 'epoch_stop': 2}

@@ -10,7 +10,6 @@ class State(ProcessStateInterface):
         # Приложение хранит данные (и изменяет их) во время исполнения в этом словаре.
         self.__proxy_dict: Dict = {DictKey.BATCH_SIZE: -1,
                                    DictKey.EPOCH: [0, 0, 0],
-                                   DictKey.PREV_Q_MAX: 0.,
                                    DictKey.ACTOR_OPTIMIZER_STATE: None,
                                    DictKey.CRITIC_OPTIMIZER_STATE: None,
                                    DictKey.TEMP_FOR_TEST: 0}
@@ -18,10 +17,39 @@ class State(ProcessStateInterface):
     def save(self, storage: InterfaceStorage) -> None:
         self.__proxy_dict[DictKey.TEMP_FOR_TEST] += 1
 
-        storage.save(self.__proxy_dict)
+        #словарь с ключами типа строка
+        state_dict: dict = {}
+
+        # Преобразование словаря с ключами DictKey в словарь с ключами-строками.
+        for key, value in self.__proxy_dict.items():
+            state_dict[key.name] = value
+
+        # сохраняем в хранилище словарь с ключами в виде строки
+        # (чтобы не сериализовать в хранилище класc перечесления с ключами)
+        storage.save(state_dict)
 
     def load(self, storage: InterfaceStorage) -> None:
-        self.__proxy_dict: Dict = storage.load()
+        # self.__proxy_dict: Dict = storage.load()
+        state_dict: dict = storage.load()
+
+        # Проверка наличия всех ключей в сохранённом ранее словаре
+        for key in self.__proxy_dict.keys():
+            if key.name not in state_dict:
+                # todo отработать штатное завершение приложения в этой ситуации.
+                # Ключ отсутствует в сохранённом ранее словаре.
+                raise KeyError("Key '{}' absent in loading dict. Mismatch keys in dicts.".format(key))
+
+        # Строковые ключи преобразуются в ключи класса DictKey
+        for key, value in state_dict.items():
+            try:
+                dict_key: DictKey = DictKey[key]
+            except KeyError:
+                # Такой ключ отсутствует в перечислении DictKey
+                # todo отработать штатное завершение приложения в этой ситуации.
+                raise KeyError("Key '{}' absent in DictKey enum. Mismatch keys in dicts.".format(key))
+            else:
+                # Ключ в DictKey есть. Загруженное значение сохраняется в словаре.
+                self.__proxy_dict[dict_key] = value
 
     @property
     def batch_size(self) -> int:
@@ -55,13 +83,13 @@ class State(ProcessStateInterface):
     def epoch_stop(self, value: int) -> None:
         self.__proxy_dict[DictKey.EPOCH][2] = value
 
-    @property
-    def prev_q_max(self) -> float:
-        return self.__proxy_dict[DictKey.PREV_Q_MAX]
-
-    @prev_q_max.setter
-    def prev_q_max(self, value) -> None:
-        self.__proxy_dict[DictKey.PREV_Q_MAX] = value
+    # @property
+    # def prev_q_max(self) -> float:
+    #     return self.__proxy_dict[DictKey.PREV_Q_MAX]
+    #
+    # @prev_q_max.setter
+    # def prev_q_max(self, value) -> None:
+    #     self.__proxy_dict[DictKey.PREV_Q_MAX] = value
 
     @property
     def actor_optim_state(self) -> dict:

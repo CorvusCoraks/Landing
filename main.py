@@ -66,6 +66,12 @@ if __name__ == "__main__":
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.JETS_COMMAND))
     switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
     switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
+    # Дополнительные каналы для завершения приложения в случае ошибки в каком-либо модуле
+    # todo реализовать передачу этих каналов в блоки приложения.
+    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
+    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
 
 
     # Очередь данных в вид испытательного полигона (из нити реальности)
@@ -76,18 +82,20 @@ if __name__ == "__main__":
     # Очередь данных с управляющими командами (из нейросети)
 
     # todo зачем здесь размер батча? Это параметр блока нейросети!
-    batch_size = 1
+    # batch_size = 1
 
     # Нить модели реального мира
     # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitialStatus(max_tests), max_tests, batch_size)
-    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests, batch_size)
+    # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests, batch_size)
+    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status
     # Т. е. отображение хода обучения идёт через tkinter в главной нити,
     # расчёт нейросети и физическое моделирование в отдельной нити
 
-    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), max_tests, batch_size)
+    # neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), max_tests, batch_size)
+    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), max_tests)
 
     neuroNetThread.start()
 

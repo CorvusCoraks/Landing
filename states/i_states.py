@@ -9,6 +9,7 @@ from structures import RealWorldStageStatusN
 # IStatesStore -> DictStore
 #           └> another interface realization
 
+
 class IInitStates(ABC):
     """ Интерфейс инициализации начальных состояний новых испытаний. """
     @abstractmethod

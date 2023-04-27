@@ -1,6 +1,6 @@
 """ Модуль визуализации происходящего с испытуемым объектом. """
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_TESTID_FOR_VIEW
 from tkinter import Tk, Canvas
 from typing import Optional, Dict, Tuple
 from stage import BigMap
@@ -64,11 +64,10 @@ class PoligonWindow(WindowsMSInterface):
         self.__inbound: Inbound = self.__data_socket.get_in_dict()
         self.__outbound: Outbound = self.__data_socket.get_out_dict()
 
-        # todo передать из вышестоящего модуля
-        # Время сна в ожидании данных в очереди
-        # self.__time_sleep: float = 0.001
         # Идентификатор испытания предназначенного для отображения.
-        self.__test_id_for_view: TestId = 0
+        # После показа испытания START_TESTID_FOR_VIEW начинается показ очередного нового.
+        self.__test_id_for_view: TestId = START_TESTID_FOR_VIEW
+        # Состояние (биография) демонстрируемого испытания.
         self.__bio: BioEnum = BioEnum.FIN
 
         # Стартовая точка отображаемого испытания в СКК. Значение по умолчанию.

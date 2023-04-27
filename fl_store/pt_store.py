@@ -2,6 +2,7 @@
 from nn_iface.if_state import InterfaceStorage
 from typing import Dict
 import torch
+from basics import FinishAppException
 
 
 class TorchFileStorage(InterfaceStorage):
@@ -36,4 +37,21 @@ class TorchFileStorage(InterfaceStorage):
         torch.save(dict_from, self._storage_filename)
 
     def load(self) -> Dict:
-        return torch.load(self._storage_filename)
+        # Возможно несоответствие сериализованных в хранилище объектов и объектов в программе.
+        # Может выпадать ошибка вида "not valid key". Такое возможно, если программист изменил структуру данных
+        # в программе, а при очередном запуске попытался загрузить старую структуру их хранилища.
+        # todo В будущем предусмотреть легальное прекращение работы приложения с выдачей ясного пояснения по ошибке
+        # То есть, нужна генерация FinishAppException и перехват его где-то в вызывающих методах, с передачей
+        # команды DataTypeEnum.APP_FINISH на легитимное завершение всех потоков приложения.
+        #
+        result: dict = {}
+        try:
+            result: dict = torch.load(self._storage_filename)
+        except ValueError as e:
+            print("Attention! Возможно класс данных изменён в приложении, "
+                  "но совершается попытка загрузки из хранилища устарелого объекта.")
+            # raise FinishAppException
+            raise
+        else:
+            return result
+        # return torch.load(self._storage_filename)

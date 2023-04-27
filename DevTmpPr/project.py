@@ -25,6 +25,7 @@ from DevTmpPr.cfg import JETS_COUNT
 from DevTmpPr.cfg import CRITIC_LOSS, ACTOR_LOSS
 from DevTmpPr.cfg import ACTOR_OPTIMIZER, ACTOR_OPTIMIZER_LR, ACTOR_OPTIMIZER_MOMENTUM
 from DevTmpPr.cfg import CRITIC_OPTIMIZER, CRITIC_OPTIMIZER_LR, CRITIC_OPTIMIZER_MOMENTUM
+from DevTmpPr.cfg import START_VALUES
 
 
 class ProjectMainClass(AbstractProject):
@@ -110,11 +111,11 @@ class ProjectMainClass(AbstractProject):
             super().load_state()
         except FileNotFoundError:
             # Задание начальных состояний для параметров испытаний.
-            self._training_state.batch_size = 1
-            self._training_state.epoch_start = 0
-            self._training_state.epoch_current = 0
-            self._training_state.epoch_stop = 2
-            self._training_state.prev_q_max = 0
+            self._training_state.batch_size = START_VALUES['batch_size']
+            self._training_state.epoch_start = START_VALUES['epoch_start']
+            self._training_state.epoch_current = START_VALUES['epoch_current']
+            self._training_state.epoch_stop = START_VALUES['epoch_stop']
+            # self._training_state.prev_q_max = 0
 
     def actor_input_preparation(self, raw_batch: Dict[TestId, RealWorldStageStatusN], s_order: List[TestId]) \
             -> Tensor:
