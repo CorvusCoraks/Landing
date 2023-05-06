@@ -1,7 +1,8 @@
+""" Модуль интерфейсов блоков приложения: физ. модели, обучения нейросети, визуализации процесса. """
 from abc import ABC, abstractmethod
 
 class IAppModule(ABC):
-    """ Интерфейс вычислительного модуля приложения. """
+    """ Интерфейс вычислительного блока приложения. """
     @abstractmethod
     def initialization(self) -> None:
         """ Инициализация блока приложения. """
@@ -14,7 +15,7 @@ class IAppModule(ABC):
 
 
 class IPhysics(IAppModule):
-    """ Интерфейс физического модуля приложения. """
+    """ Интерфейс физического блока приложения. """
     @abstractmethod
     def initialization(self) -> None:
         pass
@@ -25,7 +26,7 @@ class IPhysics(IAppModule):
 
 
 class INeuronet(IAppModule):
-    """ Интерфейс модуля нейросети приложения. """
+    """ Интерфейс блока нейросети приложения. """
     @abstractmethod
     def initialization(self) -> None:
         pass
@@ -36,7 +37,7 @@ class INeuronet(IAppModule):
 
 
 class IVisualization(IAppModule):
-    """ Интерфейс модуля визуализации приложения. """
+    """ Интерфейс блока визуализации приложения. """
     @abstractmethod
     def initialization(self) -> None:
         pass

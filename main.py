@@ -12,6 +12,8 @@ from con_intr.ifaces import AppModulesEnum, DataTypeEnum, TransferredData, ISock
 from thrds_tk.neuronet import NeuronetThread
 from thrds_tk.physics import PhysicsThread
 from states.s_states import InitGenerator
+import importlib
+from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE
 
 
 def get_log_handler(out: str):
@@ -55,7 +57,12 @@ if __name__ == "__main__":
     logger.info("Input in {0} module\n".format(__name__))
 
     # максимальное количество тестовых посадок
-    max_tests = 7
+    # todo Отсюда убрать. Относится к конкретному проекту.
+    # RunTime импортирование файла конфигурации проекта.
+    project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
+    # Загрузка количества элементов в обучающей выборке.
+    max_tests = project_module.TRANING_SET_LENGTH
+    # max_tests = 7
 
     # Реализация сообщений через распределительный щит
     switchboard = Switchboard()
@@ -87,7 +94,8 @@ if __name__ == "__main__":
     # Нить модели реального мира
     # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitialStatus(max_tests), max_tests, batch_size)
     # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests, batch_size)
-    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests)
+    # todo Генератор начальных состояний, опять же относится к конкретному проекту.
+    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests))
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status
@@ -95,7 +103,7 @@ if __name__ == "__main__":
     # расчёт нейросети и физическое моделирование в отдельной нити
 
     # neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), max_tests, batch_size)
-    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), max_tests)
+    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard))
 
     neuroNetThread.start()
 

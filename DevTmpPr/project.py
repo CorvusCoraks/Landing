@@ -125,7 +125,7 @@ class ProjectMainClass(AbstractProject):
         rare_list: List[List[Optional[ZeroOne]]] = [[] for _ in range(len(raw_batch))]
 
         # Список, который пойдёт в конструктор тензора.
-        rare_float_list: List[float] = []
+        rare_float_list: List[List[float]] = []
 
         for index, test_id in enumerate(s_order):
             # Из списка идентификаторов тестов по очерёдно извлекаем индексы и идентификаторы.
@@ -149,19 +149,25 @@ class ProjectMainClass(AbstractProject):
                                                                    raw_batch[test_id].angular_velocity,
                                                                    raw_batch[test_id].angular_acceleration])
 
+            # Заполнение итогового списка (будет состоять из float)
+            # Одно состояние
+            state: list = []
             for i, state_element in enumerate(rare_list[index]):
-                # Заполнение итогового списка (будет состоять из float)
                 if isinstance(state_element, VectorComplex):
                     # Преобразование объектов VectorComplex в пары нормализованных float.
-                    rare_float_list.extend([zo(state_element.x), zo(state_element.y)])
+                    # rare_float_list.extend([zo(state_element.x), zo(state_element.y)])
+                    state.extend([zo(state_element.x), zo(state_element.y)])
                 elif isinstance(state_element, float):
                     # Если нормализованная величина уже float, включаем как float
-                    rare_float_list.append(zo(state_element))
+                    # rare_float_list.append(zo(state_element))
+                    state.append(zo(state_element))
                 else:
                     raise TypeError('Wrong type object {} in list'.format(type(state_element)))
+            # Добавка одного состояния в двумерный список будущего батча
+            rare_float_list.append(state)
 
         # Входной тензор.
-        input_tensor: Tensor = tensor([rare_float_list], dtype=TENSOR_DTYPE, requires_grad=True)
+        input_tensor: Tensor = tensor(rare_float_list, dtype=TENSOR_DTYPE, requires_grad=True)
 
         return input_tensor
 
