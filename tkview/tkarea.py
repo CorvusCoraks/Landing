@@ -11,15 +11,15 @@ from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from time import sleep
 from point import VectorComplex
-from con_intr.ifaces import ISocket, IReceiver, ISender, AppModulesEnum, DataTypeEnum, BioEnum
+from con_intr.ifaces import ISocket, IReceiver, ISender, AppModulesEnum, DataTypeEnum, BioEnum, Inbound, Outbound
 from con_simp.contain import Container, BioContainer
 from tkview.view_chn import ViewParts, ViewData, ViewDataSwitcher
 from copy import deepcopy
 
 logger = getLogger(logger_name+'.view')
 
-Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
-Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
+# Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
+# Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 ViewInbound = Dict[ViewParts, Dict[ViewData, IReceiver]]
 ViewOutbound = Dict[ViewParts, Dict[ViewData, ISender]]

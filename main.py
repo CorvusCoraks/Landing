@@ -56,13 +56,8 @@ if __name__ == "__main__":
 
     logger.info("Input in {0} module\n".format(__name__))
 
-    # максимальное количество тестовых посадок
-    # todo Отсюда убрать. Относится к конкретному проекту.
     # RunTime импортирование файла конфигурации проекта.
-    project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
-    # Загрузка количества элементов в обучающей выборке.
-    max_tests = project_module.TRANING_SET_LENGTH
-    # max_tests = 7
+    project_cfg = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
 
     # Реализация сообщений через распределительный щит
     switchboard = Switchboard()
@@ -88,14 +83,10 @@ if __name__ == "__main__":
     # Очередь данных с подкреплениями (из нити реальности)
     # Очередь данных с управляющими командами (из нейросети)
 
-    # todo зачем здесь размер батча? Это параметр блока нейросети!
-    # batch_size = 1
-
     # Нить модели реального мира
-    # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitialStatus(max_tests), max_tests, batch_size)
-    # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests), max_tests, batch_size)
-    # todo Генератор начальных состояний, опять же относится к конкретному проекту.
-    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests))
+    # todo Абстрагировать тип нити, ибо структура вычислительных модулей может быть и не нитевой.
+    # realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), InitGenerator(max_tests))
+    realWorldThread: PhysicsThread = PhysicsThread('realWorldThread', Socket(AppModulesEnum.PHYSICS, switchboard), project_cfg)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить, так как tkinter может работать исключительно в главном потоке.previous_status
@@ -103,7 +94,7 @@ if __name__ == "__main__":
     # расчёт нейросети и физическое моделирование в отдельной нити
 
     # neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), max_tests, batch_size)
-    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard))
+    neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread', Socket(AppModulesEnum.NEURO,switchboard), project_cfg)
 
     neuroNetThread.start()
 

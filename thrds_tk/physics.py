@@ -1,4 +1,5 @@
 # todo Физическую модель перенести в директорию проекта, так как реализация окр. среды относится к конкретному проекту
+from types import ModuleType
 from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_NEW_AGE, CLOSE_APP
 from logging import getLogger
 from ifc_flow.i_flow import IPhysics
@@ -8,9 +9,11 @@ from tools import Finish
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Optional, Tuple, Dict, Callable
 from time import sleep
-from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum
+from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum, \
+    Inbound, Outbound, IFinishApp, finish_app_checking
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
+from con_simp.switcher import AppFinish
 from physics import Moving
 from copy import deepcopy
 from states.i_states import IStatesStore
@@ -45,42 +48,51 @@ from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE
 
 logger = getLogger(logger_name + '.physics')
 
-Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
-Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
+# Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
+# Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 class PhysicsThread(IPhysics, AYarn):
     """ Нить физической модели. """
 
-    def __init__(self, name: str, data_socket: ISocket,
-                 initial_state: IInitStates):
+    def __init__(self, name: str, data_socket: ISocket, project_cfg: ModuleType):
         """
 
         :param name: Имя нити.
         :param data_socket: Сокет модуля физической модели для работы с каналами передачи данных
-        :param initial_state: Объект инициализации начальных состояний испытаний.
+        :param project_cfg: Объект модуля конфигурации конкретного проекта.
         """
         AYarn.__init__(self, name)
 
         # RunTime импортирование файла конфигурации проекта.
-        project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
+        # project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
         # Загрузка количества элементов в обучающей выборке.
-        self.__max_tests = project_module.TRANING_SET_LENGTH
+        self.__max_tests = project_cfg.TRANING_SET_LENGTH
 
-        self.__data_socket = data_socket
+        # self.__data_socket = data_socket
 
-        self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = self.__data_socket.get_in_dict()
-        logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.format(self.__class__.__name__, self.__data_socket, self.__data_socket.get_all_in(), self.__incoming))
-        self.__outgoing: Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]] = self.__data_socket.get_out_dict()
-        logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.format(self.__class__.__name__, self.__data_socket, self.__data_socket.get_all_out(), self.__outgoing))
+        self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = data_socket.get_in_dict()
+        logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.
+                     format(self.__class__.__name__, data_socket, data_socket.get_all_in(),
+                            self.__incoming))
+        self.__outgoing: Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]] = data_socket.get_out_dict()
+        logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.
+                     format(self.__class__.__name__, data_socket, data_socket.get_all_out(),
+                            self.__outgoing))
 
         # Генератор начальных состояний.
-        self.__initial_states: IInitStates = initial_state
+        # self.__initial_states: IInitStates = initial_state
+        self.__initial_states: IInitStates = project_cfg.START_STATES
 
         # Условие окончания одного конкретного испытания.
-        self.__finish_criterion = Finish()
+        # self.__finish_criterion = Finish()
+        self.__finish_criterion = project_cfg.FINISH
 
         # Объект-хранилище текущих испытаний
-        self.__store: IStatesStore = DictStore()
+        # self.__store: IStatesStore = DictStore()
+        self.__store: IStatesStore = project_cfg.STATES_STORE
+
+        # Интерфейс доступа к набору каналов передачи сообщений о завершении приложения.
+        self.__app_fin: IFinishApp = AppFinish(data_socket)
 
     def initialization(self) -> None:
         pass
@@ -88,20 +100,20 @@ class PhysicsThread(IPhysics, AYarn):
     def run(self) -> None:
         pass
 
-    def __finish_app_checking(self, inbound: Inbound) -> None:
-        """ Метод проверяет на появление в канале связи команды на завершение приложения и возбуждает *FinishAppExeption*.
-
-        :param inbound: словарь исходящих каналов передачи данных
-        """
-        # Если команда на завершение приложения есть
-        if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
-            # Получаем эту команду
-            inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
-            # Возбуждаем исключение завершения приложения.
-            raise FinishAppException
+    # def __finish_app_checking(self, inbound: Inbound) -> None:
+    #     """ Метод проверяет на появление в канале связи команды на завершение приложения и возбуждает *FinishAppExeption*.
+    #
+    #     :param inbound: словарь исходящих каналов передачи данных
+    #     """
+    #     # Если команда на завершение приложения есть
+    #     if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
+    #         # Получаем эту команду
+    #         inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
+    #         # Возбуждаем исключение завершения приложения.
+    #         raise FinishAppException
 
     def __get_states_count(self, inbound: Inbound, report_line: IReceiver,
-                           sleep_time: float, finish_app_checking: Callable[[Inbound], None]) -> int:
+                           sleep_time: float, finish_app_checking: Callable[[], None]) -> int:
         """ Получить из нейросети количество испытаний, которое она готова обработать.
 
         :param inbound: словарь исходящих каналов передачи данных
@@ -112,7 +124,7 @@ class PhysicsThread(IPhysics, AYarn):
         :return: Количество испытаний, которое готова обработать нейросеть.
         """
         while not report_line.has_incoming():
-            finish_app_checking(inbound)
+            finish_app_checking()
             sleep(sleep_time)
 
         container: IContainer = report_line.receive()
@@ -149,7 +161,7 @@ class PhysicsThread(IPhysics, AYarn):
         return result
 
     def __command_waiting(self, waiting_count: int, inbound: Inbound,
-                          sleep_time: float, finish_app_checking: Callable[[Inbound], None])\
+                          sleep_time: float, finish_app_checking: Callable[[], None])\
             -> Dict[TestId, StageControlCommands]:
         """ Ожидание и получение команды из нейросети.
 
@@ -164,7 +176,7 @@ class PhysicsThread(IPhysics, AYarn):
         for i in range(waiting_count):
 
             while not inbound[AppModulesEnum.NEURO][DataTypeEnum.JETS_COMMAND].has_incoming():
-                finish_app_checking(inbound)
+                finish_app_checking()
                 sleep(sleep_time)
 
             container = inbound[AppModulesEnum.NEURO][DataTypeEnum.JETS_COMMAND].receive()
@@ -244,8 +256,10 @@ class PhysicsThread(IPhysics, AYarn):
                 logger.debug("Испытаний в плане: {}".format(tests_left))
 
                 # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
+                # requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
+                #                                                  SLEEP_TIME, finish_app_checking)
                 requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                                                                 SLEEP_TIME, self.__finish_app_checking)
+                                                                 SLEEP_TIME, self.__app_fin.finish_app_checking)
                 logger.debug("НС готова принять состояний: {}".format(requested_states_count))
 
                 if requested_states_count == START_NEW_AGE:
@@ -285,9 +299,12 @@ class PhysicsThread(IPhysics, AYarn):
                         raise KeyError("Any adding test identificators is already in store.")
 
                 # Получение команд из блока нейросети.
+                # commands: Dict[TestId, StageControlCommands] = \
+                #     self.__command_waiting(requested_states_count, self.__incoming,
+                #                            SLEEP_TIME, finish_app_checking)
                 commands: Dict[TestId, StageControlCommands] = \
                     self.__command_waiting(requested_states_count, self.__incoming,
-                                           SLEEP_TIME, self.__finish_app_checking)
+                                           SLEEP_TIME, self.__app_fin.finish_app_checking)
 
                 assert len(commands) == requested_states_count, \
                     "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \

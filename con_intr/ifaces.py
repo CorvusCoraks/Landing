@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Tuple, Optional, overload, Dict, TypeVar, Type
+from basics import FinishAppException
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
@@ -13,6 +14,15 @@ About = Any
 A = TypeVar('A', bound=Enum)
 # _Data_ Type Enum
 D = TypeVar('D', bound=Enum)
+
+# Словарь входных каналов блока приложения
+# AppModulesEnum - отправитель, DataTypeEnum - тип передаваемых данных,
+# IReceiver - интерфейс получателя, для получения этих данных
+Inbound = Dict['AppModulesEnum', Dict['DataTypeEnum', 'IReceiver']]
+# Словарь выходных каналов блока приложения.
+# AppModuleEnum - получатель, DataTypeEnum - тип передаваемых данных,
+# ISender - интерфейс отправителя, для отправления этих данных.
+Outbound = Dict['AppModulesEnum', Dict['DataTypeEnum', 'ISender']]
 
 
 class AppModulesEnum(Enum):
@@ -34,7 +44,7 @@ class DataTypeEnum(Enum):
     # Завершить приложение
     APP_FINISH = 3  # True
     # Модуль запрашивает указанное количество тестов
-    REQUESTED_TESTS = 4 # int
+    REQUESTED_TESTS = 4     # int
     # Подкрепление
     REINFORCEMENT = 5
 
@@ -222,8 +232,23 @@ class IWire(ISender, IReceiver):
         pass
 
 
+class IFinishApp(ABC):
+    """ Интерфейс доступа к каналам передачи команды на завершение приложения. """
+    @abstractmethod
+    def send_stop_app(self) -> None:
+        """ Отправить всем блокам приложения команду на завершение приложения. """
+        ...
+
+    @abstractmethod
+    def finish_app_checking(self) -> None:
+        """ Проверка. Метод инициирует в своём теле *FinishAppException*,
+        если в каком-нибудь канале появилась команда на завершение приложения. """
+        ...
+
+
 class ISocket(ABC):
-    """ Специальный интерфейс для передачи его в вычислительные модули приложения. """
+    """ Специальный интерфейс (в общем смысле) взаимодействия абонента со средой передачи сообщений. """
+    # todo Сделать защищённым или приватным?
     @abstractmethod
     def get_all_in(self) -> Tuple[IReceiver]:
         """ Получить все входящие интерфейсы данного блока приложения.
@@ -232,7 +257,7 @@ class ISocket(ABC):
         """
         pass
 
-
+    # todo Сдеалать защищённым или приватным?
     @abstractmethod
     def get_all_out(self) -> Tuple[ISender]:
         """ Получить все исходящие интерфейсы данного блока приложения.
@@ -258,6 +283,11 @@ class ISocket(ABC):
         значение - интерфейс для передачи данных этому Получателю.
         """
         ...
+    #
+    # @abstractmethod
+    # def app_fin(self) -> IFinishApp:
+    #     """ Доступ к интерфейсу передачи команд на завершение приложения. """
+    #     ...
 
 
 class ISwitchboard(ABC):
@@ -313,3 +343,22 @@ class ISwitchboard(ABC):
         :return: Кортеж ВСЕХ  исходящий линий данного отправителя.
         """
         pass
+
+# todo Использование заменить на применение объекта класса AppFinish
+def finish_app_checking(inbound: Inbound) -> None:
+    """ Проверка на появление в канале связи команды на завершение приложения. Возбуждает *FinishAppExeption*
+
+    :param inbound: Словарь входных каналов блока приложения.
+    """
+    for sender in list(AppModulesEnum):
+        # Перебор возможных отправителей приложения
+        if sender in inbound.keys():
+            # Если в словаре входных каналов предусмотрен такой отправитель
+            if DataTypeEnum.APP_FINISH in inbound[sender].keys():
+                # И у этого отправителя есть канал для передачи сигнала на завершение приложения.
+                # И если команда на завершение приложения есть
+                if inbound[sender][DataTypeEnum.APP_FINISH].has_incoming():
+                    # Получаем эту команду
+                    inbound[sender][DataTypeEnum.APP_FINISH].receive()
+                    # Возбуждаем исключение завершения приложения.
+                    raise FinishAppException

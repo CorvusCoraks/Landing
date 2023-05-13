@@ -14,6 +14,10 @@ ZeroOne = float
 # Тип имеющий только два значения: 0 или 1. Потомок int
 Bit = int
 
+# Тип для модуля, передаваемого в качестве аргумента.
+# todo Если есть штатный тип в Питоне, то в будущем поменять на него.
+# PythonModule = object
+
 log_file_name: str = 'app.log'
 logger_name: str = 'main_log'
 

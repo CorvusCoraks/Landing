@@ -7,6 +7,10 @@ from nn_iface.ifaces import LossCriticInterface
 from basics import GRAVITY_ACCELERATION_ABS
 from math import pi
 from nn_iface.projects import MSE_RLLoss, MSELoss, LossActorInterface, LossCriticInterface
+from states.i_states import IInitStates, IStatesStore
+from states.s_states import InitGenerator, DictStore
+from tools import Finish
+from nn_iface.ifaces import ProjectInterface
 
 ACTOR_INPUT: List = [Sigmoid()]
 ACTOR_HIDDEN: List = [Linear(9, 9, bias=False), Sigmoid()]
@@ -74,3 +78,14 @@ VALIDATION_SET_LENGTH = None
 # Проверочная выборка (validation sample) — выборка,
 # по которой осуществляется выбор наилучшей модели из множества моделей, построенных по обучающей выборке.
 # Источник: https://znachenie.mozaiyka.ru/articles/obuchayuschaya-vyborka-chto-takoe.html
+
+# Генератор начальных состояний.
+START_STATES: IInitStates = InitGenerator(TRANING_SET_LENGTH)
+
+# Объект-хранилище текущих испытаний
+STATES_STORE: IStatesStore = DictStore()
+
+# Условие окончания одного конкретного испытания.
+FINISH = Finish()
+
+# PROJECT_MAIN_CLASS_NAME: str = 'ProjectMainClass'

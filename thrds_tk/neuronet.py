@@ -1,3 +1,4 @@
+from types import ModuleType
 import importlib
 from logging import getLogger
 from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, ZeroOne, START_NEW_AGE, CLOSE_APP
@@ -8,22 +9,22 @@ from structures import StageControlCommands, RealWorldStageStatusN, Reinforcemen
 from torch import device, float, Tensor
 from typing import Dict, Callable, List
 from time import sleep
-from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum
+from con_intr.ifaces import ISocket, ISender, AppModulesEnum, DataTypeEnum, Inbound, Outbound, finish_app_checking
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInterface
 from tools import q_est_init
-from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME, PROJECT_MAIN_CLASS
+from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE
 
 logger = getLogger(logger_name + '.neuronet')
-Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
-Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
+# Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
+# Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
 
-    def __init__(self, name: str, data_socket: ISocket,
+    def __init__(self, name: str, data_socket: ISocket, project_cfg: ModuleType,
                  savePath='.\\', actorCheckPointFile='actor.pth.tar',
                  criticCheckPointFile='critic.pth.tar'):
         AYarn.__init__(self, name)
@@ -32,16 +33,11 @@ class NeuronetThread(INeuronet, AYarn):
 
         self.__inbound: Inbound = data_socket.get_in_dict()
         self.__outbound: Outbound = data_socket.get_out_dict()
-        # self.__type_match: Callable[]
 
-        # self.__max_tests = max_tests
-
-        # тестируемый проект
-        # self.__project: ProjectInterface = ProjectMainClass()
         # RunTime импортирование модуля с проектом.
-        project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_NAME))
+        project_module: ModuleType = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE[1:8]))
         # Создание объекта на основании класса проекта.
-        self.__project: ProjectInterface = eval('project_module.{}()'.format(PROJECT_MAIN_CLASS))
+        self.__project : ProjectInterface = eval('project_module.{}()'.format(PROJECT_MAIN_CLASS))
 
         self.__project.load_nn()
 
@@ -50,13 +46,8 @@ class NeuronetThread(INeuronet, AYarn):
         self.__calc_device = device(self.__project.device)
         logger.debug('{}'.format(self.__calc_device))
 
-        # self.__previous_state_time_stamp = 0
-
         # Оценки функции ценности предыдущего прохода
         self.__q_est: Dict[TestId, ZeroOne] = {}
-
-        # Информация о подкреплении каждого шага для передачи через очередь
-        # self.__reinf: structures.ReinforcementValue = structures.ReinforcementValue(0, 0.)
 
     def initialization(self) -> None:
         pass
@@ -64,15 +55,15 @@ class NeuronetThread(INeuronet, AYarn):
     def run(self) -> None:
         pass
 
-    def __finish_app_checking(self, inbound: Inbound) -> None:
-        """ Метод проверяет на появление в канале связи команды на заврешение приложения. """
-        # Если команда на завершение приложения есть
-        if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
-            # Получаем эту команду
-            inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
-            # Возбуждаем исключение завершения приложения.
-            raise FinishAppException
-        # return False
+    # def __finish_app_checking(self, inbound: Inbound) -> None:
+    #     """ Метод проверяет на появление в канале связи команды на заврешение приложения. """
+    #     # Если команда на завершение приложения есть
+    #     if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
+    #         # Получаем эту команду
+    #         inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
+    #         # Возбуждаем исключение завершения приложения.
+    #         raise FinishAppException
+    #     # return False
 
     def __get_remaining_tests(self, inbound: Inbound, sleep_time: float,
                               finish_app_checking: Callable[[Inbound], None]) -> int:
@@ -197,7 +188,7 @@ class NeuronetThread(INeuronet, AYarn):
                 try:
                     # Оставшееся количество запланированных испытаний.
                     remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME,
-                                                                      self.__finish_app_checking)
+                                                                      finish_app_checking)
 
                     if remaining_tests == 0:
                         # Завершение одной эпохи, так как больше нет запланированных испытаний.
@@ -220,7 +211,7 @@ class NeuronetThread(INeuronet, AYarn):
                     # Сформировать словарь состояний изделия в различных испытаниях.
                     batch_dict: Dict[TestId, RealWorldStageStatusN] = \
                         self.__collect_batch(self.__inbound, SLEEP_TIME,
-                                             self.__finish_app_checking, self.__project.state.batch_size)
+                                             finish_app_checking, self.__project.state.batch_size)
 
                     # Фиксируем порядок испытаний.
                     s_order: List[TestId] = []
@@ -297,7 +288,7 @@ class NeuronetThread(INeuronet, AYarn):
 
                     # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
                     reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound, len(commands),
-                                                                                    SLEEP_TIME, self.__finish_app_checking)
+                                                                                    SLEEP_TIME, finish_app_checking)
 
                     # Объект функции потерь критика.
                     critic_loss_fn: LossCriticInterface = self.__project.critic_loss
