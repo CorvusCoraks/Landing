@@ -11,10 +11,13 @@ from tkview.tkiface import WindowsMSInterface
 from structures import RealWorldStageStatusN
 from time import sleep
 from point import VectorComplex
-from con_intr.ifaces import ISocket, IReceiver, ISender, AppModulesEnum, DataTypeEnum, BioEnum, Inbound, Outbound
+from con_intr.ifaces import ISocket, IReceiver, ISender, \
+    AppModulesEnum, DataTypeEnum, BioEnum, Inbound, Outbound
 from con_simp.contain import Container, BioContainer
+# from con_simp.switcher import AppFinish
 from tkview.view_chn import ViewParts, ViewData, ViewDataSwitcher
 from copy import deepcopy
+# from tkview.tkfinapp import AboutClose
 
 logger = getLogger(logger_name+'.view')
 
@@ -55,14 +58,19 @@ class PoligonWindow(WindowsMSInterface):
 
         # Канал локальной передачи команды на завершение приложения.
         self.__fin_outbound: ViewOutbound = fin_com.get_out_dict()
+        # self.__view_fin: IFinishApp = AppFinish(fin_com, ViewData.APP_FINISH)
 
         # Канал локальной связи, как канал приёма отфильтрованных состояний для отображения в окне исп. полигона.
         self.__area_inbound: ViewInbound = area_data.get_in_dict()
 
         # Каналы связи масштаба приложения.
-        self.__data_socket = socket
-        self.__inbound: Inbound = self.__data_socket.get_in_dict()
-        self.__outbound: Outbound = self.__data_socket.get_out_dict()
+        # self.__data_socket = socket
+        # self.__inbound: Inbound = self.__data_socket.get_in_dict()
+        # self.__outbound: Outbound = self.__data_socket.get_out_dict()
+        self.__inbound: Inbound = socket.get_in_dict()
+        self.__outbound: Outbound = socket.get_out_dict()
+
+        # self.__app_fin: IFinishApp = AppFinish(socket, DataTypeEnum.APP_FINISH)
 
         # Идентификатор испытания предназначенного для отображения.
         # После показа испытания START_TESTID_FOR_VIEW начинается показ очередного нового.
@@ -106,7 +114,6 @@ class PoligonWindow(WindowsMSInterface):
     def __state_dispatcher(self):
         """ Метод отбирает из потока входящих состояний (из физ. модуля) только те, которые буду визуализироваться. """
         try:
-
             view_state: Optional[RealWorldStageStatusN] = None
             test_id: TestId = -1
             bio: BioEnum = BioEnum.INIT
@@ -119,6 +126,13 @@ class PoligonWindow(WindowsMSInterface):
                     if self.__dispatcher_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                         self.__dispatcher_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
                         raise FinishAppException
+
+                    # Проверка на команду закрытия приложения инициированную блоком нейросети
+                    if self.__inbound[AppModulesEnum.NEURO][DataTypeEnum.APP_FINISH].has_incoming():
+                        self.__inbound[AppModulesEnum.NEURO][DataTypeEnum.APP_FINISH].receive()
+                        self.__on_closing()
+
+                    # self.__app_fin.finish_app_checking()
 
                 container = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].receive()
                 assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
@@ -170,7 +184,9 @@ class PoligonWindow(WindowsMSInterface):
             self.__state_dispatcher()
 
             while not self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
+                # Ожидание очередного состояния.
                 sleep(SLEEP_TIME)
+                # Проверка на команду закрытия приложения инициированную закрытием главного окна
                 if self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                     self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
                     raise FinishAppException
@@ -246,12 +262,9 @@ class PoligonWindow(WindowsMSInterface):
         self.__sp_mark = self.__canvas.create_oval([start.x - 5, start.y - 5,
                                    start.x + 5, start.y + 5], fill="green")
 
-    def __on_closing(self):
-        """ Обработчик закрытия главного окна. """
-        # убиваем дополнительные нити
-        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.APP_FINISH].send(Container())
-        self.__outbound[AppModulesEnum.NEURO][DataTypeEnum.APP_FINISH].send(Container())
-        # Отправка команды на завершения приложения в подразделы визуализации направлена не для закрытия окон
+    def __finish_view(self):
+        """ Закрытие окон визуализации. """
+        # Отправка команды на завершения приложения в подразделы визуализации. Направлена не для закрытия окон
         # (с этим справится и сам tkinter), а на ускоренное завершение/прерывание циклов и снов.
         self.__fin_outbound[ViewParts.AREA][ViewData.APP_FINISH].send(Container())
         self.__fin_outbound[ViewParts.STAGE][ViewData.APP_FINISH].send(Container())
@@ -259,6 +272,23 @@ class PoligonWindow(WindowsMSInterface):
         self.__fin_outbound[ViewParts.DISPATCHER][ViewData.APP_FINISH].send(Container())
         # закрываем главное окно
         self.__root.destroy()
+
+    def __on_closing(self):
+        """ Обработчик закрытия главного окна. """
+        # убиваем дополнительные нити
+        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.APP_FINISH].send(Container())
+        self.__outbound[AppModulesEnum.NEURO][DataTypeEnum.APP_FINISH].send(Container())
+        # self.__app_fin.send_stop_app()
+        # # Отправка команды на завершения приложения в подразделы визуализации. Направлена не для закрытия окон
+        # # (с этим справится и сам tkinter), а на ускоренное завершение/прерывание циклов и снов.
+        # self.__fin_outbound[ViewParts.AREA][ViewData.APP_FINISH].send(Container())
+        # self.__fin_outbound[ViewParts.STAGE][ViewData.APP_FINISH].send(Container())
+        # self.__fin_outbound[ViewParts.INFO][ViewData.APP_FINISH].send(Container())
+        # self.__fin_outbound[ViewParts.DISPATCHER][ViewData.APP_FINISH].send(Container())
+        # # закрываем главное окно
+        # self.__root.destroy()
+        # AboutClose(self.__root)
+        self.__finish_view()
 
     @property
     def root(self) -> Tk:

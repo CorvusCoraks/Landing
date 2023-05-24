@@ -89,3 +89,7 @@ STATES_STORE: IStatesStore = DictStore()
 FINISH = Finish()
 
 # PROJECT_MAIN_CLASS_NAME: str = 'ProjectMainClass'
+
+# Сообщение в консоли по штатному завершению работы над проектом.
+# Может отсутствовать, тогда будет выведено сообщение по умолчанию.
+project_report = "Обучение завершено."

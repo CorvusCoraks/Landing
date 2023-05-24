@@ -1,9 +1,10 @@
 """ Общий объект агрегирующий каналы передачи данных. """
-from con_intr.ifaces import ISwitchboard, IReceiver, ISender, ISocket, A, D, IWire, IFinishApp, DataTypeEnum
+from con_intr.ifaces import ISwitchboard, IReceiver, ISender, ISocket, A, D, IWire
 from con_simp.wire import Wire
 from con_simp.contain import Container
 from typing import List, Tuple, Dict, Optional, Type
 from basics import FinishAppException
+from enum import Enum
 
 
 class Switchboard(ISwitchboard):
@@ -92,36 +93,39 @@ class Socket(ISocket):
         return outgoing
 
 
-class AppFinish(IFinishApp):
-    """ Класс взаимодействия с каналами передачи команд на завершение приложения. """
-    def __init__(self, socket: ISocket):
-        """
-
-        :param socket: интерфейс взаимодействия данного абонента со средой передачи сообщений.
-        """
-        # Список ИСХОДЯЩИХ каналов, предназначенных для передачи команды на завершение приложения.
-        self.__outgoing_wires: list[ISender] = []
-        # Список ВХОДЯЩИХ каналов, предназначенных для передачи команды на завершение приложения.
-        self.__incoming_wires: list[IReceiver] = []
-
-        for sender in socket.get_all_out():
-            # Перебираем все исходящие каналы
-            if sender.get_sending_type() == DataTypeEnum.APP_FINISH:
-                # И отбираем только те, которые предназначены для передачи сообщения о завершении приложения.
-                self.__outgoing_wires.append(sender)
-
-        for receiver in socket.get_all_in():
-            # Перебираем все входящие каналы
-            if receiver.get_receiving_type() == DataTypeEnum.APP_FINISH:
-                # И отбираем только те, которые предназначены для передачи сообщения о завершении приложения.
-                self.__incoming_wires.append(receiver)
-
-    def send_stop_app(self) -> None:
-        for sender in self.__outgoing_wires:
-            sender.send(Container())
-
-    def finish_app_checking(self) -> None:
-        for receiver in self.__incoming_wires:
-            if receiver.has_incoming():
-                receiver.receive()
-                raise FinishAppException
+# EnumElement = Enum
+#
+#
+# class AppFinish(IFinishApp):
+#     """ Класс взаимодействия с каналами передачи команд на завершение приложения. """
+#     def __init__(self, socket: ISocket, signal: EnumElement):
+#         """
+#
+#         :param socket: интерфейс взаимодействия данного абонента со средой передачи сообщений.
+#         """
+#         # Список ИСХОДЯЩИХ каналов, предназначенных для передачи команды на завершение приложения.
+#         self.__outgoing_wires: list[ISender] = []
+#         # Список ВХОДЯЩИХ каналов, предназначенных для передачи команды на завершение приложения.
+#         self.__incoming_wires: list[IReceiver] = []
+#
+#         for sender in socket.get_all_out():
+#             # Перебираем все исходящие каналы
+#             if sender.get_sending_type() == signal:
+#                 # И отбираем только те, которые предназначены для передачи сообщения о завершении приложения.
+#                 self.__outgoing_wires.append(sender)
+#
+#         for receiver in socket.get_all_in():
+#             # Перебираем все входящие каналы
+#             if receiver.get_receiving_type() == signal:
+#                 # И отбираем только те, которые предназначены для передачи сообщения о завершении приложения.
+#                 self.__incoming_wires.append(receiver)
+#
+#     def send_stop_app(self) -> None:
+#         for sender in self.__outgoing_wires:
+#             sender.send(Container())
+#
+#     def finish_app_checking(self) -> None:
+#         for receiver in self.__incoming_wires:
+#             if receiver.has_incoming():
+#                 receiver.receive()
+#                 raise FinishAppException

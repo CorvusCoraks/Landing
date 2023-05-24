@@ -232,22 +232,9 @@ class IWire(ISender, IReceiver):
         pass
 
 
-class IFinishApp(ABC):
-    """ Интерфейс доступа к каналам передачи команды на завершение приложения. """
-    @abstractmethod
-    def send_stop_app(self) -> None:
-        """ Отправить всем блокам приложения команду на завершение приложения. """
-        ...
-
-    @abstractmethod
-    def finish_app_checking(self) -> None:
-        """ Проверка. Метод инициирует в своём теле *FinishAppException*,
-        если в каком-нибудь канале появилась команда на завершение приложения. """
-        ...
-
-
 class ISocket(ABC):
     """ Специальный интерфейс (в общем смысле) взаимодействия абонента со средой передачи сообщений. """
+    # Т. е., собственно, с экземпляром класса реализующего ISwitchboard
     # todo Сделать защищённым или приватным?
     @abstractmethod
     def get_all_in(self) -> Tuple[IReceiver]:
@@ -288,6 +275,28 @@ class ISocket(ABC):
     # def app_fin(self) -> IFinishApp:
     #     """ Доступ к интерфейсу передачи команд на завершение приложения. """
     #     ...
+
+
+# EnumElement = Enum
+
+
+# class IFinishApp(ABC):
+#     """ Интерфейс доступа к каналам передачи команды на завершение приложения. """
+#     #
+#     # @abstractmethod
+#     # def __init__(self, socket: ISocket, signal: EnumElement):
+#     #     ...
+#
+#     @abstractmethod
+#     def send_stop_app(self) -> None:
+#         """ Отправить всем блокам приложения команду на завершение приложения. """
+#         ...
+#
+#     @abstractmethod
+#     def finish_app_checking(self) -> None:
+#         """ Проверка. Метод инициирует в своём теле *FinishAppException*,
+#         если в каком-нибудь канале появилась команда на завершение приложения. """
+#         ...
 
 
 class ISwitchboard(ABC):
@@ -344,21 +353,3 @@ class ISwitchboard(ABC):
         """
         pass
 
-# todo Использование заменить на применение объекта класса AppFinish
-def finish_app_checking(inbound: Inbound) -> None:
-    """ Проверка на появление в канале связи команды на завершение приложения. Возбуждает *FinishAppExeption*
-
-    :param inbound: Словарь входных каналов блока приложения.
-    """
-    for sender in list(AppModulesEnum):
-        # Перебор возможных отправителей приложения
-        if sender in inbound.keys():
-            # Если в словаре входных каналов предусмотрен такой отправитель
-            if DataTypeEnum.APP_FINISH in inbound[sender].keys():
-                # И у этого отправителя есть канал для передачи сигнала на завершение приложения.
-                # И если команда на завершение приложения есть
-                if inbound[sender][DataTypeEnum.APP_FINISH].has_incoming():
-                    # Получаем эту команду
-                    inbound[sender][DataTypeEnum.APP_FINISH].receive()
-                    # Возбуждаем исключение завершения приложения.
-                    raise FinishAppException

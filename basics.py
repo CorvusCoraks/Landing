@@ -1,6 +1,7 @@
 """ Общие константы приложения. """
 
 from torch import float32, uint8, dtype, int64
+from logging import INFO, DEBUG
 
 
 class FinishAppException(Exception):
@@ -72,8 +73,9 @@ Q_est_value = ZeroOne
 Index_value = int
 
 # Команда-константа (инициатор: блок нейросети, получатель: блок физ. модели) на закрытие приложение (завершение работы)
-CLOSE_APP = 0
+# CLOSE_APP = 0
 # Команда-константа (инициатор: блок нейросети, получатель: блок физ. модели): начать новую эпоху.
 START_NEW_AGE = -1
 
-
+# Сообщение по умолчанию при штатном завершении работы приложения.
+DEFAULT_REPORT = "{}\nDefault report: traning finished.\n{}".format('-'*10,'-'*10)

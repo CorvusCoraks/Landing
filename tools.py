@@ -4,8 +4,9 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from typing import TypeVar, Dict, AnyStr, List
 from enum import Enum
-from basics import ZeroOne, Bit
+from basics import ZeroOne, Bit, FinishAppException
 from random import random
+from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum
 
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
@@ -285,6 +286,24 @@ def q_est_init() -> ZeroOne:
     """ Инициализация начального значения фунции оценки ценности Q. """
     return zo(random())
 
+def finish_app_checking(inbound: Inbound) -> None:
+    """ Проверка на появление в канале связи команды на завершение приложения. Возбуждает *FinishAppExeption*
+
+    :param inbound: Словарь входных каналов блока приложения.
+    """
+    for sender in list(AppModulesEnum):
+        # Перебор возможных отправителей приложения
+        if sender in inbound.keys():
+            # Если в словаре входных каналов предусмотрен такой отправитель
+            if DataTypeEnum.APP_FINISH in inbound[sender].keys():
+                # И у этого отправителя есть канал для передачи сигнала на завершение приложения.
+                # И если команда на завершение приложения есть
+                if inbound[sender][DataTypeEnum.APP_FINISH].has_incoming():
+                    # Получаем эту команду
+                    inbound[sender][DataTypeEnum.APP_FINISH].receive()
+                    # Возбуждаем исключение завершения приложения.
+                    raise FinishAppException
 
 if __name__ == '__main__':
     print(len(action_variants(5)))
+

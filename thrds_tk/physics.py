@@ -1,19 +1,20 @@
 # todo Физическую модель перенести в директорию проекта, так как реализация окр. среды относится к конкретному проекту
 from types import ModuleType
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_NEW_AGE, CLOSE_APP
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_NEW_AGE
+import basics
 from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
 import tools
-from tools import Finish
+from tools import Finish, finish_app_checking
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Optional, Tuple, Dict, Callable
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum, \
-    Inbound, Outbound, IFinishApp, finish_app_checking
+    Inbound, Outbound
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
-from con_simp.switcher import AppFinish
+# from con_simp.switcher import AppFinish
 from physics import Moving
 from copy import deepcopy
 from states.i_states import IStatesStore
@@ -92,7 +93,7 @@ class PhysicsThread(IPhysics, AYarn):
         self.__store: IStatesStore = project_cfg.STATES_STORE
 
         # Интерфейс доступа к набору каналов передачи сообщений о завершении приложения.
-        self.__app_fin: IFinishApp = AppFinish(data_socket)
+        # self.__app_fin: IFinishApp = AppFinish(data_socket, DataTypeEnum.APP_FINISH)
 
     def initialization(self) -> None:
         pass
@@ -113,7 +114,7 @@ class PhysicsThread(IPhysics, AYarn):
     #         raise FinishAppException
 
     def __get_states_count(self, inbound: Inbound, report_line: IReceiver,
-                           sleep_time: float, finish_app_checking: Callable[[], None]) -> int:
+                           sleep_time: float, finish_app_checking: Callable[[Inbound], None]) -> int:
         """ Получить из нейросети количество испытаний, которое она готова обработать.
 
         :param inbound: словарь исходящих каналов передачи данных
@@ -124,7 +125,7 @@ class PhysicsThread(IPhysics, AYarn):
         :return: Количество испытаний, которое готова обработать нейросеть.
         """
         while not report_line.has_incoming():
-            finish_app_checking()
+            finish_app_checking(inbound)
             sleep(sleep_time)
 
         container: IContainer = report_line.receive()
@@ -161,7 +162,7 @@ class PhysicsThread(IPhysics, AYarn):
         return result
 
     def __command_waiting(self, waiting_count: int, inbound: Inbound,
-                          sleep_time: float, finish_app_checking: Callable[[], None])\
+                          sleep_time: float, finish_app_checking: Callable[[Inbound], None])\
             -> Dict[TestId, StageControlCommands]:
         """ Ожидание и получение команды из нейросети.
 
@@ -176,7 +177,7 @@ class PhysicsThread(IPhysics, AYarn):
         for i in range(waiting_count):
 
             while not inbound[AppModulesEnum.NEURO][DataTypeEnum.JETS_COMMAND].has_incoming():
-                finish_app_checking()
+                finish_app_checking(inbound)
                 sleep(sleep_time)
 
             container = inbound[AppModulesEnum.NEURO][DataTypeEnum.JETS_COMMAND].receive()
@@ -246,7 +247,7 @@ class PhysicsThread(IPhysics, AYarn):
         # Осталось провести запланированных испытаний.
         tests_left: int = self.__max_tests
 
-        while tests_left != 0:
+        while tests_left >= 0:
             # Пока ещё есть испытания в планах, цикл работает.
             logger.info("Вход в цикл генерации и передачи состояний изделия.")
             try:
@@ -258,21 +259,23 @@ class PhysicsThread(IPhysics, AYarn):
                 # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
                 # requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
                 #                                                  SLEEP_TIME, finish_app_checking)
+                # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
+                # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
                 requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                                                                 SLEEP_TIME, self.__app_fin.finish_app_checking)
+                                                                 SLEEP_TIME, finish_app_checking)
                 logger.debug("НС готова принять состояний: {}".format(requested_states_count))
 
                 if requested_states_count == START_NEW_AGE:
-                    # Блок нейросети сигнализирует, что надо начать новую эру.
+                    # Блок нейросети сигнализирует, что надо начать новую эпоху.
                     # Обновляем переменную.
                     tests_left = self.__max_tests
                     # Инициализируем новый объект начальных состояний.
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
                     continue
-                elif requested_states_count == CLOSE_APP:
-                    # Блок нейросети сигнализирует, что все запланированные эпохи испытаний завершены.
-                    pass
+                # elif requested_states_count == CLOSE_APP:
+                #     # Блок нейросети сигнализирует, что все запланированные эпохи испытаний завершены.
+                #     pass
 
                 assert tests_left >= requested_states_count, \
                     "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
@@ -304,7 +307,7 @@ class PhysicsThread(IPhysics, AYarn):
                 #                            SLEEP_TIME, finish_app_checking)
                 commands: Dict[TestId, StageControlCommands] = \
                     self.__command_waiting(requested_states_count, self.__incoming,
-                                           SLEEP_TIME, self.__app_fin.finish_app_checking)
+                                           SLEEP_TIME, finish_app_checking)
 
                 assert len(commands) == requested_states_count, \
                     "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \

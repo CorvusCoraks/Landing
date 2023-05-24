@@ -1,4 +1,5 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
+import basics
 import sys
 
 from basics import log_file_name, logger_name
@@ -66,13 +67,17 @@ if __name__ == "__main__":
     switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.REINFORCEMENT))
     switchboard.add_wire(ReportWire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.REMANING_TESTS, DataTypeEnum.REQUESTED_TESTS))
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.JETS_COMMAND))
+    # Команды на завершение вычислительных блоков приложения (по закрытия главного окна, например)
     switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
     switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
+
     # Дополнительные каналы для завершения приложения в случае ошибки в каком-либо модуле
     # todo реализовать передачу этих каналов в блоки приложения.
-    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
-    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
-    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
+    # switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
+    # switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
+    # switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
+
+    # Блок нейросети отправит запрос на завершение приложения (например, когда закончатся все запланированные эпохи)
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
 
 
@@ -121,3 +126,11 @@ if __name__ == "__main__":
 
     realWorldThread.join()
     neuroNetThread.join()
+
+    # Вывод результирующего сообщения по завершению приложения.
+    if hasattr(project_cfg, 'project_report'):
+        # Если сообщение определено в файле настроек проекта.
+        print(project_cfg.project_report)
+    else:
+        # Или сообщение по умолчанию.
+        print(basics.DEFAULT_REPORT)

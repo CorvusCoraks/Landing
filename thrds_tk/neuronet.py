@@ -1,7 +1,7 @@
 from types import ModuleType
 import importlib
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, ZeroOne, START_NEW_AGE, CLOSE_APP
+from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, ZeroOne, START_NEW_AGE
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 import structures
@@ -9,11 +9,13 @@ from structures import StageControlCommands, RealWorldStageStatusN, Reinforcemen
 from torch import device, float, Tensor
 from typing import Dict, Callable, List
 from time import sleep
-from con_intr.ifaces import ISocket, ISender, AppModulesEnum, DataTypeEnum, Inbound, Outbound, finish_app_checking
+from con_intr.ifaces import ISocket, ISender, AppModulesEnum, DataTypeEnum, \
+    Inbound, Outbound
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
+# from con_simp.switcher import AppFinish
 from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInterface
-from tools import q_est_init
+from tools import q_est_init, finish_app_checking
 from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE
 
 logger = getLogger(logger_name + '.neuronet')
@@ -48,6 +50,8 @@ class NeuronetThread(INeuronet, AYarn):
 
         # Оценки функции ценности предыдущего прохода
         self.__q_est: Dict[TestId, ZeroOne] = {}
+
+        # self.__app_fin: IFinishApp = AppFinish(data_socket, DataTypeEnum.APP_FINISH)
 
     def initialization(self) -> None:
         pass
@@ -287,8 +291,10 @@ class NeuronetThread(INeuronet, AYarn):
                         )
 
                     # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
-                    reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound, len(commands),
-                                                                                    SLEEP_TIME, finish_app_checking)
+                    reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound,
+                                                                                    len(commands),
+                                                                                    SLEEP_TIME,
+                                                                                    finish_app_checking)
 
                     # Объект функции потерь критика.
                     critic_loss_fn: LossCriticInterface = self.__project.critic_loss
@@ -334,8 +340,12 @@ class NeuronetThread(INeuronet, AYarn):
             elif current_epoch == self.__project.state.epoch_stop:
                 # Запоминание факта завершения прохода по эпохам.
                 self.__project.state.epoch_current = current_epoch
+                # Запланированное количество эпох исполнено.
+                # Отправка в блок визуализации запроса на завершение приложения.
+                self.__outbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].send(Container())
                 # Запланированное количество эпох исполнено. Команда на завершение.
-                report_wire.send(Container(cargo=CLOSE_APP))
+                # Излишне. Пусть ждёт команды на закрытие от модуля визуализации.
+                # report_wire.send(Container(cargo=CLOSE_APP))
 
             # Сохранение состояния в хранилище.
             self.__project.save_state()
