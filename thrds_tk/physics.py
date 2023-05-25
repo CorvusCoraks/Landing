@@ -1,26 +1,23 @@
 # todo Физическую модель перенести в директорию проекта, так как реализация окр. среды относится к конкретному проекту
 from types import ModuleType
 from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_NEW_AGE
-import basics
 from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
 import tools
-from tools import Finish, finish_app_checking
+from tools import finish_app_checking
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
-from typing import Optional, Tuple, Dict, Callable
+from typing import Dict, Callable
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum, \
     Inbound, Outbound
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
-# from con_simp.switcher import AppFinish
 from physics import Moving
 from copy import deepcopy
 from states.i_states import IStatesStore
-from states.s_states import DictStore, IInitStates
-import importlib
-from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE
+from states.s_states import IInitStates
+
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
 # Модель реальности:
@@ -49,8 +46,6 @@ from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE
 
 logger = getLogger(logger_name + '.physics')
 
-# Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
-# Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 class PhysicsThread(IPhysics, AYarn):
     """ Нить физической модели. """
@@ -64,12 +59,8 @@ class PhysicsThread(IPhysics, AYarn):
         """
         AYarn.__init__(self, name)
 
-        # RunTime импортирование файла конфигурации проекта.
-        # project_module = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
         # Загрузка количества элементов в обучающей выборке.
         self.__max_tests = project_cfg.TRANING_SET_LENGTH
-
-        # self.__data_socket = data_socket
 
         self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = data_socket.get_in_dict()
         logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.
@@ -81,37 +72,19 @@ class PhysicsThread(IPhysics, AYarn):
                             self.__outgoing))
 
         # Генератор начальных состояний.
-        # self.__initial_states: IInitStates = initial_state
         self.__initial_states: IInitStates = project_cfg.START_STATES
 
         # Условие окончания одного конкретного испытания.
-        # self.__finish_criterion = Finish()
         self.__finish_criterion = project_cfg.FINISH
 
         # Объект-хранилище текущих испытаний
-        # self.__store: IStatesStore = DictStore()
         self.__store: IStatesStore = project_cfg.STATES_STORE
-
-        # Интерфейс доступа к набору каналов передачи сообщений о завершении приложения.
-        # self.__app_fin: IFinishApp = AppFinish(data_socket, DataTypeEnum.APP_FINISH)
 
     def initialization(self) -> None:
         pass
 
     def run(self) -> None:
         pass
-
-    # def __finish_app_checking(self, inbound: Inbound) -> None:
-    #     """ Метод проверяет на появление в канале связи команды на завершение приложения и возбуждает *FinishAppExeption*.
-    #
-    #     :param inbound: словарь исходящих каналов передачи данных
-    #     """
-    #     # Если команда на завершение приложения есть
-    #     if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
-    #         # Получаем эту команду
-    #         inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
-    #         # Возбуждаем исключение завершения приложения.
-    #         raise FinishAppException
 
     def __get_states_count(self, inbound: Inbound, report_line: IReceiver,
                            sleep_time: float, finish_app_checking: Callable[[Inbound], None]) -> int:
@@ -257,8 +230,6 @@ class PhysicsThread(IPhysics, AYarn):
                 logger.debug("Испытаний в плане: {}".format(tests_left))
 
                 # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
-                # requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                #                                                  SLEEP_TIME, finish_app_checking)
                 # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
                 # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
                 requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
@@ -273,9 +244,6 @@ class PhysicsThread(IPhysics, AYarn):
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
                     continue
-                # elif requested_states_count == CLOSE_APP:
-                #     # Блок нейросети сигнализирует, что все запланированные эпохи испытаний завершены.
-                #     pass
 
                 assert tests_left >= requested_states_count, \
                     "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
@@ -302,9 +270,6 @@ class PhysicsThread(IPhysics, AYarn):
                         raise KeyError("Any adding test identificators is already in store.")
 
                 # Получение команд из блока нейросети.
-                # commands: Dict[TestId, StageControlCommands] = \
-                #     self.__command_waiting(requested_states_count, self.__incoming,
-                #                            SLEEP_TIME, finish_app_checking)
                 commands: Dict[TestId, StageControlCommands] = \
                     self.__command_waiting(requested_states_count, self.__incoming,
                                            SLEEP_TIME, finish_app_checking)
@@ -354,17 +319,6 @@ class PhysicsThread(IPhysics, AYarn):
                     container: BioContainer = BioContainer(key, BioEnum.FIN, fin_states[key])
                     self.__outgoing[AppModulesEnum.VIEW][DataTypeEnum.STAGE_STATUS].\
                         send(deepcopy(container))
-
-                # # Если все испытания пройдены, то отправляем в блок нейросети информацию об этом.
-                # # todo Возможно, следует как-то озвучить этот факт и блоку визуализации.
-                # if tests_left == 0:
-                #     report_wire.send(Container(cargo=tests_left))
-                #     # todo Инициализировать завершение приложения?
-                #     # todo Инициализировать заход на очередную эпоху?
-                #     # Если нейросеть по ответному каналу запроса испытаний отправит 0,
-                #     # то это будет значить завершение испытаний (все запланированные эпохи пройдены).
-                #     # Если нейросеть по ответному каналу запроса испытаний отправит -1,
-                #     # то это будет руководством блоку физ. модели на переход к следующей эпохе.
 
             except FinishAppException:
                 logger.info('Поступила команда на завершение приложения. Завершаем нить.')
