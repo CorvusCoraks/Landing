@@ -19,8 +19,6 @@ from tools import q_est_init, finish_app_checking
 from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE
 
 logger = getLogger(logger_name + '.neuronet')
-# Inbound = Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]]
-# Outbound = Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]]
 
 
 class NeuronetThread(INeuronet, AYarn):
@@ -51,23 +49,11 @@ class NeuronetThread(INeuronet, AYarn):
         # Оценки функции ценности предыдущего прохода
         self.__q_est: Dict[TestId, ZeroOne] = {}
 
-        # self.__app_fin: IFinishApp = AppFinish(data_socket, DataTypeEnum.APP_FINISH)
-
     def initialization(self) -> None:
         pass
 
     def run(self) -> None:
         pass
-
-    # def __finish_app_checking(self, inbound: Inbound) -> None:
-    #     """ Метод проверяет на появление в канале связи команды на заврешение приложения. """
-    #     # Если команда на завершение приложения есть
-    #     if inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
-    #         # Получаем эту команду
-    #         inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].receive()
-    #         # Возбуждаем исключение завершения приложения.
-    #         raise FinishAppException
-    #     # return False
 
     def __get_remaining_tests(self, inbound: Inbound, sleep_time: float,
                               finish_app_checking: Callable[[Inbound], None]) -> int:
@@ -204,12 +190,7 @@ class NeuronetThread(INeuronet, AYarn):
                     self.__project.state.batch_size = self.__project.state.batch_size \
                         if self.__project.state.batch_size <= remaining_tests else remaining_tests
 
-                    # assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
-                    #     'Data wire for remaining tests info should be a ReportWire class. But now is {}'. \
-                    #         format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
-                    # # Отправляем в модуль физической модели число испытаний, которое хочет получить модуль нейросети.
-                    # report_wire: ISender = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS] \
-                    #     .get_report_sender()
+                    # Отправляем в модуль физической модели число испытаний, которое хочет получить модуль нейросети.
                     report_wire.send(Container(cargo=self.__project.state.batch_size))
 
                     # Сформировать словарь состояний изделия в различных испытаниях.
@@ -322,7 +303,6 @@ class NeuronetThread(INeuronet, AYarn):
                     self.__project.critic_optimizer.step()
 
                     # Сохранение по новым интерфейсам.
-                    # self.__project.state.epoch_current = current_epoch
                     self.__project.save_state()
 
                 except FinishAppException:
@@ -349,147 +329,3 @@ class NeuronetThread(INeuronet, AYarn):
 
             # Сохранение состояния в хранилище.
             self.__project.save_state()
-
-        # # Вечный цикл. Выход из него по команде на завершение приложения.
-        # while True:
-        #     try:
-        #         # Оставшееся количество запланированных испытаний.
-        #         remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME,
-        #                                                           self.__finish_app_checking)
-        #
-        #         if remaining_tests == 0:
-        #             # Завершение одной эпохи, так как больше нет запланированных испытаний.
-        #             # todo Инициализировать завершение приложения?
-        #             # todo Инициализировать переход к новой эпохе?
-        #             pass
-        #
-        #         # Если размер планируемого батча на входе актора больше полного планируемого количества испытаний,
-        #         # то будем формировать
-        #         # батч размером в полное планируемое количество испытаний.
-        #         self.__project.state.batch_size = self.__project.state.batch_size \
-        #             if self.__project.state.batch_size <= remaining_tests else remaining_tests
-        #
-        #         assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
-        #             'Data wire for remaining tests info should be a ReportWire class. But now is {}'.\
-        #                 format(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].__class__)
-        #         # Отправляем в модуль физической модели число испытаний, которое хочет получить модуль нейросети.
-        #         report_wire: ISender = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS]\
-        #             .get_report_sender()
-        #         report_wire.send(Container(cargo=self.__project.state.batch_size))
-        #
-        #         # Сформировать словарь состояний изделия в различных испытаниях.
-        #         batch_dict: Dict[TestId, RealWorldStageStatusN] = \
-        #             self.__collect_batch(self.__inbound, SLEEP_TIME,
-        #                                  self.__finish_app_checking, self.__project.state.batch_size)
-        #
-        #         # Фиксируем порядок испытаний.
-        #         s_order: List[TestId] = []
-        #         for key in batch_dict:
-        #             s_order.append(key)
-        #
-        #         # Актуализировать словарь предыдущих оценок функции ценности действий.
-        #         self.__q_est: Dict[TestId, ZeroOne] = self._q_est_actual(batch_dict, self.__q_est)
-        #
-        #         # debug = self._q_est_actual({0: RealWorldStageStatusN(), 1: RealWorldStageStatusN()},
-        #         #                             {0: 12.0, 2: 13.0, 3: 14.0})
-        #
-        #         # сформировать батч-тензор для ввода в актора состояний N испытаний
-        #         # стейк слабой прожарки (предыдущая прожарка производится в вызываемом методе)
-        #         medium_rare: Tensor = self.__project.actor_input_preparation(batch_dict, s_order)
-        #
-        #         # получить тензор выхода (действий/команд) актора для каждого из N испытаний
-        #         # стейк средней прожарки
-        #         medium: Tensor = self.__project.actor_forward(medium_rare)
-        #
-        #         # сформировать батч-тензор для ввода в критика из NхV вариантов, где N-количество испытаний/состояний
-        #         # на входе в актора, V - количество вариантов действий актора
-        #         # (количество вариантов включений двигателей)
-        #         # Если батч-тензор на входе в актора состоит из 10 испытаний, количество вариантов
-        #         # включения двигателей - 32 (2^5), то на вход в критика пойдёт тензор размером 10 х 32,
-        #         # т. е. 320 векторов
-        #
-        #         medium_in_critic: Tensor = self.__project.critic_input_preparation(medium_rare, medium,
-        #                                                                            batch_dict, s_order)
-        #
-        #         # debug = self.__project.critic_input_preparation(
-        #         #     tensor([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
-        #         #     tensor([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]),
-        #         #     {0: RealWorldStageStatusN(), 1: RealWorldStageStatusN()},
-        #         #     [1, 0])
-        #
-        #         # Получить тензор значений функции ценности на выходе из критика размерностью NхV
-        #         # Нужно понимать, что первые V оценок в выходном тензоре критика относяться к первому испытанию.
-        #         # Вторые V оценок относятся ко второму испытанию.
-        #         # Третьи V оценок к третьему.
-        #         # И т. д.
-        #         q_est_next: Tensor = self.__project.critic_forward(medium_in_critic)
-        #
-        #         # Для каждого из N испытаний на выходе из критика
-        #         # выбрать максимальное значение функции ценности из соответствующих V вариантов.
-        #         # То есть, из первых V оценок надо выбрать максимальную,
-        #         # и это будет максимальная оценка для первого испытания.
-        #         # Из вторых V оценок надо выбрать максимальную, и это будет максимальная оценка для второго испытания.
-        #         # Из третьих V оценок надо выбрать максимальную, и это будет максимальная оценка для третьего.
-        #         # И т. д.
-        #
-        #         # Индексы максимальных значений оценки функции ценности.
-        #         max_q_est_next_index: Dict[TestId, int] = self.__project.max_in_q_est(q_est_next, s_order)
-        #
-        #         # Тензор максимальных оценок функции ценности.
-        #         max_q_est_next: Tensor = self.__project.critic_output_transformation(q_est_next, s_order,
-        #                                                                              max_q_est_next_index)
-        #
-        #         # Выбрать варианты действий актора,
-        #         # которые соответствуют выбранным максимальным N значениям функции ценности.
-        #         commands: Dict[TestId, Tensor] = self.__project.choose_max_q_action(s_order, max_q_est_next_index)
-        #
-        #         # Отправка команд (планируемых действий), согласно максимального значения функции ценности
-        #         for test_id, command_t in commands.items():
-        #             # Проходимся по словарю команд
-        #
-        #             # Преобразование данных тензора в список
-        #             command: List = command_t.tolist()[0]
-        #
-        #             # Отправка желаемых действий для каждого испытания в модуль физической модели.
-        #             self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.JETS_COMMAND].send(
-        #                 Container(test_id, StageControlCommands(0, 0, *command))
-        #             )
-        #
-        #         # Для каждого из N испытаний получить подкрепления, соответствующие выбранным вариантам действий.
-        #         reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound, len(commands),
-        #                                                                         SLEEP_TIME, self.__finish_app_checking)
-        #
-        #         # Объект функции потерь критика.
-        #         critic_loss_fn: LossCriticInterface = self.__project.critic_loss
-        #         # todo протестировать работу
-        #         # Ошибка критика
-        #         crititc_loss: Tensor = critic_loss_fn(s_order, reinforcement, self.__q_est, max_q_est_next)
-        #
-        #         # Произвести обратный проход по критику
-        #         crititc_loss.backward()
-        #
-        #         # Объект функции потерь актора
-        #         actor_loss_fn: LossActorInterface = self.__project.actor_loss
-        #
-        #         # Целевой тензор актора.
-        #         actor_target: Tensor = self.__project.actor_target(s_order, commands)
-        #
-        #         # Ошибка актора
-        #         actor_loss: Tensor = actor_loss_fn(medium, actor_target)
-        #
-        #         # Обратный проход по актору.
-        #         actor_loss.backward()
-        #
-        #         # Оптимизировать критика и актора.
-        #         self.__project.actor_optimizer.step()
-        #         self.__project.critic_optimizer.step()
-        #
-        #         # Сохранение по новым интерфейсам.
-        #         self.__project.save_state()
-        #
-        #     except FinishAppException:
-        #         # Поступила команда на завершение приложения.
-        #         self.__project.save_nn()
-        #         self.__project.save_state()
-        #         logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
-        #         break

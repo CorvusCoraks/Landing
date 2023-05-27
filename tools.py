@@ -2,11 +2,14 @@ from point import VectorComplex
 from math import fabs
 from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
-from typing import TypeVar, Dict, AnyStr, List
+from typing import TypeVar, Dict, AnyStr, List, Optional
 from enum import Enum
 from basics import ZeroOne, Bit, FinishAppException
 from random import random
 from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum
+import time
+import threading
+import platform
 
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
@@ -234,6 +237,62 @@ class ZeroOrOne(Enum):
     # todo Оно надо:?
     ZERO: int = 0
     ONE: int = 1
+
+
+class KeyPressCheck:
+    """ Класс получения из консоли введённых пользователем данных.
+    """
+    def _press_enter_simulation(self):
+        """ Платформозависимая эмуляция нажатия клавиши Enter. """
+        if platform.system() == 'Linux':
+            # не смог найти простого решения.
+            # Под Linux ответ пользователя обязателен.
+            pass
+        elif platform.system() == 'Windows':
+            """https://stackoverflow.com/questions/2791839/
+            which-is-the-easiest-way-to-simulate-keyboard-and-mouse-on-python"""
+            import ctypes
+            # Эмуляция нажатия клавиши Enter
+            ctypes.windll.user32.keybd_event(0x0D, 0, 0, 0)
+
+    def __init__(self, prompt: str, default: str, others: list[str]):
+        """
+
+        :param prompt: Приглашение.
+        :param default: Значение по умолчанию, принимаемое классом, если пользователь ничего не вводит в консоль.
+        :param others: Другие допустимые варианты ввода от пользователя.
+        """
+        self.__prompt = prompt
+        # список всех допустимых значений ввода
+        self.__valid = ['', default, *others]
+        # Время ожидания ввода пользователя.
+        self.__WAITING_TIME: int = 5
+        # То, что пользователь ввёл.
+        self.__answer: Optional[str] = None
+
+    def __check(self) -> None:
+        """ Метод, проверяющий факт ввода через определённый промежуток времени. """
+        time.sleep(self.__WAITING_TIME)
+        if self.__answer is not None:
+            return
+        print("\nTime is over.")
+        self._press_enter_simulation()
+
+    def input(self) -> str:
+        """ Аналог стандартного метода input().
+
+        :return: строка, которую ввёл пользователь.
+        """
+        t = threading.Timer(10, self.__check)
+        t.start()
+
+        while True:
+            self.__answer = input(self.__prompt)
+            if self.__answer in self.__valid:
+                t.cancel()
+                break
+
+        return self.__answer
 
 
 def zo(value: float) -> ZeroOne:

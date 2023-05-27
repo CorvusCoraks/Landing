@@ -14,7 +14,7 @@ from thrds_tk.neuronet import NeuronetThread
 from thrds_tk.physics import PhysicsThread
 import importlib
 from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE
-
+from tools import KeyPressCheck
 
 def get_log_handler(out: str):
     if out == "file":
@@ -59,6 +59,12 @@ if __name__ == "__main__":
 
     # RunTime импортирование файла конфигурации проекта.
     project_cfg = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
+
+    keypress: KeyPressCheck = KeyPressCheck("Продолжить обучение? [y] Или начать с нуля?", 'y', ['n'])
+    if keypress == 'y':
+        pass
+    else:
+        pass
 
     # Реализация сообщений через распределительный щит
     switchboard = Switchboard()
