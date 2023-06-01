@@ -61,10 +61,10 @@ if __name__ == "__main__":
     project_cfg = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
 
     keypress: KeyPressCheck = KeyPressCheck("Продолжить обучение? [y] Или начать с нуля?", 'y', ['n'])
-    if keypress == 'y':
-        pass
+    if keypress.input() == 'y':
+        birth = False
     else:
-        pass
+        birth = True
 
     # Реализация сообщений через распределительный щит
     switchboard = Switchboard()
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Нить модели реального мира
     # todo Абстрагировать тип нити, ибо структура вычислительных модулей может быть и не нитевой.
     realWorldThread: PhysicsThread = PhysicsThread('realWorldThread',
-                                                   Socket(AppModulesEnum.PHYSICS, switchboard), project_cfg)
+                                                   Socket(AppModulesEnum.PHYSICS, switchboard), project_cfg, birth)
     realWorldThread.start()
 
     # Для нейросети надо создать отдельную нить,
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     # расчёт нейросети и физическое моделирование в отдельной нити
 
     neuroNetThread: NeuronetThread = NeuronetThread('Neuron Net Thread',
-                                                    Socket(AppModulesEnum.NEURO, switchboard), project_cfg)
+                                                    Socket(AppModulesEnum.NEURO, switchboard), project_cfg, birth)
 
     neuroNetThread.start()
 

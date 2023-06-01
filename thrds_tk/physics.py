@@ -50,7 +50,7 @@ logger = getLogger(logger_name + '.physics')
 class PhysicsThread(IPhysics, AYarn):
     """ Нить физической модели. """
 
-    def __init__(self, name: str, data_socket: ISocket, project_cfg: ModuleType):
+    def __init__(self, name: str, data_socket: ISocket, project_cfg: ModuleType, birth: bool = False):
         """
 
         :param name: Имя нити.
@@ -71,14 +71,28 @@ class PhysicsThread(IPhysics, AYarn):
                      format(self.__class__.__name__, data_socket, data_socket.get_all_out(),
                             self.__outgoing))
 
-        # Генератор начальных состояний.
-        self.__initial_states: IInitStates = project_cfg.START_STATES
+        self.__birth = birth
 
         # Условие окончания одного конкретного испытания.
         self.__finish_criterion = project_cfg.FINISH
 
-        # Объект-хранилище текущих испытаний
-        self.__store: IStatesStore = project_cfg.STATES_STORE
+        if birth:
+            # Обучение начинается с начала.
+            # Генератор начальных состояний.
+            self.__initial_states: IInitStates = project_cfg.START_STATES
+
+            # Объект-хранилище текущих испытаний
+            self.__store: IStatesStore = project_cfg.STATES_STORE
+
+            # Оставшееся количество испытаний в обучающей выборке, сохранённое до перерыва процесса обучения.
+            # Задано незначимое значение, так как в этой ветке перерыва не было.
+            self.__tests_left_before_break: int = -1
+        else:
+            # todo Загрузить реальное значение вместо Ellipsis
+            # загрузка сериализованных объектов предыдущего этапа прерванного обучения.
+            self.__initial_states: IInitStates = ...
+            self.__store: IStatesStore = ...
+            self.__tests_left_before_break: int = ...
 
     def initialization(self) -> None:
         pass
@@ -218,7 +232,7 @@ class PhysicsThread(IPhysics, AYarn):
         assert isinstance(report_wire, ReportWire), 'Data wire for remaining tests info should be a ReportWire class.'
 
         # Осталось провести запланированных испытаний.
-        tests_left: int = self.__max_tests
+        tests_left: int = self.__max_tests if self.__birth else self.__tests_left_before_break
 
         while tests_left >= 0:
             # Пока ещё есть испытания в планах, цикл работает.
@@ -244,6 +258,8 @@ class PhysicsThread(IPhysics, AYarn):
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
                     continue
+
+                # if requested_states_count == CLOSE_APP:
 
                 assert tests_left >= requested_states_count, \
                     "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
@@ -322,4 +338,20 @@ class PhysicsThread(IPhysics, AYarn):
 
             except FinishAppException:
                 logger.info('Поступила команда на завершение приложения. Завершаем нить.')
+                if tests_left > 0:
+                    # Команда на закрытие приложения, но, так как ещё остались элементы в обучающей выборке,
+                    # Сохраняем промежуточное состояние.
+                    #
+                    # Сохранить состояния находящиеся в процессе испытаний self.__store
+                    #
+                    # Сохранить состояние источника элементов обучающей выборки self.__initial_states
+                    #
+                    # Сохранить оставшееся число испытаний в обучающей выборке tests_left
+                    pass
+                else:
+                    # Элементов в обучающей выборке не осталось, значит - завершаем обучение.
+                    #
+                    # Сохраняем tests_left = 0, как знак того, что обучение в объёме Эры закончено.
+                    # Продолжить ли обучение с новой Эры будет решать при загрузке блок нейросети.
+                    pass
                 break

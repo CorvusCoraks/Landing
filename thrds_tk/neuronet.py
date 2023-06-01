@@ -24,7 +24,7 @@ logger = getLogger(logger_name + '.neuronet')
 class NeuronetThread(INeuronet, AYarn):
     """ Нить нейросети. """
 
-    def __init__(self, name: str, data_socket: ISocket, project_cfg: ModuleType,
+    def __init__(self, name: str, data_socket: ISocket, project_cfg: ModuleType, birth: bool = False,
                  savePath='.\\', actorCheckPointFile='actor.pth.tar',
                  criticCheckPointFile='critic.pth.tar'):
         AYarn.__init__(self, name)
