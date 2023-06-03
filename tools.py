@@ -2,11 +2,11 @@ from point import VectorComplex
 from math import fabs
 from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
-from typing import TypeVar, Dict, AnyStr, List, Optional
+from typing import TypeVar, Dict, AnyStr, List, Optional, Callable, overload
 from enum import Enum
 from basics import ZeroOne, Bit, FinishAppException
 from random import random
-from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum
+from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum, IReceiver
 import time
 import threading
 import platform
@@ -345,6 +345,76 @@ def q_est_init() -> ZeroOne:
     """ Инициализация начального значения фунции оценки ценности Q. """
     return zo(random())
 
+class BoolWrapper:
+    """ Класс обёртка для *bool* для возвращения значения через аргументы методов. Использование (объект-как-функция):
+        \n b = BoolWrapper()
+        \n b(True)
+        \n bool_value: bool = b()
+    """
+    def __init__(self, value: bool = False):
+        self.__value: bool = value
+
+    # @property
+    # def value(self) -> bool:
+    #     return self.__value
+    #
+    # @value.setter
+    # def value(self, argument: bool) -> None:
+    #     self.__value = argument
+
+    @overload
+    def __call__(self) -> bool:
+        """
+        :return: возвращает значение сохранённого *bool*
+        """
+        ...
+
+    @overload
+    def __call__(self, arg: bool) -> None:
+        """
+        :param arg: Сохранить значение *bool*
+        """
+        ...
+
+    def __call__(self, *args, **kwargs) -> Optional[bool]:
+        if len(args) >= 1 and len(kwargs.keys()) > 0:
+            # Проверка длины входных аргументов.
+            raise ValueError("Input arguments quantity must be zero or one. But now: {}".
+                             format(len(args) + len(kwargs.keys())))
+
+        if len(args) == 0:
+            # Если нет входных аргументов в методе, то просто возвращаем сохранённое значение.
+            return self.__value
+
+        if isinstance(args[0], bool):
+            # Проверка типа входного аргумента.
+            # Если один единственный аргумент метода - *bool*, то сохраняем это значение.
+            self.__value = args[0]
+        else:
+            raise TypeError("Input argument have a wrong type: {}. Argument type must be 'bool".
+                            format(type(args[0])))
+
+def supress_fae(F: Callable[[Inbound], None]) -> Callable[[Inbound], bool]:
+    """ Декоратор подавления инициированного исключения *FinishAppException*.
+
+    :param F: *finish_app_checking* функция.
+    :return: функция-обёртка *wrapper*, возвращающая bool, сигнализирующий о появлении исключения *FinishAppExeption*.
+    """
+    def wrapper(inbound: Inbound) -> bool:
+        """ Функция-обёртка. Внутри производится вызов *finish_app_checking* и подавление FinishAppExeption.
+
+        :param inbound: Словарь входных каналов блока приложения.
+        :return: True - инициировано FinishAppExeption, иначе - False.
+        """
+        try:
+            F(inbound)
+        except FinishAppException:
+            return True
+        return False
+
+    return wrapper
+
+# @supress_fae
 def finish_app_checking(inbound: Inbound) -> None:
     """ Проверка на появление в канале связи команды на завершение приложения. Возбуждает *FinishAppExeption*
 
@@ -364,5 +434,7 @@ def finish_app_checking(inbound: Inbound) -> None:
                     raise FinishAppException
 
 if __name__ == '__main__':
-    print(len(action_variants(5)))
+    b = BoolWrapper()
+    b(True)
+    print(b())
 
