@@ -47,13 +47,25 @@ class DataTypeEnum(Enum):
     REQUESTED_TESTS = 4     # int
     # Подкрепление
     REINFORCEMENT = 5
+    # Готов перейти к следующему батчу
+    # READY_FOR_NEXT_BATCH = 6 # True
+    ENV_ROAD = 6 # RoadEnum
+
+
+class RoadEnum(Enum):
+    # Начать новую эпоху
+    START_NEW_AGE = 0
+    # Остановить обучение.
+    ALL_AGES_FINISHED = 1
+    # Продолжить работу как есть.
+    CONTINUE = 3
 
 
 class BioEnum(Enum):
     """ Статус состояния изделия. """
     INIT = -1   # Состояние инициализировано.
     ALIVE = 0   # Испытание в работе.
-    FIN = 1     # Испытание авершено. Последнее состояние.
+    FIN = 1     # Испытание завершено. Последнее состояние.
 
 
 #
@@ -194,7 +206,7 @@ class IWire(ISender, IReceiver):
     """ Интерфейс канала передачи данных. """
     # Подразумевает множественные варианты конкретной реализации.
     @abstractmethod
-    def __init__(self, sender: AppModulesEnum, receiver: AppModulesEnum, data_type: DataTypeEnum):
+    def __init__(self, sender: A, receiver: A, data_type: D):
         """
 
         :param sender: Отправитель данных данного канала.

@@ -18,6 +18,7 @@ from con_simp.contain import Container, BioContainer
 from tkview.view_chn import ViewParts, ViewData, ViewDataSwitcher
 from copy import deepcopy
 # from tkview.tkfinapp import AboutClose
+from tools import FinishAppBoolWrapper
 
 logger = getLogger(logger_name+'.view')
 
@@ -111,8 +112,13 @@ class PoligonWindow(WindowsMSInterface):
         self.__root.protocol("WM_DELETE_WINDOW", self.__on_closing)
         self.__root.after(0, self._draw)
 
-    def __state_dispatcher(self):
+    def __state_dispatcher(self) -> bool:
         """ Метод отбирает из потока входящих состояний (из физ. модуля) только те, которые буду визуализироваться. """
+        is_fin_app: FinishAppBoolWrapper = FinishAppBoolWrapper()
+
+        if is_fin_app():
+            return is_fin_app()
+
         try:
             view_state: Optional[RealWorldStageStatusN] = None
             test_id: TestId = -1
@@ -122,17 +128,17 @@ class PoligonWindow(WindowsMSInterface):
                 while not self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].has_incoming():
                     # ожидаем данные из канала связи
                     sleep(SLEEP_TIME)
-                    # Проверка на завершение приложения.
+                    # Проверка наличия в системе команды на завершение приложения.
                     if self.__dispatcher_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                         self.__dispatcher_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
-                        raise FinishAppException
+                        is_fin_app(True)
+                        return is_fin_app()
+                        # raise FinishAppException
 
-                    # Проверка на команду закрытия приложения инициированную блоком нейросети
+                    # Проверка запроса от блока нейросети на закрытие приложения.
                     if self.__inbound[AppModulesEnum.NEURO][DataTypeEnum.APP_FINISH].has_incoming():
                         self.__inbound[AppModulesEnum.NEURO][DataTypeEnum.APP_FINISH].receive()
                         self.__on_closing()
-
-                    # self.__app_fin.finish_app_checking()
 
                 container = self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].receive()
                 assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
@@ -179,9 +185,14 @@ class PoligonWindow(WindowsMSInterface):
         # метод для периодического вызова и отрисовки на канве (точка траектории, данные по высоте, тангажу, крену и пр)
         previous_status_duration: int = 0
 
+        is_app_fin: FinishAppBoolWrapper = FinishAppBoolWrapper()
+
         try:
             # Запуск диспетчера состояний.
-            self.__state_dispatcher()
+            if self.__state_dispatcher():
+                # Инициировано завершение приложения.
+                is_app_fin(True)
+                return
 
             while not self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
                 # Ожидание очередного состояния.
@@ -189,7 +200,10 @@ class PoligonWindow(WindowsMSInterface):
                 # Проверка на команду закрытия приложения инициированную закрытием главного окна
                 if self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
                     self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
-                    raise FinishAppException
+                    is_app_fin(True)
+                    # Инициировано завершение приложения.
+                    return
+                    # raise FinishAppException
             else:
                 container = self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
                 assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \

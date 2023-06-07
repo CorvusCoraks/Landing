@@ -9,7 +9,7 @@ from tkview.tkview import TkinterView
 from view import ViewInterface
 from con_simp.switcher import Switchboard, Socket
 from con_simp.wire import Wire, ReportWire
-from con_intr.ifaces import AppModulesEnum, DataTypeEnum
+from con_intr.ifaces import AppModulesEnum, DataTypeEnum, RoadEnum
 from thrds_tk.neuronet import NeuronetThread
 from thrds_tk.physics import PhysicsThread
 import importlib
@@ -49,6 +49,34 @@ def log_init(output: str) -> None:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+def wires() -> Switchboard:
+    """ Реализация сообщений через распределительный щит. """
+
+    switchboard = Switchboard()
+    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.STAGE_STATUS))
+    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.VIEW, DataTypeEnum.STAGE_STATUS))
+    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.REINFORCEMENT))
+    switchboard.add_wire(ReportWire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO,
+                                    DataTypeEnum.REMANING_TESTS, DataTypeEnum.REQUESTED_TESTS))
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.JETS_COMMAND))
+
+    # Команды на завершение вычислительных блоков приложения (по закрытия главного окна, например)н
+    # из блока визуализации во все остальные блоки приложения.
+    switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
+    switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
+
+    # Если какой-либо блок приложение желает закрыть приложение,
+    # то он должен отправить запрос на это в блок визуализации.
+    # В свою очередь, блок визуализации отправит команду на завершение приложения
+    # во ВСЕ блоки приложения (включая и тот, который отправлял запрос.) для завершения их работы.
+    # Каналы для запросов закрытия приложения (получатель - модуль визуализации)
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
+
+    # Этим сигналом обмениваются БФМ и БНС когда готовы перейти к следующему батчу.
+    # switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, RoadEnum.START_NEW_AGE))
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.ENV_ROAD))
+
+    return switchboard
 
 if __name__ == "__main__":
     log_init("stdout")
@@ -66,26 +94,7 @@ if __name__ == "__main__":
     else:
         birth = True
 
-    # Реализация сообщений через распределительный щит
-    switchboard = Switchboard()
-    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.STAGE_STATUS))
-    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.VIEW, DataTypeEnum.STAGE_STATUS))
-    switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, DataTypeEnum.REINFORCEMENT))
-    switchboard.add_wire(ReportWire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO,
-                                    DataTypeEnum.REMANING_TESTS, DataTypeEnum.REQUESTED_TESTS))
-    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.JETS_COMMAND))
-
-    # Команды на завершение вычислительных блоков приложения (по закрытия главного окна, например)
-    # из блока визуализации во все остальные блоки приложения.
-    switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.PHYSICS, DataTypeEnum.APP_FINISH))
-    switchboard.add_wire(Wire(AppModulesEnum.VIEW, AppModulesEnum.NEURO, DataTypeEnum.APP_FINISH))
-
-    # Если какой-либо блок приложение желает закрыть приложение,
-    # то он должен отправить запрос на это в блок визуализации.
-    # В свою очередь, блок визуализации отправит команду на завершение приложения
-    # во ВСЕ блоки приложения (включая и тот, который отправлял запрос.) для завершения их работы.
-    # Каналы для запросов закрытия приложения (получатель - модуль визуализации)
-    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
+    switchboard = wires()
 
     # Нить модели реального мира
     # todo Абстрагировать тип нити, ибо структура вычислительных модулей может быть и не нитевой.

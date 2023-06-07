@@ -5,12 +5,12 @@ from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
 import tools
-from tools import finish_app_checking
+from tools import finish_app_checking, BoolWrapper, FinishAppBoolWrapper
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Dict, Callable
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum, \
-    Inbound, Outbound
+    Inbound, Outbound, RoadEnum, A, D
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from physics import Moving
@@ -62,11 +62,11 @@ class PhysicsThread(IPhysics, AYarn):
         # Загрузка количества элементов в обучающей выборке.
         self.__max_tests = project_cfg.TRANING_SET_LENGTH
 
-        self.__incoming: Dict[AppModulesEnum, Dict[DataTypeEnum, IReceiver]] = data_socket.get_in_dict()
+        self.__incoming: Dict[A, Dict[D, IReceiver]] = data_socket.get_in_dict()
         logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.
                      format(self.__class__.__name__, data_socket, data_socket.get_all_in(),
                             self.__incoming))
-        self.__outgoing: Dict[AppModulesEnum, Dict[DataTypeEnum, ISender]] = data_socket.get_out_dict()
+        self.__outgoing: Dict[A, Dict[D, ISender]] = data_socket.get_out_dict()
         logger.debug('{}.__init__(), На входе в конструктор. \n\t{}, \n\t{}, \n\t{}\n'.
                      format(self.__class__.__name__, data_socket, data_socket.get_all_out(),
                             self.__outgoing))
@@ -75,6 +75,9 @@ class PhysicsThread(IPhysics, AYarn):
 
         # Условие окончания одного конкретного испытания.
         self.__finish_criterion = project_cfg.FINISH
+
+        # todo Инкапсулировать внутрь главного метода?
+        self.__is_do_app_finish: FinishAppBoolWrapper = FinishAppBoolWrapper()
 
         if birth:
             # Обучение начинается с начала.
@@ -101,7 +104,7 @@ class PhysicsThread(IPhysics, AYarn):
         pass
 
     def __get_states_count(self, inbound: Inbound, report_line: IReceiver,
-                           sleep_time: float, finish_app_checking: Callable[[Inbound], None]) -> int:
+                           sleep_time: float, finish_app_checking: Callable[[Inbound], bool], app_fin: FinishAppBoolWrapper) -> int:
         """ Получить из нейросети количество испытаний, которое она готова обработать.
 
         :param inbound: словарь исходящих каналов передачи данных
@@ -112,7 +115,7 @@ class PhysicsThread(IPhysics, AYarn):
         :return: Количество испытаний, которое готова обработать нейросеть.
         """
         while not report_line.has_incoming():
-            finish_app_checking(inbound)
+            app_fin(finish_app_checking(inbound))
             sleep(sleep_time)
 
         container: IContainer = report_line.receive()
@@ -149,7 +152,7 @@ class PhysicsThread(IPhysics, AYarn):
         return result
 
     def __command_waiting(self, waiting_count: int, inbound: Inbound,
-                          sleep_time: float, finish_app_checking: Callable[[Inbound], None])\
+                          sleep_time: float, finish_app_checking: Callable[[Inbound], bool], app_fin: FinishAppBoolWrapper)\
             -> Dict[TestId, StageControlCommands]:
         """ Ожидание и получение команды из нейросети.
 
@@ -164,7 +167,7 @@ class PhysicsThread(IPhysics, AYarn):
         for i in range(waiting_count):
 
             while not inbound[AppModulesEnum.NEURO][DataTypeEnum.JETS_COMMAND].has_incoming():
-                finish_app_checking(inbound)
+                app_fin(finish_app_checking(inbound))
                 sleep(sleep_time)
 
             container = inbound[AppModulesEnum.NEURO][DataTypeEnum.JETS_COMMAND].receive()
@@ -223,6 +226,26 @@ class PhysicsThread(IPhysics, AYarn):
             i += 1
             logger.debug("В НС и Вид отправятся {} испытаний.".format(i))
 
+    def __finalize(self, tests_left: int):
+        """ Финализация работы блока. """
+        logger.info('Поступила команда на завершение приложения. Завершаем нить.')
+        if tests_left > 0:
+            # Команда на закрытие приложения, но, так как ещё остались элементы в обучающей выборке,
+            # Сохраняем промежуточное состояние.
+            #
+            # Сохранить состояния находящиеся в процессе испытаний self.__store
+            #
+            # Сохранить состояние источника элементов обучающей выборки self.__initial_states
+            #
+            # Сохранить оставшееся число испытаний в обучающей выборке tests_left
+            pass
+        else:
+            # Элементов в обучающей выборке не осталось, значит - завершаем обучение.
+            #
+            # Сохраняем tests_left = 0, как знак того, что обучение в объёме Эры закончено.
+            # Продолжить ли обучение с новой Эры будет решать при загрузке блок нейросети.
+            pass
+
     def _yarn_run(self, *args, **kwargs) -> None:
         logger.info('Вход в нить.')
 
@@ -237,19 +260,70 @@ class PhysicsThread(IPhysics, AYarn):
         while tests_left >= 0:
             # Пока ещё есть испытания в планах, цикл работает.
             logger.info("Вход в цикл генерации и передачи состояний изделия.")
+
+            if self.__is_do_app_finish():
+                # Сохранить состояние и выйти.
+                self.__finalize(tests_left)
+                return
+
             try:
                 # отправляем в нейросеть количество оставшихся по программе испытаний
                 report_wire.send(Container(cargo=tests_left))
 
                 logger.debug("Испытаний в плане: {}".format(tests_left))
 
+                # Ждём обязательных распоряжений от БНС
+                while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].has_incoming():
+                    sleep(SLEEP_TIME)
+
+                # Распоряжение получено.
+                road = self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].receive().unpack()
+
+                match road:
+                    case RoadEnum.START_NEW_AGE:
+                        # Блок нейросети сигнализирует, что надо начать новую эпоху.
+                        # Обновляем переменную.
+                        tests_left = self.__max_tests
+                        # Инициализируем новый объект начальных состояний.
+                        self.__initial_states = self.__initial_states.__class__(self.__max_tests)
+                        # Заходим на новую эпоху.
+                        continue
+                    case RoadEnum.ALL_AGES_FINISHED:
+                        # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
+                        # Ждём команду от БВ на завершение.
+                        # Сохранять состояние тут без надобности.
+                        break
+                    case RoadEnum.CONTINUE:
+                        # Продолжаем движение по алгоритму без изменений.
+                        pass
+
+                # if road == RoadEnum.START_NEW_AGE:
+                #     # Блок нейросети сигнализирует, что надо начать новую эпоху.
+                #     # Обновляем переменную.
+                #     tests_left = self.__max_tests
+                #     # Инициализируем новый объект начальных состояний.
+                #     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
+                #     # Заходим на новую эпоху.
+                #     continue
+                #
+                # if road == RoadEnum.ALL_AGES_FINISHED:
+                #     # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
+                #     # Ждём команду от БВ на завершение.
+                #     # Сохранять состояние тут без надобности.
+                #     break
+                #
+                # if road == RoadEnum.CONTINUE:
+                #     # Продолжаем движение по алгоритму без изменений.
+                #     pass
+
                 # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
                 # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
                 # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
                 requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                                                                 SLEEP_TIME, finish_app_checking)
+                                                                 SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
                 logger.debug("НС готова принять состояний: {}".format(requested_states_count))
 
+                # todo удалить блок. Не передавать левых данных через неспецифичный канал.
                 if requested_states_count == START_NEW_AGE:
                     # Блок нейросети сигнализирует, что надо начать новую эпоху.
                     # Обновляем переменную.
@@ -258,8 +332,6 @@ class PhysicsThread(IPhysics, AYarn):
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
                     continue
-
-                # if requested_states_count == CLOSE_APP:
 
                 assert tests_left >= requested_states_count, \
                     "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
@@ -288,7 +360,7 @@ class PhysicsThread(IPhysics, AYarn):
                 # Получение команд из блока нейросети.
                 commands: Dict[TestId, StageControlCommands] = \
                     self.__command_waiting(requested_states_count, self.__incoming,
-                                           SLEEP_TIME, finish_app_checking)
+                                           SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
 
                 assert len(commands) == requested_states_count, \
                     "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \
@@ -335,6 +407,19 @@ class PhysicsThread(IPhysics, AYarn):
                     container: BioContainer = BioContainer(key, BioEnum.FIN, fin_states[key])
                     self.__outgoing[AppModulesEnum.VIEW][DataTypeEnum.STAGE_STATUS].\
                         send(deepcopy(container))
+
+                # # Отправляем сигнал о готовности перехода к следующему батчу.
+                # self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.READY_FOR_NEXT_BATCH].send(Container())
+                # # Ждём ответного сигнала.
+                # while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.READY_FOR_NEXT_BATCH].has_incoming():
+                #     sleep(SLEEP_TIME)
+                #
+                # if self.__is_do_app_finish():
+                #     # Есть сигнал на завершение приложения.
+                #     break
+                # else:
+                #     # Сигнала на завершения приложения нет.
+                #     pass
 
             except FinishAppException:
                 logger.info('Поступила команда на завершение приложения. Завершаем нить.')

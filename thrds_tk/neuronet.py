@@ -10,12 +10,12 @@ from torch import device, float, Tensor
 from typing import Dict, Callable, List
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, AppModulesEnum, DataTypeEnum, \
-    Inbound, Outbound
-from con_simp.contain import Container, BioContainer
+    Inbound, Outbound, RoadEnum
+from con_simp.contain import Container, BioContainer, EnumContainer
 from con_simp.wire import ReportWire
 # from con_simp.switcher import AppFinish
 from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInterface
-from tools import q_est_init, finish_app_checking
+from tools import q_est_init, finish_app_checking, FinishAppBoolWrapper
 from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE
 
 logger = getLogger(logger_name + '.neuronet')
@@ -56,12 +56,12 @@ class NeuronetThread(INeuronet, AYarn):
         pass
 
     def __get_remaining_tests(self, inbound: Inbound, sleep_time: float,
-                              finish_app_checking: Callable[[Inbound], None]) -> int:
+                              finish_app_checking: Callable[[Inbound], bool], is_fin_app: FinishAppBoolWrapper) -> int:
         """ Получить оставшееся количество запланированных испытаний. """
         while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].has_incoming():
             # Пока в канале нет сообщений, крутимся в цикле ожидания.
             sleep(sleep_time)
-            finish_app_checking(inbound)
+            is_fin_app(finish_app_checking(inbound))
 
         # Дождались сообщения
         container = inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].receive()
@@ -69,7 +69,7 @@ class NeuronetThread(INeuronet, AYarn):
         return remaining_tests
 
     def __collect_batch(self, inbound: Inbound, sleep_time: float,
-                        finish_app_checking: Callable[[Inbound], None], batch_size: int) \
+                        finish_app_checking: Callable[[Inbound], bool], batch_size: int, is_fin_app: FinishAppBoolWrapper) \
             -> Dict[TestId, RealWorldStageStatusN]:
         """ Собрать словарь-контейнер-накопитель для состояний изделия в разных испытаниях для создания батча. """
         # Результирующий словарь
@@ -79,7 +79,7 @@ class NeuronetThread(INeuronet, AYarn):
             while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].has_incoming():
                 # Крутимся в цикле в ожидании данных в канале.
                 sleep(sleep_time)
-                finish_app_checking(inbound)
+                is_fin_app(finish_app_checking(inbound))
 
             # Есть порция данных
             container = inbound[AppModulesEnum.PHYSICS][DataTypeEnum.STAGE_STATUS].receive()
@@ -136,7 +136,7 @@ class NeuronetThread(INeuronet, AYarn):
         return q
 
     def __get_reinforcement(self, inbound: Inbound, waiting_count: int, sleep_time: float,
-                            finish_app_checking: Callable[[Inbound], None]) -> Dict[TestId, ZeroOne]:
+                            finish_app_checking: Callable[[Inbound], bool], is_fin_app: FinishAppBoolWrapper) -> Dict[TestId, ZeroOne]:
         """ Получить подкрепления.
 
         :param waiting_count: количество ожидаемых подкреплений.
@@ -146,7 +146,7 @@ class NeuronetThread(INeuronet, AYarn):
             while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REINFORCEMENT].has_incoming():
                 # Пока в канале нет сообщений, крутимся в цикле ожидания.
                 sleep(sleep_time)
-                finish_app_checking(inbound)
+                is_fin_app(finish_app_checking(inbound))
 
             # Дождались сообщения
             container = inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REINFORCEMENT].receive()
@@ -158,8 +158,13 @@ class NeuronetThread(INeuronet, AYarn):
 
         return result
 
-    def _yarn_run(self, *args, **kwargs) -> None:
+    def __finalize(self, project: ProjectInterface):
+        project.save_nn()
+        project.save_state()
+        logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
 
+    def _yarn_run(self, *args, **kwargs) -> None:
+        is_fin_app: FinishAppBoolWrapper = FinishAppBoolWrapper()
         # Проверка линии связи, на наличие встречной линии репорта.
         assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
             'Data wire for remaining tests info should be a ReportWire class. But now is {}'. \
@@ -175,14 +180,21 @@ class NeuronetThread(INeuronet, AYarn):
         for current_epoch in range(start_epoch, self.__project.state.epoch_stop + 1):
             # Цикл по испытаниям в рамках одной эпохи.
             while True:
+                if is_fin_app():
+                    self.__finalize(self.__project)
+                    return
+
                 try:
                     # Оставшееся количество запланированных испытаний.
                     remaining_tests: int = self.__get_remaining_tests(self.__inbound, SLEEP_TIME,
-                                                                      finish_app_checking)
+                                                                      finish_app_checking, is_fin_app)
 
                     if remaining_tests == 0:
                         # Завершение одной эпохи, так как больше нет запланированных испытаний.
                         break
+
+                    # БФМ ожидает от нас сигнала на продолжение.
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(RoadEnum.CONTINUE))
 
                     # Если размер планируемого батча на входе актора больше полного планируемого количества испытаний,
                     # то будем формировать
@@ -196,7 +208,7 @@ class NeuronetThread(INeuronet, AYarn):
                     # Сформировать словарь состояний изделия в различных испытаниях.
                     batch_dict: Dict[TestId, RealWorldStageStatusN] = \
                         self.__collect_batch(self.__inbound, SLEEP_TIME,
-                                             finish_app_checking, self.__project.state.batch_size)
+                                             finish_app_checking, self.__project.state.batch_size, is_fin_app)
 
                     # Фиксируем порядок испытаний.
                     s_order: List[TestId] = []
@@ -275,7 +287,7 @@ class NeuronetThread(INeuronet, AYarn):
                     reinforcement: Dict[TestId, ZeroOne] = self.__get_reinforcement(self.__inbound,
                                                                                     len(commands),
                                                                                     SLEEP_TIME,
-                                                                                    finish_app_checking)
+                                                                                    finish_app_checking, is_fin_app)
 
                     # Объект функции потерь критика.
                     critic_loss_fn: LossCriticInterface = self.__project.critic_loss
@@ -303,7 +315,9 @@ class NeuronetThread(INeuronet, AYarn):
                     self.__project.critic_optimizer.step()
 
                     # Сохранение по новым интерфейсам.
-                    self.__project.save_state()
+                    # todo после каждого батча сохранять не стоит. Надо реже.
+                    # self.__project.save_state()
+                    self.__finalize(self.__project)
 
                 except FinishAppException:
                     # Поступила команда на завершение приложения.
@@ -316,16 +330,24 @@ class NeuronetThread(INeuronet, AYarn):
                 # Запоминание факта перехода к новой эпохе
                 self.__project.state.epoch_current = current_epoch + 1
                 # Отправка в блок физ. модели указания на начало новой эпохи.
-                report_wire.send(Container(cargo=START_NEW_AGE))
+                # report_wire.send(Container(cargo=START_NEW_AGE))
+                self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(RoadEnum.START_NEW_AGE))
             elif current_epoch == self.__project.state.epoch_stop:
                 # Запоминание факта завершения прохода по эпохам.
                 self.__project.state.epoch_current = current_epoch
                 # Запланированное количество эпох исполнено.
-                # Отправка в блок визуализации запроса на завершение приложения.
+                # Отправка в БФМ предупреждающего сигнала о грядущем завершение процесса обучения.
+                self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(RoadEnum.ALL_AGES_FINISHED))
+                # Отправка в блок визуализации ЗАПРОСА на завершение приложения.
                 self.__outbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].send(Container())
-                # Запланированное количество эпох исполнено. Команда на завершение.
-                # Излишне. Пусть ждёт команды на закрытие от модуля визуализации.
-                # report_wire.send(Container(cargo=CLOSE_APP))
+                # while not self.__inbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].has_incoming():
+                #     # Дожидаемся, пока от блока визуализации не пройдёт КОМАНДА на завершение приложения.
+                #     # Это будет косвенным подтверждением, что БФМ тоже уже получил этот сигнал.
+                #     sleep(SLEEP_TIME)
 
-            # Сохранение состояния в хранилище.
-            self.__project.save_state()
+            # Сохранение состояния в хранилище на смене эпох (а то и на естественном завершении процесса обучения).
+            # self.__project.save_state()
+            self.__finalize(self.__project)
+
+            # Отправляем сигнал о готовности перехода к следующему батчу. Двигаем процесс в БФМ
+            # self.__outbound[AppModulesEnum.NEURO][DataTypeEnum.READY_FOR_NEXT_BATCH].send(Container())

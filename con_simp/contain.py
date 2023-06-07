@@ -1,5 +1,5 @@
 """ Разнообразные контейнеры. """
-from con_intr.ifaces import TransferredData, About, IContainer, BioEnum
+from con_intr.ifaces import TransferredData, About, IContainer, BioEnum, D
 from typing import Optional, Tuple
 from basics import TestId
 
@@ -51,3 +51,20 @@ class BioContainer(IContainer):
 
     def get(self) -> Tuple[TestId, BioEnum]:
         return self.__test_id, self.__bio
+
+
+class EnumContainer(IContainer):
+    def __init__(self, cargo: D):
+        self.__enum_value: D = cargo
+
+    def pack(self, cargo: D) -> None:
+        self.__enum_value = cargo
+
+    def unpack(self) -> D:
+        return self.__enum_value
+
+    def set(self, about: About) -> None:
+        pass
+
+    def get(self) -> About:
+        return None

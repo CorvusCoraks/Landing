@@ -352,7 +352,7 @@ class BoolWrapper:
         \n bool_value: bool = b()
     """
     def __init__(self, value: bool = False):
-        self.__value: bool = value
+        self._value: bool = value
 
     # @property
     # def value(self) -> bool:
@@ -384,15 +384,26 @@ class BoolWrapper:
 
         if len(args) == 0:
             # Если нет входных аргументов в методе, то просто возвращаем сохранённое значение.
-            return self.__value
+            return self._value
 
         if isinstance(args[0], bool):
             # Проверка типа входного аргумента.
             # Если один единственный аргумент метода - *bool*, то сохраняем это значение.
-            self.__value = args[0]
+            self._value = args[0]
         else:
             raise TypeError("Input argument have a wrong type: {}. Argument type must be 'bool".
                             format(type(args[0])))
+
+class FinishAppBoolWrapper(BoolWrapper):
+    """ Класс-обёртка для bool. По умолчанию - False. Если установлено в True, изменить обратно уже нельзя. """
+    def __call__(self, *args) -> Optional[bool]:
+        # Если внутренний атрибут уже True, то изменить его на False уже нельзя
+        if self._value or len(args) != 1:
+            # Если внутренный атрибут уже True или в списке входящих аргументов НЕ ОДИН аргумент,
+            # то возвращает значение внутреннего атрибута.
+            return self._value
+        else:
+            return super().__call__(args[0])
 
 def supress_fae(F: Callable[[Inbound], None]) -> Callable[[Inbound], bool]:
     """ Декоратор подавления инициированного исключения *FinishAppException*.
@@ -414,7 +425,7 @@ def supress_fae(F: Callable[[Inbound], None]) -> Callable[[Inbound], bool]:
 
     return wrapper
 
-# @supress_fae
+@supress_fae
 def finish_app_checking(inbound: Inbound) -> None:
     """ Проверка на появление в канале связи команды на завершение приложения. Возбуждает *FinishAppExeption*
 
