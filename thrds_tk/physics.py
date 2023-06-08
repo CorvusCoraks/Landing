@@ -1,11 +1,11 @@
 # todo Физическую модель перенести в директорию проекта, так как реализация окр. среды относится к конкретному проекту
 from types import ModuleType
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_NEW_AGE
+from basics import logger_name, TestId, SLEEP_TIME
 from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
 import tools
-from tools import finish_app_checking, BoolWrapper, FinishAppBoolWrapper
+from tools import FinishAppBoolWrapper, finish_app_checking
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
 from typing import Dict, Callable
 from time import sleep
@@ -266,65 +266,20 @@ class PhysicsThread(IPhysics, AYarn):
                 self.__finalize(tests_left)
                 return
 
-            try:
-                # отправляем в нейросеть количество оставшихся по программе испытаний
-                report_wire.send(Container(cargo=tests_left))
+            # отправляем в нейросеть количество оставшихся по программе испытаний
+            report_wire.send(Container(cargo=tests_left))
 
-                logger.debug("Испытаний в плане: {}".format(tests_left))
+            logger.debug("Испытаний в плане: {}".format(tests_left))
 
-                # Ждём обязательных распоряжений от БНС
-                while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].has_incoming():
-                    sleep(SLEEP_TIME)
+            # Ждём обязательных распоряжений от БНС
+            while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].has_incoming():
+                sleep(SLEEP_TIME)
 
-                # Распоряжение получено.
-                road = self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].receive().unpack()
+            # Распоряжение получено.
+            road = self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].receive().unpack()
 
-                match road:
-                    case RoadEnum.START_NEW_AGE:
-                        # Блок нейросети сигнализирует, что надо начать новую эпоху.
-                        # Обновляем переменную.
-                        tests_left = self.__max_tests
-                        # Инициализируем новый объект начальных состояний.
-                        self.__initial_states = self.__initial_states.__class__(self.__max_tests)
-                        # Заходим на новую эпоху.
-                        continue
-                    case RoadEnum.ALL_AGES_FINISHED:
-                        # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
-                        # Ждём команду от БВ на завершение.
-                        # Сохранять состояние тут без надобности.
-                        break
-                    case RoadEnum.CONTINUE:
-                        # Продолжаем движение по алгоритму без изменений.
-                        pass
-
-                # if road == RoadEnum.START_NEW_AGE:
-                #     # Блок нейросети сигнализирует, что надо начать новую эпоху.
-                #     # Обновляем переменную.
-                #     tests_left = self.__max_tests
-                #     # Инициализируем новый объект начальных состояний.
-                #     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
-                #     # Заходим на новую эпоху.
-                #     continue
-                #
-                # if road == RoadEnum.ALL_AGES_FINISHED:
-                #     # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
-                #     # Ждём команду от БВ на завершение.
-                #     # Сохранять состояние тут без надобности.
-                #     break
-                #
-                # if road == RoadEnum.CONTINUE:
-                #     # Продолжаем движение по алгоритму без изменений.
-                #     pass
-
-                # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
-                # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
-                # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
-                requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                                                                 SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
-                logger.debug("НС готова принять состояний: {}".format(requested_states_count))
-
-                # todo удалить блок. Не передавать левых данных через неспецифичный канал.
-                if requested_states_count == START_NEW_AGE:
+            match road:
+                case RoadEnum.START_NEW_AGE:
                     # Блок нейросети сигнализирует, что надо начать новую эпоху.
                     # Обновляем переменную.
                     tests_left = self.__max_tests
@@ -332,111 +287,93 @@ class PhysicsThread(IPhysics, AYarn):
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
                     continue
-
-                assert tests_left >= requested_states_count, \
-                    "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
-                    "чем количество оставшихся доступных состояний (испытания в работе плюс испытания в генераторе)"
-
-                if requested_states_count <= self.__store.get_amount():
-                    # Если запрошенное блоком нейросети количество состояний МЕНЬШЕ,
-                    # чем оставшееся после предыдущего прохода по нейросети.
-                    self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE, requested_states_count)
-                    logger.debug("Отправлено в НС {} испытаний.".format(requested_states_count))
-                else:
-                    # Если запрошенное блоком нейросети количество состояний БОЛЬШЕ,
-                    # чем оставшееся после предыдущего прохода по нейросети.
-                    # Добиваем до нужного количества, генерацией новых состояний.
-                    new_states = self.__set_initial_states(requested_states_count - self.__store.get_amount())
-                    # Отправляем потребителям инициализированные состояния
-                    self.__states_distribution(self.__outgoing, new_states, BioEnum.INIT)
-                    # И отправляем все оставшиеся имеющиеся состояния потребителям, в т. ч. и модулю нейросети.
-                    self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE)
-                    logger.debug("Отправлено в НС {} (новых) + {} (старых) испытаний.".
-                                 format(len(new_states), self.__store.get_amount()))
-                    # добавляем новые состояния к общему словарю
-                    if not self.__store.add_state(states=new_states):
-                        raise KeyError("Any adding test identificators is already in store.")
-
-                # Получение команд из блока нейросети.
-                commands: Dict[TestId, StageControlCommands] = \
-                    self.__command_waiting(requested_states_count, self.__incoming,
-                                           SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
-
-                assert len(commands) == requested_states_count, \
-                    "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \
-                    "отосланных туда ДЕЙСТВИТЕЛЬНЫХ испытаний - {}.". format(len(commands), requested_states_count)
-
-                logger.debug("Словарь команд из нейросети: {}".format(commands))
-
-                # Вычитаем из запланированных испытаний те, которые уже в работе.
-                future_tests = tests_left - self.__store.get_amount()
-
-                fin_states: Dict[TestId, RealWorldStageStatusN] = {}
-                # Цикл получения новых состояний (после применения команд нейросети)
-                for key in commands:
-                    # Меняем состояния изделия в словаре текущих испытаний на новые (после применения команд)
-                    if not self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key))):
-                        raise KeyError("Updated test with this identificator is not present in store.")
-
-                    state = self.__store.get_state(key)
-                    if state is None:
-                        raise KeyError("Requested test identificator is not present in store.")
-                    reinf: ReinforcementValue = self.__get_reinforcement(state, commands[key])
-                    container: Container = Container(key, reinf)
-                    self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.REINFORCEMENT].send(deepcopy(container))
-
-                    # Если данное испытание подошло к концу, исключаем его из общего словаря.
-                    state = self.__store.get_state(key)
-                    if state is not None and self.__test_end(state):
-                        # Словарь завершённых тестов.
-                        fin_states[key] = state
-                        # Словарь текущих испытаний, очищенный от завершённых испытаний.
-                        self.__store.del_state(key)
-                    elif state is None:
-                        raise KeyError("Requested test identificator is not present in store.")
-
-                # Так как словарь с испытаниями подчистился от тех испытаний, которые уже завершились.
-                # То приплюсовываем к количеству незапущенных испытаний, количество "живых" испытаний в обработке.
-                # |----------------------------tests_left-------------------------------|
-                # |--ongoing_states--|-----------------future_tests---------------------|
-
-                tests_left = self.__store.get_amount() + future_tests
-
-                # Отправляем в модуль вида завершённые состояния для отображения.
-                for key in fin_states:
-                    container: BioContainer = BioContainer(key, BioEnum.FIN, fin_states[key])
-                    self.__outgoing[AppModulesEnum.VIEW][DataTypeEnum.STAGE_STATUS].\
-                        send(deepcopy(container))
-
-                # # Отправляем сигнал о готовности перехода к следующему батчу.
-                # self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.READY_FOR_NEXT_BATCH].send(Container())
-                # # Ждём ответного сигнала.
-                # while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.READY_FOR_NEXT_BATCH].has_incoming():
-                #     sleep(SLEEP_TIME)
-                #
-                # if self.__is_do_app_finish():
-                #     # Есть сигнал на завершение приложения.
-                #     break
-                # else:
-                #     # Сигнала на завершения приложения нет.
-                #     pass
-
-            except FinishAppException:
-                logger.info('Поступила команда на завершение приложения. Завершаем нить.')
-                if tests_left > 0:
-                    # Команда на закрытие приложения, но, так как ещё остались элементы в обучающей выборке,
-                    # Сохраняем промежуточное состояние.
-                    #
-                    # Сохранить состояния находящиеся в процессе испытаний self.__store
-                    #
-                    # Сохранить состояние источника элементов обучающей выборки self.__initial_states
-                    #
-                    # Сохранить оставшееся число испытаний в обучающей выборке tests_left
+                case RoadEnum.ALL_AGES_FINISHED:
+                    # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
+                    # Ждём команду от БВ на завершение.
+                    # Сохранять состояние тут без надобности.
+                    break
+                case RoadEnum.CONTINUE:
+                    # Продолжаем движение по алгоритму без изменений.
                     pass
-                else:
-                    # Элементов в обучающей выборке не осталось, значит - завершаем обучение.
-                    #
-                    # Сохраняем tests_left = 0, как знак того, что обучение в объёме Эры закончено.
-                    # Продолжить ли обучение с новой Эры будет решать при загрузке блок нейросети.
-                    pass
-                break
+
+            # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
+            # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
+            # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
+            requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
+                                                             SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
+            logger.debug("НС готова принять состояний: {}".format(requested_states_count))
+
+            assert tests_left >= requested_states_count, \
+                "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
+                "чем количество оставшихся доступных состояний (испытания в работе плюс испытания в генераторе)"
+
+            if requested_states_count <= self.__store.get_amount():
+                # Если запрошенное блоком нейросети количество состояний МЕНЬШЕ,
+                # чем оставшееся после предыдущего прохода по нейросети.
+                self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE, requested_states_count)
+                logger.debug("Отправлено в НС {} испытаний.".format(requested_states_count))
+            else:
+                # Если запрошенное блоком нейросети количество состояний БОЛЬШЕ,
+                # чем оставшееся после предыдущего прохода по нейросети.
+                # Добиваем до нужного количества, генерацией новых состояний.
+                new_states = self.__set_initial_states(requested_states_count - self.__store.get_amount())
+                # Отправляем потребителям инициализированные состояния
+                self.__states_distribution(self.__outgoing, new_states, BioEnum.INIT)
+                # И отправляем все оставшиеся имеющиеся состояния потребителям, в т. ч. и модулю нейросети.
+                self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE)
+                logger.debug("Отправлено в НС {} (новых) + {} (старых) испытаний.".
+                             format(len(new_states), self.__store.get_amount()))
+                # добавляем новые состояния к общему словарю
+                if not self.__store.add_state(states=new_states):
+                    raise KeyError("Any adding test identificators is already in store.")
+
+            # Получение команд из блока нейросети.
+            commands: Dict[TestId, StageControlCommands] = \
+                self.__command_waiting(requested_states_count, self.__incoming,
+                                       SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
+
+            assert len(commands) == requested_states_count, \
+                "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \
+                "отосланных туда ДЕЙСТВИТЕЛЬНЫХ испытаний - {}.". format(len(commands), requested_states_count)
+
+            logger.debug("Словарь команд из нейросети: {}".format(commands))
+
+            # Вычитаем из запланированных испытаний те, которые уже в работе.
+            future_tests = tests_left - self.__store.get_amount()
+
+            fin_states: Dict[TestId, RealWorldStageStatusN] = {}
+            # Цикл получения новых состояний (после применения команд нейросети)
+            for key in commands:
+                # Меняем состояния изделия в словаре текущих испытаний на новые (после применения команд)
+                if not self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key))):
+                    raise KeyError("Updated test with this identificator is not present in store.")
+
+                state = self.__store.get_state(key)
+                if state is None:
+                    raise KeyError("Requested test identificator is not present in store.")
+                reinf: ReinforcementValue = self.__get_reinforcement(state, commands[key])
+                container: Container = Container(key, reinf)
+                self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.REINFORCEMENT].send(deepcopy(container))
+
+                # Если данное испытание подошло к концу, исключаем его из общего словаря.
+                state = self.__store.get_state(key)
+                if state is not None and self.__test_end(state):
+                    # Словарь завершённых тестов.
+                    fin_states[key] = state
+                    # Словарь текущих испытаний, очищенный от завершённых испытаний.
+                    self.__store.del_state(key)
+                elif state is None:
+                    raise KeyError("Requested test identificator is not present in store.")
+
+            # Так как словарь с испытаниями подчистился от тех испытаний, которые уже завершились.
+            # То приплюсовываем к количеству незапущенных испытаний, количество "живых" испытаний в обработке.
+            # |----------------------------tests_left-------------------------------|
+            # |--ongoing_states--|-----------------future_tests---------------------|
+
+            tests_left = self.__store.get_amount() + future_tests
+
+            # Отправляем в модуль вида завершённые состояния для отображения.
+            for key in fin_states:
+                container: BioContainer = BioContainer(key, BioEnum.FIN, fin_states[key])
+                self.__outgoing[AppModulesEnum.VIEW][DataTypeEnum.STAGE_STATUS].\
+                    send(deepcopy(container))

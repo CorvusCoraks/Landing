@@ -2,7 +2,6 @@
 from nn_iface.if_state import InterfaceStorage
 from typing import Dict
 import torch
-from basics import FinishAppException
 
 
 class TorchFileStorage(InterfaceStorage):

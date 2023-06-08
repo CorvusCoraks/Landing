@@ -1,6 +1,6 @@
 """ Модуль визуализации происходящего с испытуемым объектом. """
 from logging import getLogger
-from basics import logger_name, TestId, FinishAppException, SLEEP_TIME, START_TESTID_FOR_VIEW
+from basics import logger_name, TestId, SLEEP_TIME, START_TESTID_FOR_VIEW
 from tkinter import Tk, Canvas
 from typing import Optional, Dict, Tuple
 from stage import BigMap

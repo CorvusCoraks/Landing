@@ -72,8 +72,7 @@ def wires() -> Switchboard:
     # Каналы для запросов закрытия приложения (получатель - модуль визуализации)
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
 
-    # Этим сигналом обмениваются БФМ и БНС когда готовы перейти к следующему батчу.
-    # switchboard.add_wire(Wire(AppModulesEnum.PHYSICS, AppModulesEnum.NEURO, RoadEnum.START_NEW_AGE))
+    # Сигнальная линия для передачи команд-семафоров из БНС в БФМ.
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.ENV_ROAD))
 
     return switchboard

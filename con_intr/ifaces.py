@@ -2,7 +2,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Tuple, Optional, overload, Dict, TypeVar, Type
-from basics import FinishAppException
 
 
 # Тип данных (уровня семантики Python), передаваемых между функциональными блоками приложения.
@@ -53,6 +52,7 @@ class DataTypeEnum(Enum):
 
 
 class RoadEnum(Enum):
+    """ Константы-семафоры для передачи из БНС в БФМ. """
     # Начать новую эпоху
     START_NEW_AGE = 0
     # Остановить обучение.
@@ -282,33 +282,6 @@ class ISocket(ABC):
         значение - интерфейс для передачи данных этому Получателю.
         """
         ...
-    #
-    # @abstractmethod
-    # def app_fin(self) -> IFinishApp:
-    #     """ Доступ к интерфейсу передачи команд на завершение приложения. """
-    #     ...
-
-
-# EnumElement = Enum
-
-
-# class IFinishApp(ABC):
-#     """ Интерфейс доступа к каналам передачи команды на завершение приложения. """
-#     #
-#     # @abstractmethod
-#     # def __init__(self, socket: ISocket, signal: EnumElement):
-#     #     ...
-#
-#     @abstractmethod
-#     def send_stop_app(self) -> None:
-#         """ Отправить всем блокам приложения команду на завершение приложения. """
-#         ...
-#
-#     @abstractmethod
-#     def finish_app_checking(self) -> None:
-#         """ Проверка. Метод инициирует в своём теле *FinishAppException*,
-#         если в каком-нибудь канале появилась команда на завершение приложения. """
-#         ...
 
 
 class ISwitchboard(ABC):
@@ -364,4 +337,3 @@ class ISwitchboard(ABC):
         :return: Кортеж ВСЕХ  исходящий линий данного отправителя.
         """
         pass
-

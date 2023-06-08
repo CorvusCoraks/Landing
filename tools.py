@@ -4,19 +4,17 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from typing import TypeVar, Dict, AnyStr, List, Optional, Callable, overload
 from enum import Enum
-from basics import ZeroOne, Bit, FinishAppException
+from basics import ZeroOne, Bit
 from random import random
-from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum, IReceiver
+from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum
 import time
 import threading
 import platform
 
+
 # Переменная типа (чтобы это не значило): классы объектов данных, которые передаются через очереди
 QueueMembers = TypeVar('QueueMembers', RealWorldStageStatusN, StageControlCommands, ReinforcementValue)
 
-# ZeroOne = float
-# # Тип имеющий только два значения: 0 или 1. Потомок int
-# Bit = int
 
 class Reinforcement:
     """
@@ -316,13 +314,6 @@ def action_variants(list_length: int) -> List[List[Bit]]:
         vector_copy.append(1)
         return vector, vector_copy
 
-    # if list_length == 0:
-    #     return [[]]
-    # elif list_length == 1:
-    #     return [[0], [1]]
-    #
-    # print(fork([0]))
-
     # корень дерева
     start = [[]]
     # конечные листья дерева на одном проходе по его наращиванию
@@ -342,8 +333,9 @@ def action_variants(list_length: int) -> List[List[Bit]]:
 
 
 def q_est_init() -> ZeroOne:
-    """ Инициализация начального значения фунции оценки ценности Q. """
+    """ Инициализация начального значения функции оценки ценности Q. """
     return zo(random())
+
 
 class BoolWrapper:
     """ Класс обёртка для *bool* для возвращения значения через аргументы методов. Использование (объект-как-функция):
@@ -354,13 +346,6 @@ class BoolWrapper:
     def __init__(self, value: bool = False):
         self._value: bool = value
 
-    # @property
-    # def value(self) -> bool:
-    #     return self.__value
-    #
-    # @value.setter
-    # def value(self, argument: bool) -> None:
-    #     self.__value = argument
 
     @overload
     def __call__(self) -> bool:
@@ -394,8 +379,10 @@ class BoolWrapper:
             raise TypeError("Input argument have a wrong type: {}. Argument type must be 'bool".
                             format(type(args[0])))
 
+
 class FinishAppBoolWrapper(BoolWrapper):
-    """ Класс-обёртка для bool. По умолчанию - False. Если установлено в True, изменить обратно уже нельзя. """
+    """ Класс-обёртка для команды на завершение приложения.
+    По умолчанию - False. Если установлено в True, изменить обратно уже нельзя. """
     def __call__(self, *args) -> Optional[bool]:
         # Если внутренний атрибут уже True, то изменить его на False уже нельзя
         if self._value or len(args) != 1:
@@ -405,28 +392,8 @@ class FinishAppBoolWrapper(BoolWrapper):
         else:
             return super().__call__(args[0])
 
-def supress_fae(F: Callable[[Inbound], None]) -> Callable[[Inbound], bool]:
-    """ Декоратор подавления инициированного исключения *FinishAppException*.
 
-    :param F: *finish_app_checking* функция.
-    :return: функция-обёртка *wrapper*, возвращающая bool, сигнализирующий о появлении исключения *FinishAppExeption*.
-    """
-    def wrapper(inbound: Inbound) -> bool:
-        """ Функция-обёртка. Внутри производится вызов *finish_app_checking* и подавление FinishAppExeption.
-
-        :param inbound: Словарь входных каналов блока приложения.
-        :return: True - инициировано FinishAppExeption, иначе - False.
-        """
-        try:
-            F(inbound)
-        except FinishAppException:
-            return True
-        return False
-
-    return wrapper
-
-@supress_fae
-def finish_app_checking(inbound: Inbound) -> None:
+def finish_app_checking(inbound: Inbound) -> bool:
     """ Проверка на появление в канале связи команды на завершение приложения. Возбуждает *FinishAppExeption*
 
     :param inbound: Словарь входных каналов блока приложения.
@@ -442,7 +409,10 @@ def finish_app_checking(inbound: Inbound) -> None:
                     # Получаем эту команду
                     inbound[sender][DataTypeEnum.APP_FINISH].receive()
                     # Возбуждаем исключение завершения приложения.
-                    raise FinishAppException
+                    return True
+                else:
+                    return False
+
 
 if __name__ == '__main__':
     b = BoolWrapper()

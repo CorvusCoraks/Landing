@@ -54,6 +54,7 @@ class BioContainer(IContainer):
 
 
 class EnumContainer(IContainer):
+    """ Контейнер, для передачи констант-перечислений. """
     def __init__(self, cargo: D):
         self.__enum_value: D = cargo
 
