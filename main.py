@@ -31,20 +31,26 @@ def log_init(output: str) -> None:
     logger = getLogger(logger_name)
     logger.setLevel(DEBUG)
 
-    logger = getLogger(logger_name + '.view')
-    formatter = Formatter('Визуализация. - %(message)s')
-    handler = get_log_handler(output)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    # logger = getLogger(logger_name + '.view')
+    # formatter = Formatter('Визуализация. - %(message)s')
+    # handler = get_log_handler(output)
+    # handler.setFormatter(formatter)
+    # logger.addHandler(handler)
 
     logger = getLogger(logger_name + '.physics')
-    formatter = Formatter('Физическая модель. - %(message)s')
+    formatter = Formatter('БФМ. - %(message)s')
     handler = get_log_handler(output)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     logger = getLogger(logger_name + '.main')
     formatter = Formatter('%(name)s - %(levelname)s - %(message)s')
+    handler = get_log_handler(output)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    logger = getLogger(logger_name + '.neuronet')
+    formatter = Formatter('НН - %(message)s')
     handler = get_log_handler(output)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -89,9 +95,9 @@ if __name__ == "__main__":
 
     keypress: KeyPressCheck = KeyPressCheck("Продолжить обучение? [y] Или начать с нуля?", 'y', ['n'])
     if keypress.input() == 'y':
-        birth = False
-    else:
         birth = True
+    else:
+        birth = False
 
     switchboard = wires()
 

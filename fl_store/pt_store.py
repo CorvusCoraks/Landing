@@ -2,6 +2,7 @@
 from nn_iface.if_state import InterfaceStorage
 from typing import Dict
 import torch
+import os
 
 
 class TorchFileStorage(InterfaceStorage):
@@ -54,3 +55,7 @@ class TorchFileStorage(InterfaceStorage):
         else:
             return result
         # return torch.load(self._storage_filename)
+
+    def delete(self) -> None:
+        if os.path.isfile(self._storage_filename):
+            os.remove(self._storage_filename)

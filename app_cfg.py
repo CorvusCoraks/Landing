@@ -8,3 +8,4 @@ PROJECT_PY_FILE = '/project.py'
 # PROJECT_CONFIG_FILE = '/project.toml'
 PROJECT_MAIN_CLASS = 'ProjectMainClass'
 PROJECT_CONFIG_FILE = '/cfg.py'
+PROJECT_CONFIG_NAME = PROJECT_CONFIG_FILE[1:-3]

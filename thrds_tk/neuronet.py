@@ -39,8 +39,10 @@ class NeuronetThread(INeuronet, AYarn):
         # Создание объекта на основании класса проекта.
         self.__project : ProjectInterface = eval('project_module.{}()'.format(PROJECT_MAIN_CLASS))
 
-        self.__project.load_nn()
+        if birth:
+            self.__project.del_previous_saved()
 
+        self.__project.load_nn()
         self.__project.load_state()
 
         self.__calc_device = device(self.__project.device)
@@ -161,7 +163,7 @@ class NeuronetThread(INeuronet, AYarn):
     def __finalize(self, project: ProjectInterface):
         project.save_nn()
         project.save_state()
-        logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
+        # logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
 
     def _yarn_run(self, *args, **kwargs) -> None:
         is_fin_app: FinishAppBoolWrapper = FinishAppBoolWrapper()
@@ -175,14 +177,22 @@ class NeuronetThread(INeuronet, AYarn):
             .get_report_sender()
 
         start_epoch: int = self.__project.state.epoch_current
+        it_debug = range(start_epoch, self.__project.state.epoch_stop + 1)
+
+        logger.debug("Epoch iterable: {}".format(it_debug))
+
+        # текущий размер батча в работе.
+        # Может отличаться от размера батча в настройках, так как в процессе работы выбирается более подходящий размер.
+        batch_size: int = 0
 
         # Цикл по эпохам
-        for current_epoch in range(start_epoch, self.__project.state.epoch_stop + 1):
+        # for current_epoch in range(start_epoch, self.__project.state.epoch_stop + 1):
+        for current_epoch in it_debug:
             # Цикл по испытаниям в рамках одной эпохи.
             while True:
                 if is_fin_app():
                     self.__finalize(self.__project)
-                    logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
+                    logger.info('Поступила команда на завершение приложения. Завершаем нить.')
                     return
 
                 # Оставшееся количество запланированных испытаний.
@@ -199,8 +209,11 @@ class NeuronetThread(INeuronet, AYarn):
                 # Если размер планируемого батча на входе актора больше полного планируемого количества испытаний,
                 # то будем формировать
                 # батч размером в полное планируемое количество испытаний.
-                self.__project.state.batch_size = self.__project.state.batch_size \
-                    if self.__project.state.batch_size <= remaining_tests else remaining_tests
+                # self.__project.state.batch_size = self.__project.state.batch_size \
+                #     if self.__project.state.batch_size <= remaining_tests else remaining_tests
+
+                self.__project.state.batch_size = self.__project.cfg.START_VALUES['batch_size'] \
+                    if self.__project.cfg.START_VALUES['batch_size'] <= remaining_tests else remaining_tests
 
                 # Отправляем в модуль физической модели число испытаний, которое хочет получить модуль нейросети.
                 report_wire.send(Container(cargo=self.__project.state.batch_size))

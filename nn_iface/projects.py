@@ -107,6 +107,17 @@ class AbstractProject(ProjectInterface, ABC):
         # сохраняем промежуточное состояние процесса обучения.
         self._training_state.save(self._save_storage_training_state)
 
+    # def del_saved_nn(self) -> None:
+    #     self._save_storage_model.delete()
+    #
+    # def del_saved_state(self) -> None:
+    #     self._save_storage_training_state.delete()
+
+    def del_previous_saved(self):
+        self._save_storage_model.delete()
+        self._save_storage_training_state.delete()
+        self._save_storage_model_state.delete()
+
     def load_nn(self) -> None:
         actor_and_critic: Dict = self._load_storage_model.load()
         self._actor = actor_and_critic[self._actor_key]
@@ -189,3 +200,4 @@ class AbstractProject(ProjectInterface, ABC):
     @property
     def critic_optimizer(self) -> torch.optim.Optimizer:
         return self._critic_optimizer
+

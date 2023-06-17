@@ -20,32 +20,6 @@ class TestModel(Module):
 
 class ModuleStorage(TorchFileStorage):
     """ Хранилище структуры нейросетей (и актора, и критика). """
-    # def __init__(self, research_name: str):
-    #     super().__init__(research_name)
     def __init__(self, file_name: str):
         super().__init__(file_name)
-        # self._storage_filename = self._storage_filename.format("_nn")
         self._storage_filename = file_name
-
-
-# todo Класс не используется. Удалить?
-class NeuronNet(InterfaceNeuronNet):
-    def create(self) -> None:
-        pass
-
-    @property
-    def nn(self) -> Module:
-        return TestModel()
-
-    def prepare_input(self) -> None:
-        pass
-
-    def proceccing_output(self) -> None:
-        pass
-
-    def forward(self) -> None:
-        pass
-
-    def backward(self) -> None:
-        pass
-

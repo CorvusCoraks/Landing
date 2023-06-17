@@ -58,10 +58,12 @@ CRITIC_OPTIMIZER_LR: float = 0.001
 CRITIC_OPTIMIZER_MOMENTUM: float = 0.9
 
 # Начальные значения
+# todo начальное и конечное значение эпох убрать, а сделать просто: количество эпох.
+# todo Текущая эпоха вообще без надобности.
 START_VALUES: Dict = {'batch_size': 2, 'epoch_start': 0, 'epoch_current': 0, 'epoch_stop': 2}
 
 # Количество элементов в обучающей выборке
-TRANING_SET_LENGTH = 7
+TRANING_SET_LENGTH = 3
 TEST_SET_LENGTH = None
 VALIDATION_SET_LENGTH = None
 # Обучающая выборка (training sample) — выборка,

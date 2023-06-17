@@ -187,70 +187,66 @@ class PoligonWindow(WindowsMSInterface):
 
         is_app_fin: FinishAppBoolWrapper = FinishAppBoolWrapper()
 
-        try:
-            # Запуск диспетчера состояний.
-            if self.__state_dispatcher():
-                # Инициировано завершение приложения.
+        # Запуск диспетчера состояний.
+        if self.__state_dispatcher():
+            # Инициировано завершение приложения.
+            is_app_fin(True)
+            return
+
+        while not self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
+            # Ожидание очередного состояния.
+            sleep(SLEEP_TIME)
+            # Проверка на команду закрытия приложения инициированную закрытием главного окна
+            if self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
+                self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
                 is_app_fin(True)
+                # Инициировано завершение приложения.
                 return
+                # raise FinishAppException
+        else:
+            container = self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
+            assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
+                                                        "Now: {}".format(container.__class__)
+            test_id, bio = container.get()
+            view_state = container.unpack()
 
-            while not self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
-                # Ожидание очередного состояния.
-                sleep(SLEEP_TIME)
-                # Проверка на команду закрытия приложения инициированную закрытием главного окна
-                if self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
-                    self.__area_inbound[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].receive()
-                    is_app_fin(True)
-                    # Инициировано завершение приложения.
-                    return
-                    # raise FinishAppException
-            else:
-                container = self.__area_inbound[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
-                assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
-                                                            "Now: {}".format(container.__class__)
-                test_id, bio = container.get()
-                view_state = container.unpack()
+        logger.debug('Положение изделия в СКИП. x: {}, y: {}'.format(view_state.position.x, view_state.position.y))
+        # длительность предыдущего статуса изделия
+        previous_status_duration = view_state.time_stamp - self.__previous_status_time_stamp
+        self.__previous_status_time_stamp = view_state.time_stamp
 
-            logger.debug('Положение изделия в СКИП. x: {}, y: {}'.format(view_state.position.x, view_state.position.y))
-            # длительность предыдущего статуса изделия
-            previous_status_duration = view_state.time_stamp - self.__previous_status_time_stamp
-            self.__previous_status_time_stamp = view_state.time_stamp
+        # преобразование из СКИП в СКК
+        (stage_canvas_orientation, stage_canvas_position) = pointsListToNewCoordinateSystem(
+            [view_state.orientation, view_state.position],
+            BigMap.canvasOriginInPoligonCoordinates,
+            0., True
+        )
 
-            # преобразование из СКИП в СКК
-            (stage_canvas_orientation, stage_canvas_position) = pointsListToNewCoordinateSystem(
-                [view_state.orientation, view_state.position],
-                BigMap.canvasOriginInPoligonCoordinates,
-                0., True
-            )
+        # Между испытаниями маркер точки старта и маркер ЦМ изделия находятся в точке (0, 0) канвы.
 
-            # Между испытаниями маркер точки старта и маркер ЦМ изделия находятся в точке (0, 0) канвы.
-
-            if bio == BioEnum.INIT:
-                # Стартовая точка = первая точка в данном испытании.
-                self.__start_point.decart = stage_canvas_position.decart
-                # Перемещаем маркер стартовой позиции из точки (0; 0) в истинную точку старта
-                self.__canvas.move(self.__sp_mark, self.__start_point.x, self.__start_point.y)
-                # Перемещаем маркер ЦМ изделия из точки (0, 0) в точку старта.
-                self.__stage_mark.moveMark(self.__current_point, self.__start_point)
-                # Сохраняем точку старта как текущее положение ЦМ изделия.
-                self.__current_point = self.__start_point
-            elif bio == BioEnum.FIN:
-                # Испытание завершено, возвращаем маркер стартовой позиции в точку (0; 0)
-                self.__canvas.move(self.__sp_mark, -self.__start_point.x, -self.__start_point.y)
-                # Возвращаем маркер ЦМ изделия в точку (0, 0)
-                self.__stage_mark.moveMark(self.__current_point, VectorComplex.get_instance())
-                # Сохраняем точку положения маркера ЦМ как текущую точку.
-                self.__current_point = VectorComplex.get_instance()
-            else:
-                # отрисовка нового положения объектов на основании полученных данных из self.__any_queue
-                # сдвинуть отметку ЦМ ступени
-                if self.__stage_mark.moveMark(self.__current_point, stage_canvas_position / self.__poligon_scale):
-                    # значение обновляем только тогда, если производился сдвиг отметки по канве
-                    # в противном случае, прошедшее значение смещения попало в трэшхолд и не является значимым
-                    self.__current_point = stage_canvas_position / self.__poligon_scale
-
-        except FinishAppException:
-            logger.info('Поступила команда на завершение приложения. Завершаем работу метода отрисовки исп. полигона.')
+        if bio == BioEnum.INIT:
+            # Стартовая точка = первая точка в данном испытании.
+            self.__start_point.decart = stage_canvas_position.decart
+            # Перемещаем маркер стартовой позиции из точки (0; 0) в истинную точку старта
+            self.__canvas.move(self.__sp_mark, self.__start_point.x, self.__start_point.y)
+            # Перемещаем маркер ЦМ изделия из точки (0, 0) в точку старта.
+            self.__stage_mark.moveMark(self.__current_point, self.__start_point)
+            # Сохраняем точку старта как текущее положение ЦМ изделия.
+            self.__current_point = self.__start_point
+        elif bio == BioEnum.FIN:
+            # Испытание завершено, возвращаем маркер стартовой позиции в точку (0; 0)
+            self.__canvas.move(self.__sp_mark, -self.__start_point.x, -self.__start_point.y)
+            # Возвращаем маркер ЦМ изделия в точку (0, 0)
+            self.__stage_mark.moveMark(self.__current_point, VectorComplex.get_instance())
+            # Сохраняем точку положения маркера ЦМ как текущую точку.
+            self.__current_point = VectorComplex.get_instance()
+        else:
+            # отрисовка нового положения объектов на основании полученных данных из self.__any_queue
+            # сдвинуть отметку ЦМ ступени
+            if self.__stage_mark.moveMark(self.__current_point, stage_canvas_position / self.__poligon_scale):
+                # значение обновляем только тогда, если производился сдвиг отметки по канве
+                # в противном случае, прошедшее значение смещения попало в трэшхолд и не является значимым
+                self.__current_point = stage_canvas_position / self.__poligon_scale
 
         # запускаем отрисовку в цикл
         self.__root.after(CheckPeriod.to_mu_sec(previous_status_duration), self._draw)

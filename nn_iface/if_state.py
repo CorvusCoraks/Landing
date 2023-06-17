@@ -50,6 +50,11 @@ class InterfaceStorage(ABC):
         """ Метод хранилища. Хранилище выгружает из себя данные. """
         ...
 
+    @abstractmethod
+    def delete(self) -> None:
+        """ Метод хранилища. Удаляет данные. """
+        ...
+
 
 class StateInterfaceSaveLoad(ABC):
     """ Интерфейс сохранения и загрузки данных в/из хранилища

@@ -139,7 +139,7 @@ class PhysicsThread(IPhysics, AYarn):
         for i in range(states_count):
             # инициализация начальными данными
             test_id, state = self.__initial_states.get_state()
-            logger.debug('__set_initial_state. Начальное состояние: {}, {}'.format(i, state.position))
+            logger.debug('__set_initial_state. Начальное состояние: test_id - {}, position - {}'.format(test_id, state.position))
 
             if state is None:
                 # Итератор начальных состояний пуст?
@@ -224,7 +224,7 @@ class PhysicsThread(IPhysics, AYarn):
             outbound[AppModulesEnum.NEURO][DataTypeEnum.STAGE_STATUS].send(deepcopy(container))
             outbound[AppModulesEnum.VIEW][DataTypeEnum.STAGE_STATUS].send(deepcopy(container))
             i += 1
-            logger.debug("В НС и Вид отправятся {} испытаний.".format(i))
+            # logger.debug("В НС и Вид отправятся {} испытаний.".format(i))
 
     def __finalize(self, tests_left: int):
         """ Финализация работы блока. """
@@ -257,9 +257,10 @@ class PhysicsThread(IPhysics, AYarn):
         # Осталось провести запланированных испытаний.
         tests_left: int = self.__max_tests if self.__birth else self.__tests_left_before_break
 
+        logger.info("Вход в цикл генерации и передачи состояний изделия.")
         while tests_left >= 0:
             # Пока ещё есть испытания в планах, цикл работает.
-            logger.info("Вход в цикл генерации и передачи состояний изделия.")
+            logger.info("Испытаний в плане: {}".format(tests_left))
 
             if self.__is_do_app_finish():
                 # Сохранить состояние и выйти.
@@ -269,7 +270,7 @@ class PhysicsThread(IPhysics, AYarn):
             # отправляем в нейросеть количество оставшихся по программе испытаний
             report_wire.send(Container(cargo=tests_left))
 
-            logger.debug("Испытаний в плане: {}".format(tests_left))
+            # logger.debug("Испытаний в плане: {}".format(tests_left))
 
             # Ждём обязательных распоряжений от БНС
             while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].has_incoming():
@@ -286,11 +287,13 @@ class PhysicsThread(IPhysics, AYarn):
                     # Инициализируем новый объект начальных состояний.
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
+                    logger.info("Вход в новую эпоху.")
                     continue
                 case RoadEnum.ALL_AGES_FINISHED:
                     # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
                     # Ждём команду от БВ на завершение.
                     # Сохранять состояние тут без надобности.
+                    logger.info("План по эпохам выполнен.")
                     break
                 case RoadEnum.CONTINUE:
                     # Продолжаем движение по алгоритму без изменений.
@@ -301,17 +304,19 @@ class PhysicsThread(IPhysics, AYarn):
             # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
             requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
                                                              SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
-            logger.debug("НС готова принять состояний: {}".format(requested_states_count))
+            # logger.debug("НС готова принять состояний: {}".format(requested_states_count))
 
             assert tests_left >= requested_states_count, \
                 "Ошибка! Количество запрошенных модулем нейросети состояний должно быть МЕНЬШЕ," \
                 "чем количество оставшихся доступных состояний (испытания в работе плюс испытания в генераторе)"
 
+            ga_debug = self.__store.get_amount()
+
             if requested_states_count <= self.__store.get_amount():
                 # Если запрошенное блоком нейросети количество состояний МЕНЬШЕ,
                 # чем оставшееся после предыдущего прохода по нейросети.
                 self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE, requested_states_count)
-                logger.debug("Отправлено в НС {} испытаний.".format(requested_states_count))
+                # logger.debug("Отправлено в НС {} испытаний.".format(requested_states_count))
             else:
                 # Если запрошенное блоком нейросети количество состояний БОЛЬШЕ,
                 # чем оставшееся после предыдущего прохода по нейросети.
@@ -319,10 +324,11 @@ class PhysicsThread(IPhysics, AYarn):
                 new_states = self.__set_initial_states(requested_states_count - self.__store.get_amount())
                 # Отправляем потребителям инициализированные состояния
                 self.__states_distribution(self.__outgoing, new_states, BioEnum.INIT)
+                as_debug = self.__store.all_states()
                 # И отправляем все оставшиеся имеющиеся состояния потребителям, в т. ч. и модулю нейросети.
                 self.__states_distribution(self.__outgoing, self.__store.all_states(), BioEnum.ALIVE)
-                logger.debug("Отправлено в НС {} (новых) + {} (старых) испытаний.".
-                             format(len(new_states), self.__store.get_amount()))
+                # logger.debug("Отправлено в НС {} (новых) + {} (старых) испытаний.".
+                #              format(len(new_states), self.__store.get_amount()))
                 # добавляем новые состояния к общему словарю
                 if not self.__store.add_state(states=new_states):
                     raise KeyError("Any adding test identificators is already in store.")
@@ -336,7 +342,7 @@ class PhysicsThread(IPhysics, AYarn):
                 "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \
                 "отосланных туда ДЕЙСТВИТЕЛЬНЫХ испытаний - {}.". format(len(commands), requested_states_count)
 
-            logger.debug("Словарь команд из нейросети: {}".format(commands))
+            # logger.debug("Словарь команд из нейросети: {}".format(commands))
 
             # Вычитаем из запланированных испытаний те, которые уже в работе.
             future_tests = tests_left - self.__store.get_amount()
@@ -344,26 +350,33 @@ class PhysicsThread(IPhysics, AYarn):
             fin_states: Dict[TestId, RealWorldStageStatusN] = {}
             # Цикл получения новых состояний (после применения команд нейросети)
             for key in commands:
+                if self.__store.get_state(key) is None:
+                    # В хранилище испытания с таким Id нет.
+                    raise KeyError("Requested test identificator is not present in store.")
+
                 # Меняем состояния изделия в словаре текущих испытаний на новые (после применения команд)
-                if not self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key))):
-                    raise KeyError("Updated test with this identificator is not present in store.")
+                # if not self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key))):
+                #     raise KeyError("Updated test with this identificator is not present in store.")
+                self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key)))
 
                 state = self.__store.get_state(key)
-                if state is None:
-                    raise KeyError("Requested test identificator is not present in store.")
+
+                # if state is None:
+                #     raise KeyError("Requested test identificator is not present in store.")
+
                 reinf: ReinforcementValue = self.__get_reinforcement(state, commands[key])
                 container: Container = Container(key, reinf)
                 self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.REINFORCEMENT].send(deepcopy(container))
 
                 # Если данное испытание подошло к концу, исключаем его из общего словаря.
-                state = self.__store.get_state(key)
+                # state = self.__store.get_state(key)
                 if state is not None and self.__test_end(state):
                     # Словарь завершённых тестов.
                     fin_states[key] = state
                     # Словарь текущих испытаний, очищенный от завершённых испытаний.
                     self.__store.del_state(key)
-                elif state is None:
-                    raise KeyError("Requested test identificator is not present in store.")
+                # elif state is None:
+                #     raise KeyError("Requested test identificator is not present in store.")
 
             # Так как словарь с испытаниями подчистился от тех испытаний, которые уже завершились.
             # То приплюсовываем к количеству незапущенных испытаний, количество "живых" испытаний в обработке.

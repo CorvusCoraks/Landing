@@ -1,4 +1,6 @@
 """ Модуль конкретного проекта. """
+from types import ModuleType
+import importlib
 from torch import Tensor, cuda, tensor, zeros, repeat_interleave, tile, split, max, int64, sum, matmul, transpose
 from torch.nn import Module, Sequential
 import torch.optim
@@ -15,7 +17,7 @@ from nn_iface.norm import ListMinMaxNormalization
 from nn_iface.ifaces import LossCriticInterface, LossActorInterface
 from point import VectorComplex
 from nn_iface.projects import AbstractProject
-from app_cfg import PROJECT_DIRECTORY_PATH
+from app_cfg import PROJECT_DIRECTORY_PATH, PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_NAME
 from DevTmpPr.cfg import ACTOR_INPUT, ACTOR_HIDDEN, ACTOR_OUTPUT, ACTOR_OPTIONS
 from DevTmpPr.cfg import CRITIC_INPUT, CRITIC_HIDDEN, CRITIC_OUTPUT, CRITIC_OPTIONS
 from DevTmpPr.cfg import POSITION_MINMAX, LINE_VELOCITY_MINMAX, LINE_ACCELERATION_MINMAX
@@ -59,6 +61,9 @@ class ProjectMainClass(AbstractProject):
             POSITION_MINMAX, LINE_VELOCITY_MINMAX, LINE_ACCELERATION_MINMAX,
             ORIENTATION_MINMAX, ANGULAR_VELOCITY_MINMAX, ANGULAR_ACCELERATION_MINMAX
         ])
+
+        # Модуль конфигурации проекта.
+        self.__cfg: ModuleType = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_NAME))
 
         # Список возможных действий актора.
         self.__action_var: List[List[Bit]] = action_variants(JETS_COUNT)
@@ -281,6 +286,10 @@ class ProjectMainClass(AbstractProject):
     @property
     def critic_loss(self) -> LossCriticInterface:
         return CRITIC_LOSS()
+
+    @property
+    def cfg(self) -> ModuleType:
+        return self.__cfg
 
 
 if __name__ == '__main__':
