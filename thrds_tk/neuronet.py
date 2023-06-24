@@ -4,7 +4,6 @@ from logging import getLogger
 from basics import logger_name, TestId, SLEEP_TIME, ZeroOne
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
-import structures
 from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue
 from torch import device, float, Tensor
 from typing import Dict, Callable, List
@@ -13,7 +12,6 @@ from con_intr.ifaces import ISocket, ISender, AppModulesEnum, DataTypeEnum, \
     Inbound, Outbound, RoadEnum
 from con_simp.contain import Container, BioContainer, EnumContainer
 from con_simp.wire import ReportWire
-# from con_simp.switcher import AppFinish
 from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInterface
 from tools import q_est_init, FinishAppBoolWrapper, finish_app_checking
 from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE
@@ -39,6 +37,8 @@ class NeuronetThread(INeuronet, AYarn):
         # Создание объекта на основании класса проекта.
         self.__project : ProjectInterface = eval('project_module.{}()'.format(PROJECT_MAIN_CLASS))
 
+        self.__cfg: ModuleType = project_cfg
+
         if birth:
             self.__project.del_previous_saved()
 
@@ -59,7 +59,14 @@ class NeuronetThread(INeuronet, AYarn):
 
     def __get_remaining_tests(self, inbound: Inbound, sleep_time: float,
                               finish_app_checking: Callable[[Inbound], bool], is_fin_app: FinishAppBoolWrapper) -> int:
-        """ Получить оставшееся количество запланированных испытаний. """
+        """ Получить оставшееся количество запланированных испытаний.
+
+        :param inbound: Входные очереди блока нейросети.
+        :param sleep_time: Время ожидания данных из очереди.
+        :param finish_app_checking: Функция проверки на появление команды завершения приложения.
+        :param is_fin_app: Выходной параметр. Команда на завершение приложения есть?
+        :return: Оставшееся количество запланированных испытаний.
+        """
         while not inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS].has_incoming():
             # Пока в канале нет сообщений, крутимся в цикле ожидания.
             sleep(sleep_time)
@@ -73,7 +80,15 @@ class NeuronetThread(INeuronet, AYarn):
     def __collect_batch(self, inbound: Inbound, sleep_time: float,
                         finish_app_checking: Callable[[Inbound], bool], batch_size: int, is_fin_app: FinishAppBoolWrapper) \
             -> Dict[TestId, RealWorldStageStatusN]:
-        """ Собрать словарь-контейнер-накопитель для состояний изделия в разных испытаниях для создания батча. """
+        """ Собрать словарь-контейнер-накопитель для состояний изделия в разных испытаниях для создания батча.
+
+        :param inbound: Входные очереди блока нейросети.
+        :param sleep_time: Время ожидания данных из очереди.
+        :param finish_app_checking: Функция проверки на появление команды завершения приложения.
+        :param batch_size: Планируемый размер батча.
+        :param is_fin_app: Выходной параметр. Команда на завершение приложения есть?
+        :return: Словарь состояний планируемых к обработке испытаний.
+        """
         # Результирующий словарь
         batch_dict: Dict[TestId, RealWorldStageStatusN] = {}
         for i in range(batch_size):
@@ -138,10 +153,16 @@ class NeuronetThread(INeuronet, AYarn):
         return q
 
     def __get_reinforcement(self, inbound: Inbound, waiting_count: int, sleep_time: float,
-                            finish_app_checking: Callable[[Inbound], bool], is_fin_app: FinishAppBoolWrapper) -> Dict[TestId, ZeroOne]:
+                            finish_app_checking: Callable[[Inbound], bool], is_fin_app: FinishAppBoolWrapper) \
+            -> Dict[TestId, ZeroOne]:
         """ Получить подкрепления.
 
-        :param waiting_count: количество ожидаемых подкреплений.
+        :param inbound: Входные очереди блока нейросети.
+        :param waiting_count: Сколько подкреплений необходимо получить.
+        :param sleep_time: Время ожидания данных из очереди.
+        :param finish_app_checking: Функция проверки на появление команды завершения приложения.
+        :param is_fin_app: Выходной параметр. Команда на завершение приложения есть?
+        :return: Словарь подкреплений для обрабатываемых испытаний.
         """
         result: Dict[TestId, ZeroOne] = {}
         for i in range(waiting_count):
@@ -161,6 +182,10 @@ class NeuronetThread(INeuronet, AYarn):
         return result
 
     def __finalize(self, project: ProjectInterface):
+        """ Сохранения состояния процесса тренировки.
+
+        :param project: Текущий рабочий проект.
+        """
         project.save_nn()
         project.save_state()
         # logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
@@ -180,10 +205,6 @@ class NeuronetThread(INeuronet, AYarn):
         it_debug = range(start_epoch, self.__project.state.epoch_stop + 1)
 
         logger.debug("Epoch iterable: {}".format(it_debug))
-
-        # текущий размер батча в работе.
-        # Может отличаться от размера батча в настройках, так как в процессе работы выбирается более подходящий размер.
-        batch_size: int = 0
 
         # Цикл по эпохам
         # for current_epoch in range(start_epoch, self.__project.state.epoch_stop + 1):
@@ -209,11 +230,8 @@ class NeuronetThread(INeuronet, AYarn):
                 # Если размер планируемого батча на входе актора больше полного планируемого количества испытаний,
                 # то будем формировать
                 # батч размером в полное планируемое количество испытаний.
-                # self.__project.state.batch_size = self.__project.state.batch_size \
-                #     if self.__project.state.batch_size <= remaining_tests else remaining_tests
-
-                self.__project.state.batch_size = self.__project.cfg.START_VALUES['batch_size'] \
-                    if self.__project.cfg.START_VALUES['batch_size'] <= remaining_tests else remaining_tests
+                self.__project.state.batch_size = self.__cfg.START_VALUES['batch_size'] \
+                    if self.__cfg.START_VALUES['batch_size'] <= remaining_tests else remaining_tests
 
                 # Отправляем в модуль физической модели число испытаний, которое хочет получить модуль нейросети.
                 report_wire.send(Container(cargo=self.__project.state.batch_size))
@@ -343,7 +361,8 @@ class NeuronetThread(INeuronet, AYarn):
                 # Отправка в БФМ предупреждающего сигнала о грядущем завершение процесса обучения.
                 self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(RoadEnum.ALL_AGES_FINISHED))
                 # Отправка в блок визуализации ЗАПРОСА на завершение приложения.
-                self.__outbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH].send(Container())
+                logger.info("Отправка в блок визуализации ЗАПРОСА на завершение приложения.")
+                self.__outbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH_REQUEST].send(Container())
 
             # Сохранение состояния в хранилище на смене эпох (а то и на естественном завершении процесса обучения).
             self.__finalize(self.__project)

@@ -9,7 +9,6 @@ from tools import Reinforcement, Finish
 from basics import TestId
 from structures import RealWorldStageStatusN
 from basics import ZeroOne
-from types import ModuleType
 
 
 class LossCriticInterface(ABC):
@@ -102,16 +101,6 @@ class ProjectInterface(ABC):
     def load_state(self) -> None:
         """ Загрузить состояние нейросети и состояние процесса тренировки. """
         ...
-
-    # @abstractmethod
-    # def del_saved_nn(self) -> None:
-    #     """ Удалить предыдущий сохранённый вариант нейросети. """
-    #     ...
-    #
-    # @abstractmethod
-    # def del_saved_state(self) -> None:
-    #     """ Удалить предыдущий сохранённое состояние процесса тренировки. """
-    #     ...
 
     def del_previous_saved(self) -> None:
         """ Удалить предыдущее сохранение. """
@@ -241,12 +230,6 @@ class ProjectInterface(ABC):
         :param commands: Словарь команд (желаемых действий актора), как следствие выбранных максимальных оценок ФЦ.
         :return: Тензор целевого выхода актора.
         """
-        ...
-
-    @property
-    @abstractmethod
-    def cfg(self) -> ModuleType:
-        """ Модуль конфигурации проекта. """
         ...
 
 

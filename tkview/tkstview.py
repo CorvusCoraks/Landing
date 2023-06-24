@@ -18,6 +18,7 @@ from con_simp.contain import BioContainer
 ViewInbound = Dict[ViewParts, Dict[ViewData, IReceiver]]
 ViewOutbound = Dict[ViewParts, Dict[ViewData, ISender]]
 
+
 class StageViewWindow(WindowsMSInterface):
     """
     Класс окна вывода увеличенного изображения ступени и числовых характеристик
@@ -49,7 +50,8 @@ class StageViewWindow(WindowsMSInterface):
         self.__window_height = self.__stage_size / self.__stage_scale * self.__more_width
         # Виртуальная вертикальная линия, проходящая по двоеточиям (по середине) текстовых меток
         # Необходима для компоновки текстовых меток
-        self.__center_text_line = self.__stage_size / self.__stage_scale * self.__more_width + self.__for_text_labels / 2
+        self.__center_text_line = self.__stage_size / self.__stage_scale * self.__more_width + \
+                                  self.__for_text_labels / 2
 
         # Визуализатор информации.
         self.__info_view: Optional[InfoView] = None
@@ -71,14 +73,17 @@ class StageViewWindow(WindowsMSInterface):
         # Координаты точки предварительной сборки (левый верхний угол прямоугольника ступени) в СКК
         assembling_point = VectorComplex.get_instance(0., 0.)
         # Координаты центра масс в СКК
-        self.__mass_center_on_canvas: VectorComplex = assembling_point + VectorComplex.get_instance(Sizes.widthCenterBlock / 2 / self.__stage_scale,
-                                                                                                   Sizes.heightCenterBlock * 2 / 3 / self.__stage_scale)
+        self.__mass_center_on_canvas: VectorComplex = \
+            assembling_point + VectorComplex.get_instance(Sizes.widthCenterBlock / 2 / self.__stage_scale,
+                                                          Sizes.heightCenterBlock * 2 / 3 / self.__stage_scale)
+
         self.__orientation = VectorComplex.get_instance(0., -1.)
 
         self._preparation_static_marks()
         self._preparation_movable_marks()
 
-        self.__stage = FirstStage2(self.__canvas, assembling_point, self.__mass_center_on_canvas, self.__stage_linked_marks, self.__stage_scale)
+        self.__stage = FirstStage2(self.__canvas, assembling_point, self.__mass_center_on_canvas,
+                                   self.__stage_linked_marks, self.__stage_scale)
 
         self._create_objects_on_canvas()
 
@@ -90,70 +95,68 @@ class StageViewWindow(WindowsMSInterface):
         transform: Optional[RealWorldStageStatusN] = None
         # Длительность предыдущего состояния
         previous_status_duration = 0
-        try:
-            # Получение данных для отображения изделия.
-            while not self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
-                sleep(SLEEP_TIME)
-                if self.__states_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
-                    raise FinishAppException
-            else:
-                container = self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
-                assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
-                                                         "Now: {}".format(container.__class__)
-                test_id, bio = container.get()
-                self.__any_state = container.unpack()
 
-                transform = self.__any_state
-                previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
-                self.__previous_status_time_stamp = transform.time_stamp
+        # Получение данных для отображения изделия.
+        while not self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
+            sleep(SLEEP_TIME)
+            if self.__states_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
+                return
+        else:
+            container = self.__states_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
+            assert isinstance(container, BioContainer), "Container class should be a BioContainer. " \
+                                                        "Now: {}".format(container.__class__)
+            test_id, bio = container.get()
+            self.__any_state = container.unpack()
 
-            # Визуализация информации
-            while self.__info_view is None:
-                # Если визуализатор ещё не создан
-                sleep(SLEEP_TIME)
-                if self.__states_in[ViewParts.STAGE][ViewData.APP_FINISH].has_incoming():
-                    raise FinishAppException
-            else:
-                # Визуализатор информации есть.
-                if not self.__info_view_ready:
-                    # Если визуализатор информации ещё не насторен
-                    # Получаем блок визуальных элементов визуализации информации.
-                    info_block: Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]] = self.__info_view.get_info_block(self.__canvas)
-                    # Создаём блок визуальных элементов на канве.
-                    self.create_info_block_on_canvas(info_block)
-                    # Фиксируем создание блока визуализации информации.
-                    self.__info_view_ready = True
+            transform = self.__any_state
+            previous_status_duration = transform.time_stamp - self.__previous_status_time_stamp
+            self.__previous_status_time_stamp = transform.time_stamp
 
-                # Получить данных из канала связи, поставляющего данные в блок визуализации информации.
-                # На данном этапе проектирования приложения, этот канал поступления данных не используется.
-                test_id, bio, state = self.__info_view.info_block_data(self.__info_view.data_inbound, SLEEP_TIME)
+        # Визуализация информации
+        while self.__info_view is None:
+            # Если визуализатор ещё не создан
+            sleep(SLEEP_TIME)
+            if self.__states_in[ViewParts.STAGE][ViewData.APP_FINISH].has_incoming():
+                return
+        else:
+            # Визуализатор информации есть.
+            if not self.__info_view_ready:
+                # Если визуализатор информации ещё не насторен
+                # Получаем блок визуальных элементов визуализации информации.
+                info_block: Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]] = \
+                    self.__info_view.get_info_block(self.__canvas)
+                # Создаём блок визуальных элементов на канве.
+                self.create_info_block_on_canvas(info_block)
+                # Фиксируем создание блока визуализации информации.
+                self.__info_view_ready = True
 
-            # отрисовка нового положения объектов на основании полученных данных из очереди
-            if transform is not None:
-                self.__change_static_marks(transform)
-                if self.__canvas_linked_marks is not None: self.__change_movable_marks(transform)
+            # Получить данных из канала связи, поставляющего данные в блок визуализации информации.
+            # На данном этапе проектирования приложения, этот канал поступления данных не используется.
+            test_id, bio, state = self.__info_view.info_block_data(self.__info_view.data_inbound, SLEEP_TIME)
 
-        except FinishAppException:
-            pass
+        # отрисовка нового положения объектов на основании полученных данных из очереди
+        if transform is not None:
+            self.__change_static_marks(transform)
+            if self.__canvas_linked_marks is not None:
+                self.__change_movable_marks(transform)
 
         # запускаем отрисовку цикл
         self.__root.after(CheckPeriod.to_mu_sec(previous_status_duration), self._draw)
-
 
     def __change_static_marks(self, transform: RealWorldStageStatusN):
         """ Обновление неподвижных отметок в соответствии с актуальной информацией """
         # переводим свободный вектор расстояния в СКК
         distance_vector_ccs = complexChangeSystemCoordinatesUniversal(transform.position,
-                                                                    VectorComplex.get_instance(0., 0.), 0., True)
+                                                                      VectorComplex.get_instance(0., 0.), 0., True)
         self.__canvas_linked_marks["distance"].setInfo(abs(transform.position), distance_vector_ccs)
         # переводим свободный вектор скорости в СКК
         velocity_vector_ccs = complexChangeSystemCoordinatesUniversal(transform.velocity,
-                                                                    VectorComplex.get_instance(0., 0.), 0., True)
+                                                                      VectorComplex.get_instance(0., 0.), 0., True)
 
         self.__canvas_linked_marks["line_velocity"].setInfo(abs(transform.velocity), velocity_vector_ccs)
         # переводим свободный вектор ускорения в СКК
         axeleration_vector_ccs = complexChangeSystemCoordinatesUniversal(transform.acceleration,
-                                                                       VectorComplex.get_instance(0., 0.), 0., True)
+                                                                         VectorComplex.get_instance(0., 0.), 0., True)
 
         self.__canvas_linked_marks["line_accel"].setInfo(abs(transform.acceleration), axeleration_vector_ccs)
 
@@ -194,8 +197,6 @@ class StageViewWindow(WindowsMSInterface):
                                                         self.__mass_center_on_canvas.y + self.__orientation.y * 60.),
                              5, "blue", self.__mass_center_on_canvas)
         self.__stage_linked_marks.append(self.__arrow)
-        # self.__testArrow = Arrow(self.__canvas, VectorComplex.get_instance(10, 10), VectorComplex.get_instance(10, 60), 5,
-        #                          "blue")
 
         # отметка центра масс
         self.__mass_center_mark = CenterMassMark(self.__canvas, self.__mass_center_on_canvas, fill="blue")
@@ -233,7 +234,7 @@ class StageViewWindow(WindowsMSInterface):
         self.__info_view = info
 
 
-class InfoView():
+class InfoView:
     """ Блок информации о процессе. """
     def __init__(self, socket: ISocket):
         """
@@ -242,7 +243,8 @@ class InfoView():
         """
         self.__data_inbound: ViewInbound = socket.get_in_dict()
 
-    def info_block_data(self, info_in: ViewInbound, sleep_time: float) -> Tuple[TestId, BioEnum, RealWorldStageStatusN]:
+    def info_block_data(self, info_in: ViewInbound, sleep_time: float) \
+            -> Optional[Tuple[TestId, BioEnum, RealWorldStageStatusN]]:
         """ Извлечение из канала данных для информационного блока. (Пока данные отсюда не используются)
 
         :param info_in: входные каналы информации
@@ -253,7 +255,7 @@ class InfoView():
         while len(info_in) == 0:
             sleep(sleep_time)
             if info_in[ViewParts.AREA_WINDOW][ViewData.APP_FINISH].has_incoming():
-                raise FinishAppException
+                return
 
         # Извлекаем из канала значения данных для информационного блока.
         # В данный момент эти значения не используются, в работу берутся значения из канала данных для
@@ -261,7 +263,7 @@ class InfoView():
         while not info_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].has_incoming():
             sleep(sleep_time)
             if info_in[ViewParts.DISPATCHER][ViewData.APP_FINISH].has_incoming():
-                raise FinishAppException
+                return
         else:
             container = info_in[ViewParts.DISPATCHER][ViewData.STAGE_STATUS].receive()
             test_id, bio = container.get()
@@ -276,21 +278,21 @@ class InfoView():
     def get_info_block(self, canvas: Canvas) -> Dict[AnyStr, Union[ArcArrowAndText, LineArrowAndText]]:
         """ Получить блок информации о процессе """
         arc_and_text_test = ArcArrowAndText(canvas, VectorComplex.get_instance(300, 300), "Header", 120.,
-                                                "Legend", "green")
+                                            "Legend", "green")
 
         line_velocity_info = LineArrowAndText(canvas, VectorComplex.get_instance(450, 200), "Velocity", 120.,
-                                                   "{0:7.2f} m/s", "green")
+                                              "{0:7.2f} m/s", "green")
         line_axeleration_info = LineArrowAndText(canvas, VectorComplex.get_instance(550, 200), "Axeleration",
-                                               120., "{0:7.2f} m/s^2", "green")
+                                                 120., "{0:7.2f} m/s^2", "green")
         angle_velocity = ArcArrowAndText(canvas, VectorComplex.get_instance(450, 300), "Velocity", 120.,
-                                               "{0:7.2f} r/s", "green")
+                                         "{0:7.2f} r/s", "green")
         angle_axeleration = ArcArrowAndText(canvas, VectorComplex.get_instance(550, 300), "Axeleration",
-                                           120., "00,00 r/s^2", "green")
+                                            120., "00,00 r/s^2", "green")
         stage_distance = LineArrowAndText(canvas, VectorComplex.get_instance(450, 350), "Distance", 120.,
-                                                "{0:7.2f} m", "green")
+                                          "{0:7.2f} m", "green")
         stage_altitude = LineArrowAndText(canvas, VectorComplex.get_instance(550, 350), "Altitude", 120.,
-                                                "0000,00 m", "green")
+                                          "0000,00 m", "green")
 
-        return {"test": arc_and_text_test, "line_velocity": line_velocity_info, "line_accel": line_axeleration_info, "angle_velocity": angle_velocity,
-               "angle_accel": angle_axeleration, "distance": stage_distance, "altitude": stage_altitude}
-
+        return {"test": arc_and_text_test, "line_velocity": line_velocity_info, "line_accel": line_axeleration_info,
+                "angle_velocity": angle_velocity, "angle_accel": angle_axeleration,
+                "distance": stage_distance, "altitude": stage_altitude}

@@ -63,7 +63,7 @@ class ProjectMainClass(AbstractProject):
         ])
 
         # Модуль конфигурации проекта.
-        self.__cfg: ModuleType = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_NAME))
+        # self.__cfg: ModuleType = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_NAME))
 
         # Список возможных действий актора.
         self.__action_var: List[List[Bit]] = action_variants(JETS_COUNT)
@@ -286,10 +286,6 @@ class ProjectMainClass(AbstractProject):
     @property
     def critic_loss(self) -> LossCriticInterface:
         return CRITIC_LOSS()
-
-    @property
-    def cfg(self) -> ModuleType:
-        return self.__cfg
 
 
 if __name__ == '__main__':

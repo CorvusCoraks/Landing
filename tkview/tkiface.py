@@ -8,7 +8,7 @@ class WindowsMSInterface(ABC):
     """ Интерфейс окна в Windows при использовании Tkinter и Canvas """
     # todo веменное расположение в этом модуле, так как запутанные и конфликтующие импорты
     @abstractmethod
-    def _draw(self):
+    def _draw(self, *args):
         """ метод для периодической перерисовки объектов на канве """
         pass
 

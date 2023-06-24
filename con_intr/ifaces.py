@@ -40,7 +40,7 @@ class DataTypeEnum(Enum):
     STAGE_STATUS = 1    # RealWorldStageStatusN
     # Команда на двигатели
     JETS_COMMAND = 2    # ?
-    # Завершить приложение
+    # Приказ завершить приложение
     APP_FINISH = 3  # True
     # Модуль запрашивает указанное количество тестов
     REQUESTED_TESTS = 4     # int
@@ -49,6 +49,8 @@ class DataTypeEnum(Enum):
     # Готов перейти к следующему батчу
     # READY_FOR_NEXT_BATCH = 6 # True
     ENV_ROAD = 6 # RoadEnum
+    # Запрос на завершение приложения.
+    APP_FINISH_REQUEST = 7
 
 
 class RoadEnum(Enum):

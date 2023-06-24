@@ -8,7 +8,6 @@ from nn_iface.if_state import InterfaceStorage, ProcessStateInterface
 from typing import Dict, Optional, List
 from tools import Reinforcement, Finish
 from basics import TestId, ACTOR_CHAPTER, CRITIC_CHAPTER, ZeroOne
-from structures import RealWorldStageStatusN
 from abc import ABC
 
 
@@ -26,7 +25,7 @@ class TestModel(torch.nn.Module):
 
 class MSE_RLLoss(LossCriticInterface, torch.nn.MSELoss):
     """ Класс функции потерь среднего квадратичного отклонения. """
-    def __init__(self, gamma:float = 0.001, reduction:str = 'mean'):
+    def __init__(self, gamma: float = 0.001, reduction: str = 'mean'):
         torch.nn.MSELoss.__init__(self, reduction)
         self._gamma = gamma
 
@@ -51,7 +50,7 @@ class MSE_RLLoss(LossCriticInterface, torch.nn.MSELoss):
 
 class MSELoss(LossActorInterface, torch.nn.MSELoss):
     """ Просто MSE."""
-    def __init__(self, reduction:str = 'mean'):
+    def __init__(self, reduction: str = 'mean'):
         torch.nn.MSELoss.__init__(self, reduction)
 
     def __call__(self, output: Tensor, target: Tensor):
@@ -106,12 +105,6 @@ class AbstractProject(ProjectInterface, ABC):
         self._training_state.critic_optim_state = self._critic_optimizer.state_dict()
         # сохраняем промежуточное состояние процесса обучения.
         self._training_state.save(self._save_storage_training_state)
-
-    # def del_saved_nn(self) -> None:
-    #     self._save_storage_model.delete()
-    #
-    # def del_saved_state(self) -> None:
-    #     self._save_storage_training_state.delete()
 
     def del_previous_saved(self):
         self._save_storage_model.delete()
@@ -200,4 +193,3 @@ class AbstractProject(ProjectInterface, ABC):
     @property
     def critic_optimizer(self) -> torch.optim.Optimizer:
         return self._critic_optimizer
-

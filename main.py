@@ -13,7 +13,7 @@ from con_intr.ifaces import AppModulesEnum, DataTypeEnum, RoadEnum
 from thrds_tk.neuronet import NeuronetThread
 from thrds_tk.physics import PhysicsThread
 import importlib
-from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE
+from app_cfg import PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_NAME
 from tools import KeyPressCheck
 
 def get_log_handler(out: str):
@@ -31,11 +31,11 @@ def log_init(output: str) -> None:
     logger = getLogger(logger_name)
     logger.setLevel(DEBUG)
 
-    # logger = getLogger(logger_name + '.view')
-    # formatter = Formatter('Визуализация. - %(message)s')
-    # handler = get_log_handler(output)
-    # handler.setFormatter(formatter)
-    # logger.addHandler(handler)
+    logger = getLogger(logger_name + '.view')
+    formatter = Formatter('Визуализация. - %(message)s')
+    handler = get_log_handler(output)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
     logger = getLogger(logger_name + '.physics')
     formatter = Formatter('БФМ. - %(message)s')
@@ -76,7 +76,7 @@ def wires() -> Switchboard:
     # В свою очередь, блок визуализации отправит команду на завершение приложения
     # во ВСЕ блоки приложения (включая и тот, который отправлял запрос.) для завершения их работы.
     # Каналы для запросов закрытия приложения (получатель - модуль визуализации)
-    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH))
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.VIEW, DataTypeEnum.APP_FINISH_REQUEST))
 
     # Сигнальная линия для передачи команд-семафоров из БНС в БФМ.
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.ENV_ROAD))
@@ -91,13 +91,15 @@ if __name__ == "__main__":
     logger.info("Input in {0} module\n".format(__name__))
 
     # RunTime импортирование файла конфигурации проекта.
-    project_cfg = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_FILE[1:-3]))
+    project_cfg = importlib.import_module('{}.{}'.format(PROJECT_DIRECTORY_NAME, PROJECT_CONFIG_NAME))
 
-    keypress: KeyPressCheck = KeyPressCheck("Продолжить обучение? [y] Или начать с нуля?", 'y', ['n'])
-    if keypress.input() == 'y':
-        birth = True
-    else:
-        birth = False
+    # keypress: KeyPressCheck = KeyPressCheck("Продолжить обучение? [y] Или начать с нуля?", 'y', ['n'])
+    # if keypress.input() == 'y':
+    #     birth = True
+    # else:
+    #     birth = False
+
+    birth = True
 
     switchboard = wires()
 
