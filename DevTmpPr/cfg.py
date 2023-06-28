@@ -11,6 +11,9 @@ from states.i_states import IInitStates, IStatesStore
 from states.s_states import InitGenerator, DictStore
 from tools import Finish
 from nn_iface.ifaces import ProjectInterface
+from nn_iface.if_state import InterfaceStorage
+from fl_store.store_en import EnvironmentStateStorage
+
 
 ACTOR_INPUT: List = [Sigmoid()]
 ACTOR_HIDDEN: List = [Linear(9, 9, bias=False), Sigmoid()]
@@ -35,6 +38,8 @@ ANGULAR_ACCELERATION_MINMAX: MinMax = MinMax(-pi / 180, pi / 180)
 
 NN_STORAGE_FILENAME: str = '/nn.pt'
 STATE_STORAGE_FILENAME: str = '/state.pt'
+
+PHYSICS_STATE_STORAGE_FILENAME: str = '/physics.pt'
 
 # Количество реактивных двигателей изделия.
 JETS_COUNT: int = 5
@@ -95,3 +100,5 @@ FINISH = Finish()
 # Сообщение в консоли по штатному завершению работы над проектом.
 # Может отсутствовать, тогда будет выведено сообщение по умолчанию.
 project_report = "Обучение завершено."
+
+ENVIRONMENT_STORAGE: InterfaceStorage = EnvironmentStateStorage(PHYSICS_STATE_STORAGE_FILENAME)

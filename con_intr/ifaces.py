@@ -51,6 +51,8 @@ class DataTypeEnum(Enum):
     ENV_ROAD = 6 # RoadEnum
     # Запрос на завершение приложения.
     APP_FINISH_REQUEST = 7
+    # Сохранить состояния процесса обучения.
+    ENV_SAVE = 8
 
 
 class RoadEnum(Enum):
@@ -61,6 +63,14 @@ class RoadEnum(Enum):
     ALL_AGES_FINISHED = 1
     # Продолжить работу как есть.
     CONTINUE = 3
+
+
+class EnvSaveEnum(Enum):
+    """ Команда на сохранение состояния окружающей среды (из БНС в БФМ). """
+    # Сохранить состояние
+    SAVE_PROCESS_STATE = 0
+    # Сохранение состояния не требуется.
+    CONTINUE = 1
 
 
 class BioEnum(Enum):

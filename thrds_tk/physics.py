@@ -10,13 +10,15 @@ from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCo
 from typing import Dict, Callable
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum, \
-    Inbound, Outbound, RoadEnum, A, D
+    Inbound, Outbound, RoadEnum, EnvSaveEnum, A, D
 from con_simp.contain import Container, BioContainer
 from con_simp.wire import ReportWire
 from physics import Moving
 from copy import deepcopy
 from states.i_states import IStatesStore
 from states.s_states import IInitStates
+from nn_iface.if_state import InterfaceStorage
+import app_cfg
 
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
@@ -76,6 +78,8 @@ class PhysicsThread(IPhysics, AYarn):
         # Условие окончания одного конкретного испытания.
         self.__finish_criterion = project_cfg.FINISH
 
+        self.__environment_storage: InterfaceStorage = project_cfg.ENVIRONMENT_STORAGE
+
         # todo Инкапсулировать внутрь главного метода?
         self.__is_do_app_finish: FinishAppBoolWrapper = FinishAppBoolWrapper()
 
@@ -110,8 +114,8 @@ class PhysicsThread(IPhysics, AYarn):
         :param inbound: словарь исходящих каналов передачи данных
         :param report_line: Канал передачи данной информации.
         :param sleep_time: время сна нити, в ожидании появления очередной команды в канале.
-        :param finish_app_checking: метод, перехватывающий команду на завершение нити
-        и генерирующий исключение завершения нити.
+        :param finish_app_checking: метод, перехватывающий команду на завершение нити и изменяющий app_fin
+        :param app_fin: аргумент - возвращаемое значение, сигнализирующие о наличии команды на завершение приложения.
         :return: Количество испытаний, которое готова обработать нейросеть.
         """
         while not report_line.has_incoming():
@@ -158,9 +162,10 @@ class PhysicsThread(IPhysics, AYarn):
 
         :param waiting_count: количество ожидаемых команд из блока нейросети.
         :param inbound: словарь исходящих каналов передачи данных
-        :param sleep_time: время сна нити, в ожидании появления очередной команды в канале.
-        :param finish_app_checking: метод, перехватывающий команду на завершение нити
-        и генерирующий исключение завершения нити.
+        :param sleep_time: время сна нити, в ожидании появления очередной команды в кана`ле.
+        :param finish_app_checking: метод, перехватывающий команду на завершение нити и изменяющий app_fin
+        :param app_fin: аргумент - возвращаемое значение, сигнализирующие о наличии команды на завершение приложения.
+        :return: Словарь управляющих команд, сгенерированных нейросетью.
         """
 
         result: Dict[TestId, StageControlCommands] = {}
@@ -182,7 +187,9 @@ class PhysicsThread(IPhysics, AYarn):
         """ Подкрепление действий системы управления, которые привели к новому состоянию
 
         :param new_state: новое состояние изделия
-        :param command: команда нейросети, которая привела к этому состоянию. """
+        :param command: команда нейросети, которая привела к этому состоянию.
+        :return: Подкрепление.
+        """
         return ReinforcementValue(new_state.time_stamp,
                                            tools.Reinforcement.get_reinforcement(new_state, command)
                                            )
@@ -226,11 +233,10 @@ class PhysicsThread(IPhysics, AYarn):
             i += 1
             # logger.debug("В НС и Вид отправятся {} испытаний.".format(i))
 
-    def __finalize(self, tests_left: int):
+    def __finalize(self, tests_left: int) -> None:
         """ Финализация работы блока. """
-        logger.info('Поступила команда на завершение приложения. Завершаем нить.')
+        logger.info('Сохранение состояния.')
         if tests_left > 0:
-            # Команда на закрытие приложения, но, так как ещё остались элементы в обучающей выборке,
             # Сохраняем промежуточное состояние.
             #
             # Сохранить состояния находящиеся в процессе испытаний self.__store
@@ -257,14 +263,27 @@ class PhysicsThread(IPhysics, AYarn):
         # Осталось провести запланированных испытаний.
         tests_left: int = self.__max_tests if self.__birth else self.__tests_left_before_break
 
+        # Флаг, предотвращающий два подряд сохранения состояния.
+        is_env_state_already_saved: bool = False
+
         logger.info("Вход в цикл генерации и передачи состояний изделия.")
         while tests_left >= 0:
+            # Один проход по этому циклу соответствует одному прогону батча в Блоке Нейросети.
+
+            # Флаг избежания двойного подряд бессмысленного сохранения состояния окр. среды.
+            # is_env_state_saved: bool = False
+
             # Пока ещё есть испытания в планах, цикл работает.
             logger.info("Испытаний в плане: {}".format(tests_left))
 
             if self.__is_do_app_finish():
                 # Сохранить состояние и выйти.
-                self.__finalize(tests_left)
+                logger.info("Из БВ поступила команда на завершение нити. Завершаем.")
+                if not is_env_state_already_saved:
+                    # Либо проход по циклу первый
+                    # Либо в конце предыдущего прохода сохранения НЕ БЫЛО.
+                    self.__finalize(tests_left)
+                # self.__finalize(tests_left)
                 return
 
             # отправляем в нейросеть количество оставшихся по программе испытаний
@@ -287,17 +306,24 @@ class PhysicsThread(IPhysics, AYarn):
                     # Инициализируем новый объект начальных состояний.
                     self.__initial_states = self.__initial_states.__class__(self.__max_tests)
                     # Заходим на новую эпоху.
-                    logger.info("Вход в новую эпоху.")
+                    logger.info("БНС сообщает: Вход в новую эпоху.")
                     continue
                 case RoadEnum.ALL_AGES_FINISHED:
                     # Команда из БНС: прекращаем обучение (запланированное количество эпох завершилось)
+                    logger.info("БНС сообщает: План по эпохам выполнен.")
                     # Ждём команду от БВ на завершение.
-                    # Сохранять состояние тут без надобности.
-                    logger.info("План по эпохам выполнен.")
+                    while not finish_app_checking(self.__incoming):
+                        # Ждём до упора команду на завершение приложения.
+                        # todo Потенциально опасное место, так как выход из вечного цикла только по команде.
+                        sleep(SLEEP_TIME)
+                    logger.info("БВ приказывает: Завершить блок. Завершаем.")
                     break
                 case RoadEnum.CONTINUE:
                     # Продолжаем движение по алгоритму без изменений.
                     pass
+
+            # Просто так. Так как далее по алгоритму переменная не нужна.
+            del road
 
             # Нейросеть сообщает, какое количество испытаний она готова обработать в этом проходе
             # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
@@ -355,28 +381,20 @@ class PhysicsThread(IPhysics, AYarn):
                     raise KeyError("Requested test identificator is not present in store.")
 
                 # Меняем состояния изделия в словаре текущих испытаний на новые (после применения команд)
-                # if not self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key))):
-                #     raise KeyError("Updated test with this identificator is not present in store.")
                 self.__store.update_state(key, Moving.get_new_status(commands[key], self.__store.get_state(key)))
 
                 state = self.__store.get_state(key)
-
-                # if state is None:
-                #     raise KeyError("Requested test identificator is not present in store.")
 
                 reinf: ReinforcementValue = self.__get_reinforcement(state, commands[key])
                 container: Container = Container(key, reinf)
                 self.__outgoing[AppModulesEnum.NEURO][DataTypeEnum.REINFORCEMENT].send(deepcopy(container))
 
                 # Если данное испытание подошло к концу, исключаем его из общего словаря.
-                # state = self.__store.get_state(key)
                 if state is not None and self.__test_end(state):
                     # Словарь завершённых тестов.
                     fin_states[key] = state
                     # Словарь текущих испытаний, очищенный от завершённых испытаний.
                     self.__store.del_state(key)
-                # elif state is None:
-                #     raise KeyError("Requested test identificator is not present in store.")
 
             # Так как словарь с испытаниями подчистился от тех испытаний, которые уже завершились.
             # То приплюсовываем к количеству незапущенных испытаний, количество "живых" испытаний в обработке.
@@ -390,3 +408,23 @@ class PhysicsThread(IPhysics, AYarn):
                 container: BioContainer = BioContainer(key, BioEnum.FIN, fin_states[key])
                 self.__outgoing[AppModulesEnum.VIEW][DataTypeEnum.STAGE_STATUS].\
                     send(deepcopy(container))
+
+            # Ожидание команды на сохранение состояния окружающей среды.
+            while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_SAVE].has_incoming():
+                sleep(SLEEP_TIME)
+
+            is_env_state_already_saved = False
+
+            # Получение и распаковка команды на сохранение состояния окружающей среды.
+            save = self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_SAVE].receive().unpack()
+            match save:
+                case EnvSaveEnum.SAVE_PROCESS_STATE:
+                    # Сохранение состояния.
+                    is_env_state_already_saved = True
+                    self.__finalize(tests_left)
+                case EnvSaveEnum.CONTINUE:
+                    # Сохранение не требуется.
+                    pass
+
+            # # Просто так. Так как далее по алгоритму переменная не нужна.
+            # del save

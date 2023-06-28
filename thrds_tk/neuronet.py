@@ -9,12 +9,12 @@ from torch import device, float, Tensor
 from typing import Dict, Callable, List
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, AppModulesEnum, DataTypeEnum, \
-    Inbound, Outbound, RoadEnum
+    Inbound, Outbound, RoadEnum, EnvSaveEnum
 from con_simp.contain import Container, BioContainer, EnumContainer
 from con_simp.wire import ReportWire
 from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInterface
 from tools import q_est_init, FinishAppBoolWrapper, finish_app_checking
-from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE
+from app_cfg import PROJECT_MAIN_CLASS, PROJECT_DIRECTORY_NAME, PROJECT_PY_FILE, BATCH_PER_SAVING, EPOCH_PER_SAVING
 
 logger = getLogger(logger_name + '.neuronet')
 
@@ -191,7 +191,12 @@ class NeuronetThread(INeuronet, AYarn):
         # logger.info('Нейросеть. Поступила команда на завершение приложения. Завершаем нить.')
 
     def _yarn_run(self, *args, **kwargs) -> None:
+        # аргумент обёртка, для возвращения значения из методов и функций.
         is_fin_app: FinishAppBoolWrapper = FinishAppBoolWrapper()
+        # Счётчик батчей
+        batch_counter: int = BATCH_PER_SAVING
+        # Счётчик эпох
+        epoch_counter: int = EPOCH_PER_SAVING
         # Проверка линии связи, на наличие встречной линии репорта.
         assert isinstance(self.__inbound[AppModulesEnum.PHYSICS][DataTypeEnum.REMANING_TESTS], ReportWire), \
             'Data wire for remaining tests info should be a ReportWire class. But now is {}'. \
@@ -209,8 +214,13 @@ class NeuronetThread(INeuronet, AYarn):
         # Цикл по эпохам
         # for current_epoch in range(start_epoch, self.__project.state.epoch_stop + 1):
         for current_epoch in it_debug:
+            # Флаг избежания двойного подряд бессмысленного сохранения состояния окр. среды.
+            # is_training_state_already_saved: bool = False
             # Цикл по испытаниям в рамках одной эпохи.
             while True:
+                # Флаг избежания двойного подряд бессмысленного сохранения состояния окр. среды.
+                is_training_state_already_saved = False
+
                 if is_fin_app():
                     self.__finalize(self.__project)
                     logger.info('Поступила команда на завершение приложения. Завершаем нить.')
@@ -345,16 +355,54 @@ class NeuronetThread(INeuronet, AYarn):
                 self.__project.actor_optimizer.step()
                 self.__project.critic_optimizer.step()
 
-                # Сохранение по новым интерфейсам.
-                # todo после каждого батча сохранять не стоит. Надо реже.
-                self.__finalize(self.__project)
+                # # Сохранение по новым интерфейсам.
+                # # todo после каждого батча сохранять не стоит. Надо реже.
+                # self.__finalize(self.__project)
+
+                # Декремент счётчика батчей.
+                batch_counter -= 1
+                if batch_counter == 0:
+                    # Если количество батчей между сохранениями пройдено.
+                    # Отправление в БФМ сигнала на сохранение состояния.
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_SAVE].send(EnumContainer(EnvSaveEnum.SAVE_PROCESS_STATE))
+                    # Восстановление счётчика батчей
+                    batch_counter = BATCH_PER_SAVING
+                    # Сохранение состояния процесса.
+                    self.__finalize(self.__project)
+                    is_training_state_already_saved = True
+                else:
+                    # Сохранение не требуется.
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_SAVE].send(EnumContainer(EnvSaveEnum.CONTINUE))
 
             if current_epoch < self.__project.state.epoch_stop:
                 # Запоминание факта перехода к новой эпохе
                 self.__project.state.epoch_current = current_epoch + 1
-                # Отправка в блок физ. модели указания на начало новой эпохи.
-                self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(RoadEnum.START_NEW_AGE))
+                # Декремент счётчика эпох
+                epoch_counter -= 1
+                if epoch_counter == 0:
+                    # Если количество эпох между сохранениями пройдено.
+                    # Восстанавливаем счётчик эпох.
+                    epoch_counter = EPOCH_PER_SAVING
+                    if not is_training_state_already_saved:
+                        # Двух сохранений подряд не будет.
+                        # Отправляем в БФМ сигнал на сохранение состояния.
+                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_SAVE].send(EnumContainer(EnvSaveEnum.SAVE_PROCESS_STATE))
+                        # Сохраняем состояние процесса.
+                        self.__finalize(self.__project)
+                    else:
+                        # Сохранение не требуется.
+                        self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_SAVE].send(EnumContainer(EnvSaveEnum.CONTINUE))
+                    # Отправка в блок физ. модели указания на начало новой эпохи.
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(RoadEnum.START_NEW_AGE))
             elif current_epoch == self.__project.state.epoch_stop:
+                if not is_training_state_already_saved:
+                    # Двух сохранений подряд не будет.
+                    # Сохранение состояния в хранилище на естественном завершении процесса обучения.
+                    self.__finalize(self.__project)
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_SAVE].send(EnumContainer(EnvSaveEnum.SAVE_PROCESS_STATE))
+                else:
+                    # Сохранение не требуется.
+                    self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_ROAD].send(EnumContainer(EnvSaveEnum.CONTINUE))
                 # Запоминание факта завершения прохода по эпохам.
                 self.__project.state.epoch_current = current_epoch
                 # Запланированное количество эпох исполнено.
@@ -364,5 +412,5 @@ class NeuronetThread(INeuronet, AYarn):
                 logger.info("Отправка в блок визуализации ЗАПРОСА на завершение приложения.")
                 self.__outbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH_REQUEST].send(Container())
 
-            # Сохранение состояния в хранилище на смене эпох (а то и на естественном завершении процесса обучения).
-            self.__finalize(self.__project)
+            # # Сохранение состояния в хранилище на смене эпох (а то и на естественном завершении процесса обучения).
+            # self.__finalize(self.__project)

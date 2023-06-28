@@ -81,6 +81,9 @@ def wires() -> Switchboard:
     # Сигнальная линия для передачи команд-семафоров из БНС в БФМ.
     switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.ENV_ROAD))
 
+    # Команда на сохранение состояния процесса обучения.
+    switchboard.add_wire(Wire(AppModulesEnum.NEURO, AppModulesEnum.PHYSICS, DataTypeEnum.ENV_SAVE))
+
     return switchboard
 
 if __name__ == "__main__":

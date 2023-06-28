@@ -9,3 +9,8 @@ PROJECT_PY_FILE = '/project.py'
 PROJECT_MAIN_CLASS = 'ProjectMainClass'
 PROJECT_CONFIG_FILE = '/cfg.py'
 PROJECT_CONFIG_NAME = PROJECT_CONFIG_FILE[1:-3]
+
+# Промежуточное сохранения состояний каждые ... батчей
+BATCH_PER_SAVING: int = 1
+# Промежуточное сохранение состояний каждые ... эпох
+EPOCH_PER_SAVING: int = 1

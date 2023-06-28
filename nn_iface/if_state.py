@@ -169,5 +169,8 @@ class ProcessStateDataInterface(ABC):
 
 
 class ProcessStateInterface(StateInterfaceSaveLoad, ProcessStateDataInterface, OptimizerStateInterface, ABC):
-    """ Состояние процесса обучения. """
+    """ Состояние процесса обучения Блока Нейросети. """
     ...
+
+
+# class EnvironmentDataStateInterface(StateInterfaceSaveLoad)
