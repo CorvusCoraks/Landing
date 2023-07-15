@@ -35,6 +35,9 @@ class ProjectMainClass(AbstractProject):
     def __init__(self):
         super().__init__()
 
+        # todo путь и имя файла хралища физ. модели стыкуются в БФМ, там же инициализируется объект класса хранилища
+        # Возможно стоит сделать аналогично и тут? Чтобы для нейросети имя файла с путём собирались в БНС?
+        # ИМХО, не очень хорошо, когда проект "заглядывает" в настойки приложения.
         nn_filename = PROJECT_DIRECTORY_PATH + NN_STORAGE_FILENAME
         state_filename = PROJECT_DIRECTORY_PATH + STATE_STORAGE_FILENAME
 

@@ -101,4 +101,5 @@ FINISH = Finish()
 # Может отсутствовать, тогда будет выведено сообщение по умолчанию.
 project_report = "Обучение завершено."
 
-ENVIRONMENT_STORAGE: InterfaceStorage = EnvironmentStateStorage(PHYSICS_STATE_STORAGE_FILENAME)
+# ENVIRONMENT_STORAGE: InterfaceStorage = EnvironmentStateStorage(PHYSICS_STATE_STORAGE_FILENAME)
+ENVIRONMENT_STORAGE: InterfaceStorage = EnvironmentStateStorage

@@ -7,7 +7,7 @@ from thrds_tk.threads import AYarn
 import tools
 from tools import FinishAppBoolWrapper, finish_app_checking
 from structures import RealWorldStageStatusN, ReinforcementValue, StageControlCommands
-from typing import Dict, Callable
+from typing import Dict, Callable, Any, Optional
 from time import sleep
 from con_intr.ifaces import ISocket, ISender, IReceiver, AppModulesEnum, DataTypeEnum, IContainer, BioEnum, \
     Inbound, Outbound, RoadEnum, EnvSaveEnum, A, D
@@ -61,6 +61,11 @@ class PhysicsThread(IPhysics, AYarn):
         """
         AYarn.__init__(self, name)
 
+        # todo Возможно, в дальнейшем, не использовать self.__foo атрибутов, а атрибуты вида self.__project_cfg.FOO?
+        # Будет оперативно видно в коде, что константа или класс взяты из файла настроек проекта.
+        # Но тогда при переносе точки инициализации константы или класса, придётся рефакторить отработанный код...
+        self.__project_cfg = project_cfg
+
         # Загрузка количества элементов в обучающей выборке.
         self.__max_tests = project_cfg.TRANING_SET_LENGTH
 
@@ -73,12 +78,14 @@ class PhysicsThread(IPhysics, AYarn):
                      format(self.__class__.__name__, data_socket, data_socket.get_all_out(),
                             self.__outgoing))
 
-        self.__birth = birth
+        self.__birth: bool = birth
 
         # Условие окончания одного конкретного испытания.
         self.__finish_criterion = project_cfg.FINISH
 
-        self.__environment_storage: InterfaceStorage = project_cfg.ENVIRONMENT_STORAGE
+        self.__environment_storage: InterfaceStorage = \
+            project_cfg.ENVIRONMENT_STORAGE(app_cfg.PROJECT_DIRECTORY_PATH
+                                            + project_cfg.PHYSICS_STATE_STORAGE_FILENAME)
 
         # todo Инкапсулировать внутрь главного метода?
         self.__is_do_app_finish: FinishAppBoolWrapper = FinishAppBoolWrapper()
@@ -236,21 +243,26 @@ class PhysicsThread(IPhysics, AYarn):
     def __finalize(self, tests_left: int) -> None:
         """ Финализация работы блока. """
         logger.info('Сохранение состояния.')
+
+        save_dict: dict[str, Optional[Any]] = {'states_in_work': None, 'initial_states': None, 'tests_left': None}
+
         if tests_left > 0:
             # Сохраняем промежуточное состояние.
             #
             # Сохранить состояния находящиеся в процессе испытаний self.__store
-            #
+            save_dict['states_in_work'] = self.__store
             # Сохранить состояние источника элементов обучающей выборки self.__initial_states
-            #
+            save_dict['initial_states'] = self.__initial_states
             # Сохранить оставшееся число испытаний в обучающей выборке tests_left
-            pass
+            save_dict['tests_left'] = tests_left
         else:
             # Элементов в обучающей выборке не осталось, значит - завершаем обучение.
             #
             # Сохраняем tests_left = 0, как знак того, что обучение в объёме Эры закончено.
+            save_dict['tests_left'] = 0
             # Продолжить ли обучение с новой Эры будет решать при загрузке блок нейросети.
-            pass
+
+        self.__environment_storage.save(save_dict)
 
     def _yarn_run(self, *args, **kwargs) -> None:
         logger.info('Вход в нить.')

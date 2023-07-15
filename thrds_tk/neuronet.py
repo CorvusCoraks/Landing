@@ -359,6 +359,7 @@ class NeuronetThread(INeuronet, AYarn):
                 # # todo после каждого батча сохранять не стоит. Надо реже.
                 # self.__finalize(self.__project)
 
+                # Сохранение состояний в рамках потока батчей.
                 # Декремент счётчика батчей.
                 batch_counter -= 1
                 if batch_counter == 0:
@@ -372,11 +373,16 @@ class NeuronetThread(INeuronet, AYarn):
                     is_training_state_already_saved = True
                 else:
                     # Сохранение не требуется.
+                    # is_training_state_already_saved is _False_!
+                    # _Внутри_эпоховая_ команда продолжать процесс.
                     self.__outbound[AppModulesEnum.PHYSICS][DataTypeEnum.ENV_SAVE].send(EnumContainer(EnvSaveEnum.CONTINUE))
 
+            # Команды EnvSaveEnum.CONTINUE внутри этого блока не сдублируют такую же _внутри_эпоховую_ команду,
+            # так как будут поданы (и будут получены) уже на следующем проходе в БНС и БФМ.
             if current_epoch < self.__project.state.epoch_stop:
                 # Запоминание факта перехода к новой эпохе
                 self.__project.state.epoch_current = current_epoch + 1
+                # Сохранение на границе эпох.
                 # Декремент счётчика эпох
                 epoch_counter -= 1
                 if epoch_counter == 0:
@@ -411,6 +417,3 @@ class NeuronetThread(INeuronet, AYarn):
                 # Отправка в блок визуализации ЗАПРОСА на завершение приложения.
                 logger.info("Отправка в блок визуализации ЗАПРОСА на завершение приложения.")
                 self.__outbound[AppModulesEnum.VIEW][DataTypeEnum.APP_FINISH_REQUEST].send(Container())
-
-            # # Сохранение состояния в хранилище на смене эпох (а то и на естественном завершении процесса обучения).
-            # self.__finalize(self.__project)
