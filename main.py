@@ -1,8 +1,8 @@
 """ Главный файл. Диспетчер. Здесь создаются нити для параллельного исполнения """
-import basics
+import app_cons
 import sys
 
-from basics import log_file_name, logger_name
+from app_cons import log_file_name, logger_name
 from logging import getLogger, FileHandler, StreamHandler, Formatter, DEBUG
 from stage import Sizes, BigMap
 from tkview.tkview import TkinterView
@@ -102,7 +102,13 @@ if __name__ == "__main__":
     # else:
     #     birth = False
 
+    # Начать обучение с нуля!
     birth = True
+
+    command: str = input("Продолжить обучение? [y] Или начать с нуля? 'n' >>>")
+    if command == 'y':
+        # Продолжить обучение по предыщущей сессии. Рождения не будет.
+        birth = False
 
     switchboard = wires()
 
@@ -145,4 +151,4 @@ if __name__ == "__main__":
         print(project_cfg.project_report)
     else:
         # Или сообщение по умолчанию.
-        print(basics.DEFAULT_REPORT)
+        print(app_cons.DEFAULT_REPORT)

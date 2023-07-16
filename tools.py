@@ -4,7 +4,7 @@ from stage import Sizes, BigMap
 from structures import RealWorldStageStatusN, StageControlCommands, ReinforcementValue
 from typing import TypeVar, Dict, AnyStr, List, Optional, Callable, overload
 from enum import Enum
-from basics import ZeroOne, Bit
+from app_type import ZeroOne, Bit
 from random import random
 from con_intr.ifaces import Inbound, DataTypeEnum, AppModulesEnum
 import time
@@ -240,6 +240,7 @@ class ZeroOrOne(Enum):
 class KeyPressCheck:
     """ Класс получения из консоли введённых пользователем данных.
     """
+    # todo работает через задницу, поэтому отлючил использование. Удалить на фиг?
     def _press_enter_simulation(self):
         """ Платформозависимая эмуляция нажатия клавиши Enter. """
         if platform.system() == 'Linux':

@@ -1,7 +1,7 @@
 """ Разнообразные контейнеры. """
 from con_intr.ifaces import TransferredData, About, IContainer, BioEnum, D
 from typing import Optional, Tuple
-from basics import TestId
+from app_type import TestId
 
 
 class Container(IContainer):

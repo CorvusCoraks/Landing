@@ -4,7 +4,7 @@ from typing import List
 from typing import TypeVar, Dict, Optional, Tuple, Union
 from point import VectorComplex
 import asyncio
-from basics import COROUTINE_SLEEP_TIME
+from app_cons import COROUTINE_SLEEP_TIME
 import unittest
 
 NeuronNetInput = TypeVar('NeuronNetInput', VectorComplex, float, int)

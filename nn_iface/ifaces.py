@@ -6,9 +6,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List
 from nn_iface.if_state import ProcessStateInterface
 from tools import Reinforcement, Finish
-from basics import TestId
+from app_type import TestId, ZeroOne
 from structures import RealWorldStageStatusN
-from basics import ZeroOne
 
 
 class LossCriticInterface(ABC):

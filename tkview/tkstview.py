@@ -12,7 +12,8 @@ from structures import RealWorldStageStatusN
 from con_intr.ifaces import ISocket, IReceiver, ISender, BioEnum
 from tkview.view_chn import ViewParts, ViewData
 from time import sleep
-from basics import TestId, SLEEP_TIME
+from app_cons import SLEEP_TIME
+from app_type import TestId
 from con_simp.contain import BioContainer
 
 ViewInbound = Dict[ViewParts, Dict[ViewData, IReceiver]]

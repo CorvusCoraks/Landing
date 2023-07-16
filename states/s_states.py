@@ -1,7 +1,7 @@
 """ Реализация хранилища испытаний в виде словаря. """
 from typing import Optional, Tuple, Dict, List, overload
 from states.i_states import IStatesStore, IInitStates
-from basics import TestId
+from app_type import TestId
 from structures import RealWorldStageStatusN
 # from typing import Dict
 from copy import deepcopy

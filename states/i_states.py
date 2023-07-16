@@ -1,7 +1,7 @@
 """ Интерфейсы инициализируемых состояний и хранилища текущих состояний. """
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Dict, overload
-from basics import TestId
+from app_type import TestId
 from structures import RealWorldStageStatusN
 
 # IIninitStates -> InitGanerator

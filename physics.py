@@ -5,7 +5,7 @@ import cmath
 from decart import complexChangeSystemCoordinatesUniversal
 from structures import StageControlCommands, RealWorldStageStatusN
 from tools import math_int
-from basics import GRAVITY_ACCELERATION_ABS
+from app_cons import GRAVITY_ACCELERATION_ABS
 
 # Физическая модель ступени представляет из себя три жёстко связанные точки (лежат на оси ступени)
 # массой m1 (центр дна ракеты), m2 (средняя точка, центр масс), m3 (верх ступени)

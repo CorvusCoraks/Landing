@@ -5,6 +5,9 @@ from point import VectorComplex
 # ViewInterface (Abstract Factory) -> AnotherView (Concrete Factory)
 #           └-> TkinterView (Concrete Factory)
 
+# todo Правильнее переделать так, чтобы для приложения было всё равно, какая задача решается в конкретном проекте.
+# То есть, ViewInterface должен задавать интерфейс визуализации любых данных любых проектов.
+
 class ViewInterface(ABC):
     """ AbstractFactory. Интерфейс отображения процесса выполнения программы. """
     # примитивы, отображающие что-либо конкретно, описываются в конкретной фабрике.

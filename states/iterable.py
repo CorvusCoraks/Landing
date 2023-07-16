@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from math import pi
 from typing import Iterable, Tuple, Optional
-from basics import TestId
+from app_type import TestId
 from point import VectorComplex
 from stage import BigMap
 from structures import RealWorldStageStatusN

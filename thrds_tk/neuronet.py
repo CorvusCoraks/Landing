@@ -1,7 +1,8 @@
 from types import ModuleType
 import importlib
 from logging import getLogger
-from basics import logger_name, TestId, SLEEP_TIME, ZeroOne
+from app_cons import logger_name, SLEEP_TIME
+from app_type import TestId, ZeroOne
 from ifc_flow.i_flow import INeuronet
 from thrds_tk.threads import AYarn
 from structures import StageControlCommands, RealWorldStageStatusN, ReinforcementValue

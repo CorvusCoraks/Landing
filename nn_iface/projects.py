@@ -7,7 +7,8 @@ from nn_iface.ifaces import ProjectInterface, LossCriticInterface, LossActorInte
 from nn_iface.if_state import InterfaceStorage, ProcessStateInterface
 from typing import Dict, Optional, List
 from tools import Reinforcement, Finish
-from basics import TestId, ACTOR_CHAPTER, CRITIC_CHAPTER, ZeroOne
+from app_cons import ACTOR_CHAPTER, CRITIC_CHAPTER
+from app_type import TestId, ZeroOne
 from abc import ABC
 
 

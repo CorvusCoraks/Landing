@@ -10,7 +10,8 @@ from fl_store.store_st import StateStorage
 from typing import Dict, Optional, List, Tuple
 from net import NetSeq
 from tools import Reinforcement, Finish, action_variants, zo
-from basics import TestId, TENSOR_DTYPE, TENSOR_INDEX_DTYPE, CUDA0, CPU, ZeroOne, Bit
+from app_cons import CUDA0, CPU
+from app_type import TestId, ZeroOne, Bit, TENSOR_DTYPE, TENSOR_INDEX_DTYPE
 from structures import RealWorldStageStatusN
 from math import atan2
 from nn_iface.norm import ListMinMaxNormalization

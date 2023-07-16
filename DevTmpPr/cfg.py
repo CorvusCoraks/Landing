@@ -1,10 +1,10 @@
-""" Настройки проекта. """
+""" Настройки конкретного проекта. """
 from torch.nn import Sequential, Sigmoid, Linear
 import torch.optim
 from typing import List, Dict, Any, Type
 from nn_iface.norm import MinMaxXY, MinMax, MinFloat, MaxFloat
 from nn_iface.ifaces import LossCriticInterface
-from basics import GRAVITY_ACCELERATION_ABS
+from app_cons import GRAVITY_ACCELERATION_ABS
 from math import pi
 from nn_iface.projects import MSE_RLLoss, MSELoss, LossActorInterface, LossCriticInterface
 from states.i_states import IInitStates, IStatesStore

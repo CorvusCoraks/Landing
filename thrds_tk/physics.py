@@ -1,6 +1,6 @@
 # todo Физическую модель перенести в директорию проекта, так как реализация окр. среды относится к конкретному проекту
 from types import ModuleType
-from basics import logger_name, TestId, SLEEP_TIME
+from app_type import EnvDictType, TestId
 from logging import getLogger
 from ifc_flow.i_flow import IPhysics
 from thrds_tk.threads import AYarn
@@ -19,6 +19,7 @@ from states.i_states import IStatesStore
 from states.s_states import IInitStates
 from nn_iface.if_state import InterfaceStorage
 import app_cfg
+import app_cons
 
 
 # Необходима синхронизация обрабатываемых данных в разных нитях.
@@ -46,7 +47,7 @@ import app_cfg
 # _Допущение_ Считаем, что изменение динамических и статических параметров изделия пренебрежимо мало
 # за время отработки данных нейросетью.
 
-logger = getLogger(logger_name + '.physics')
+logger = getLogger(app_cons.logger_name + '.physics')
 
 
 class PhysicsThread(IPhysics, AYarn):
@@ -103,10 +104,12 @@ class PhysicsThread(IPhysics, AYarn):
             self.__tests_left_before_break: int = -1
         else:
             # todo Загрузить реальное значение вместо Ellipsis
+            # Загрузка словаря с данными.
+            data_dict: EnvDictType = self.__environment_storage.load()
             # загрузка сериализованных объектов предыдущего этапа прерванного обучения.
-            self.__initial_states: IInitStates = ...
-            self.__store: IStatesStore = ...
-            self.__tests_left_before_break: int = ...
+            self.__initial_states: IInitStates = data_dict[app_cons.INITIAL_STATES]
+            self.__store: IStatesStore = data_dict[app_cons.STATES_IN_WORK]
+            self.__tests_left_before_break: int = data_dict[app_cons.TESTS_LEFT]
 
     def initialization(self) -> None:
         pass
@@ -244,22 +247,24 @@ class PhysicsThread(IPhysics, AYarn):
         """ Финализация работы блока. """
         logger.info('Сохранение состояния.')
 
-        save_dict: dict[str, Optional[Any]] = {'states_in_work': None, 'initial_states': None, 'tests_left': None}
+        save_dict: EnvDictType = {app_cons.STATES_IN_WORK: None,
+                                  app_cons.INITIAL_STATES: None,
+                                  app_cons.TESTS_LEFT: None}
 
         if tests_left > 0:
             # Сохраняем промежуточное состояние.
             #
             # Сохранить состояния находящиеся в процессе испытаний self.__store
-            save_dict['states_in_work'] = self.__store
+            save_dict[app_cons.STATES_IN_WORK] = self.__store
             # Сохранить состояние источника элементов обучающей выборки self.__initial_states
-            save_dict['initial_states'] = self.__initial_states
+            save_dict[app_cons.INITIAL_STATES] = self.__initial_states
             # Сохранить оставшееся число испытаний в обучающей выборке tests_left
-            save_dict['tests_left'] = tests_left
+            save_dict[app_cons.TESTS_LEFT] = tests_left
         else:
             # Элементов в обучающей выборке не осталось, значит - завершаем обучение.
             #
             # Сохраняем tests_left = 0, как знак того, что обучение в объёме Эры закончено.
-            save_dict['tests_left'] = 0
+            save_dict[app_cons.TESTS_LEFT] = 0
             # Продолжить ли обучение с новой Эры будет решать при загрузке блок нейросети.
 
         self.__environment_storage.save(save_dict)
@@ -305,7 +310,7 @@ class PhysicsThread(IPhysics, AYarn):
 
             # Ждём обязательных распоряжений от БНС
             while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].has_incoming():
-                sleep(SLEEP_TIME)
+                sleep(app_cons.SLEEP_TIME)
 
             # Распоряжение получено.
             road = self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_ROAD].receive().unpack()
@@ -327,7 +332,7 @@ class PhysicsThread(IPhysics, AYarn):
                     while not finish_app_checking(self.__incoming):
                         # Ждём до упора команду на завершение приложения.
                         # todo Потенциально опасное место, так как выход из вечного цикла только по команде.
-                        sleep(SLEEP_TIME)
+                        sleep(app_cons.SLEEP_TIME)
                     logger.info("БВ приказывает: Завершить блок. Завершаем.")
                     break
                 case RoadEnum.CONTINUE:
@@ -341,7 +346,8 @@ class PhysicsThread(IPhysics, AYarn):
             # Когда осталось 0 испытаний, блок физ. модели либо получит указание на новую эпоху,
             # либо зависнет в вызове этой функции в ожидании команды на завершение приложения.
             requested_states_count = self.__get_states_count(self.__incoming, report_wire.get_report_receiver(),
-                                                             SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
+                                                             app_cons.SLEEP_TIME, finish_app_checking,
+                                                             self.__is_do_app_finish)
             # logger.debug("НС готова принять состояний: {}".format(requested_states_count))
 
             assert tests_left >= requested_states_count, \
@@ -374,7 +380,7 @@ class PhysicsThread(IPhysics, AYarn):
             # Получение команд из блока нейросети.
             commands: Dict[TestId, StageControlCommands] = \
                 self.__command_waiting(requested_states_count, self.__incoming,
-                                       SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
+                                       app_cons.SLEEP_TIME, finish_app_checking, self.__is_do_app_finish)
 
             assert len(commands) == requested_states_count, \
                 "Ошибка! Количество полученных из блока нейросети команд - {}, должно быть равно количеству " \
@@ -423,7 +429,7 @@ class PhysicsThread(IPhysics, AYarn):
 
             # Ожидание команды на сохранение состояния окружающей среды.
             while not self.__incoming[AppModulesEnum.NEURO][DataTypeEnum.ENV_SAVE].has_incoming():
-                sleep(SLEEP_TIME)
+                sleep(app_cons.SLEEP_TIME)
 
             is_env_state_already_saved = False
 

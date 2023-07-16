@@ -3,7 +3,7 @@ from typing import Dict
 from threading import Thread
 from queue import Queue
 from time import sleep
-from basics import SLEEP_TIME
+from app_cons import SLEEP_TIME
 from fl_store.pt_store import TorchFileStorage
 
 
